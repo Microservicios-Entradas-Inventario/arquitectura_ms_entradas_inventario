@@ -30,7 +30,7 @@ El alcance funcional del microservicio está definido en 9 historias de usuario 
 3. **HU-03:** Reserva temporal de cupo (Hold).
 4. **HU-04:** Visualización de detalles de la entrada adquirida.
 5. **HU-05:** Recepción de código QR de acceso.
-6.--**HU-06:** Ajuste manual de stock por el administrador.--
+6. ~~**HU-06:** Ajuste manual de stock por el administrador.~~
 7. **HU-07:** Solicitud de notificación por stock agotado.
 8. **HU-08:** Límite de obtención de entradas gratuitas.
 9. **HU-09:** Emisión definitiva tras pago aprobado.
@@ -69,5 +69,3 @@ cp .env.example .env
 
 # 4. Levantar los servicios con Docker Compose (Node.js + MongoDB local)
 docker-compose up --build
-```
-*(Nota: Para probar la integración completa, se requiere estar conectado a la red Docker compartida que provee el API Gateway y el Broker del equipo de Plataforma).*
