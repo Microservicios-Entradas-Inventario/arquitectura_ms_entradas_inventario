@@ -59,7 +59,7 @@ El desarrollo está estructurado en 4 Sprints iterativos, alineados con las entr
 
 ```bash
 # 1. Clonar el repositorio
-git clone [https://github.com/tu-organizacion/ticketu-entradas.git](https://github.com/tu-organizacion/ticketu-entradas.git)
+git clone https://github.com/Microservicios-Entradas-Inventario/arquitectura_ms_entradas_inventario.git
 
 # 2. Entrar al directorio del servicio
 cd ticketu-entradas
