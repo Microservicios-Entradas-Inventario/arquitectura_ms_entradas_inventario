@@ -6,9 +6,10 @@ El proyecto está construido bajo una arquitectura de microservicios, operando c
 
 ## 👥 Equipo de Desarrollo (Grupo 3)
 * **Sebastián Fuentes** - Scrum Master
-* **Felipe Castro** - Desarrollador
-* **Renato Herrera** - Desarrollador
-* **Esteban Quinteros** - Desarrollador
+* **Felipe Castro** - Desarrollador Frontend
+* **Renato Herrera** - Desarrollador Base de datos
+* **Esteban Quinteros** - Desarrollador Backend
+* **Bastián -- ** - QA
 
 ## 🛠️ Stack Tecnológico
 * **Backend:** Node.js
