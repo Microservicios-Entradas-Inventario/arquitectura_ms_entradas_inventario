@@ -1,0 +1,1 @@
+# arquitectura_ms_entradas_inventario
