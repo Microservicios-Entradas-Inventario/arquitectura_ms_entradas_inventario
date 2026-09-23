@@ -9,7 +9,7 @@ El proyecto está construido bajo una arquitectura de microservicios, operando c
 * **Felipe Castro** - Desarrollador Frontend
 * **Renato Herrera** - Desarrollador Base de datos
 * **Esteban Quinteros** - Desarrollador Backend
-* **Bastián -- ** - QA
+* **Bastián Parra** - QA
 
 ## 🛠️ Stack Tecnológico
 * **Backend:** Node.js
