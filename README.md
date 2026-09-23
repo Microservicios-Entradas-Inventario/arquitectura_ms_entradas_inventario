@@ -5,7 +5,7 @@ Microservicio central del ecosistema **TicketU** (plataforma de venta y gestión
 El proyecto está construido bajo una arquitectura de microservicios, operando con su propia base de datos independiente (*Database per Service*) y comunicándose con el resto del sistema mediante el API Gateway (REST) y un broker de eventos asíncronos.
 
 ## 👥 Equipo de Desarrollo (Grupo 3)
-* **Sebastián Fuentes** - Scrum Master
+* **Sebastián Fuentes** - Scrum Master, Integración
 * **Felipe Castro** - Desarrollador Frontend
 * **Renato Herrera** - Desarrollador Base de datos
 * **Esteban Quinteros** - Desarrollador Backend
