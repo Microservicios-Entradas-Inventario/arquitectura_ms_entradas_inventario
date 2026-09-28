@@ -1,0 +1,6 @@
+catalogo/evt-001   --- evento pagado
+catalogo/evt-002   --- evento gratuito
+catalogo/evt-003   --- evento agotado
+
+entradas           --- calculo y descuento
+entradas/confirmacion --- QR
