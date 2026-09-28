@@ -1,0 +1,50 @@
+Project TicketuEntradas {
+  database_type: 'MongoDB'
+  Note: 'Microservicio de Entradas (Inventario, Reservas y Entradas)'
+}
+
+Table inventario_evento {
+  _id objectId [note: "NOT NULL"]
+  id_evento string [pk, note: "NOT NULL"]
+  id_usuario string [note: "FK Ext NOT NULL"]
+  rol_usuario string [note: "NOT NULL"]
+  tipo_entrada string [note: "NOT NULL"]
+  precio_unitario int [note: "NOT NULL"]
+  stock_inicial int [note: "NOT NULL"]
+  stock_actual int [note: "NOT NULL"]
+  cantidad_entrada_reservada int [note: "NOT NULL"]
+  cantidad_entrada_comprada int [note: "NOT NULL"]
+  maximo_ticket int [note: "NOT NULL"]
+  estado_gestion string [note: "NOT NULL"]
+  fecha_actualizacion date [note: "NOT NULL"]
+}
+
+Table reserva_entrada {
+  _id objectId [note: "NOT NULL"]
+  id_reserva string [pk, note: "NOT NULL"]
+  id_evento string [ref: > inventario_evento.id_evento, note: "FK NOT NULL"]
+  id_usuario string [note: "FK Ext NOT NULL"]
+  rol_usuario string [note: "NOT NULL"]
+  cantidad_entrada int [note: "NOT NULL"]
+  id_promocion string [note: "FK Ext NULLABLE"]
+  porcentaje_descuento int [note: "NOT NULL"]
+  monto_total int [note: "NOT NULL"]
+  id_pago string [note: "FK Ext NULLABLE"]
+  estado_reserva string [note: "NOT NULL"]
+  fecha_creacion date [note: "NOT NULL"]
+  fecha_expiracion date [note: "NULLABLE"]
+}
+
+Table entrada {
+  _id objectId [note: "NOT NULL"]
+  id_entrada string [pk, note: "NOT NULL"]
+  id_reserva string [ref: > reserva_entrada.id_reserva, note: "FK NOT NULL"]
+  id_usuario string [note: "FK Ext NOT NULL"]
+  rol_usuario string [note: "NOT NULL"]
+  tipo_acceso string [note: "NOT NULL"]
+  precio_final_pagado int [note: "NOT NULL"]
+  estado_entrada string [note: "NOT NULL"]
+  nombre_archivo_qr string [note: "NOT NULL"]
+  qr_data string [note: "NOT NULL"]
+  fecha_emision date [note: "NOT NULL"]
+}

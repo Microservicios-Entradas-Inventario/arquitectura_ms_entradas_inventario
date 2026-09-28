@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: ticketu_entradas_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ticketu_entradas_db
+    volumes:
+      - ./database/init_db.js:/docker-entrypoint-initdb.d/init_db.js:ro
+      - mongo_entradas_data:/data/db
+
+volumes:
+  mongo_entradas_data:
