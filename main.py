@@ -76,59 +76,95 @@ async def obtener_disponibilidad(id_evento: str):
     **Flujo:**
     1. Recibe el ID del evento.
     2. Consulta en la base de datos la colección `inventario_evento`.
-    3. Retorna la cantidad de stock disponible y el precio unitario.
+    3. Retorna la cantidad de stock disponible y expone si la categoría es PAGADA o GRATUITA.
     
     **Códigos HTTP Posibles:**
     - `200 OK`: Datos obtenidos correctamente.
     - `404 Not Found`: No existe inventario asociado al evento solicitado.
     """
-    return {"id_evento": id_evento, "stock_actual": 148, "tipo_entrada": "PAGADA", "precio_unitario": 10000}
+    return {
+        "id_evento": id_evento, 
+        "stock_actual": 148, 
+        "tipo_entrada": "PAGADA", # Cumple HU-01: Exponer si requiere pago o es directa
+        "precio_unitario": 10000
+    }
 
 @app.post(
     "/api/v1/reservas", 
     tags=["Reservas (BE1)"], 
     response_model=ReservaResponse,
-    responses={200: {"description": "Reserva creada y cobro iniciado"}, 400: {"description": "Datos inválidos o stock insuficiente"}}
+    responses={200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 400: {"description": "Límite superado, datos inválidos o stock insuficiente"}}
 )
 async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = Header(None)):
     """
-    **Propósito:** Crear una reserva temporal de entradas (Soporte a HU-03).
+    **Propósito:** Crear una reserva temporal de entradas o emitir entradas gratuitas directamente (Soporte a HU-02 y HU-03).
     
     **Parámetros:**
-    - `reserva` (Body): Objeto que contiene `id_evento`, `id_usuario` y `cantidad_entradas`.
-    - `authorization` (Header): Token JWT del usuario para validación de origen en Catálogo.
+    - `reserva` (Body): Objeto que contiene `id_evento`, `id_usuario` y `cantidad_entradas` (debe ser mayor a 0).
+    - `Authorization` (Header): Token JWT del usuario para validación de origen en Catálogo.
     
     **Flujo:**
-    1. **Promociones (Síncrono):** Consulta el descuento aplicable según contrato.
-    2. Calcula el valor total restando el porcentaje de descuento obtenido.
-    3. **Pagos (Síncrono):** Solicita a Pagos el inicio de un cobro, obteniendo un ID de pago en estado PENDIENTE.
-    4. **Catálogo (Síncrono):** Llama a Catálogo para actualizar el aforo restante enviando el token de sesión.
-    5. Retorna los detalles de la reserva junto con el estado del pago.
+    1. **Validación (HU-02):** Verifica que la cantidad no supere el límite máximo permitido por transacción y que exista stock suficiente.
+    2. **Identificación (HU-02):** Si el evento es GRATUITO, emite el ticket directamente y lo distribuye a Check-in y Notificaciones.
+    3. Si el evento es PAGADO:
+       - **Promociones:** Consulta el descuento aplicable.
+       - **Pagos:** Solicita a Pagos el inicio de un cobro, obteniendo un ID de pago pendiente.
+    4. **Catálogo:** Actualiza el aforo restante enviando el token de sesión.
+    5. Retorna los detalles de la reserva junto con el estado (CONSOLIDADO para gratuitas, PENDIENTE para pagadas).
     
     **Códigos HTTP Posibles:**
-    - `200 OK`: Reserva pre-aprobada exitosamente.
-    - `400 Bad Request`: Stock insuficiente o error en parámetros obligatorios.
+    - `200 OK`: Reserva pre-aprobada o ticket gratuito emitido exitosamente.
+    - `400 Bad Request`: Límite máximo superado, stock insuficiente o error en parámetros obligatorios.
     """
     token = authorization.replace("Bearer ", "") if authorization else "dummy_token"
 
-    # Invocación a Promociones
-    promo = await PromocionesService.consultar_promocion_vigente(reserva.id_evento, reserva.id_usuario, reserva.cantidad_entradas)
-    descuento = promo.get("porcentaje_descuento", 0)
-    monto_total = (10000 * reserva.cantidad_entradas) * (1 - descuento/100)
-    
-    # Invocación a Pagos
-    pago = await PagosService.iniciar_cobro("res-98765", int(monto_total), reserva.id_usuario)
+    # Simulación de datos de la base de datos para evaluar reglas de negocio (HU-02)
+    maximo_permitido = 4
+    stock_actual = 148
+    tipo_entrada = "PAGADA" # Imagina que esto viene de la base de datos
 
-    # Invocación a Catálogo
-    await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, 148 - reserva.cantidad_entradas, token)
+    # ==========================
+    # Criterio de Aceptación HU-02: Validar cantidad > 0 (Pydantic) y <= límite máximo
+    # ==========================
+    if reserva.cantidad_entradas > maximo_permitido:
+        raise HTTPException(status_code=400, detail=f"Tu selección supera el límite máximo permitido por transacción ({maximo_permitido}).")
+    if reserva.cantidad_entradas > stock_actual:
+        raise HTTPException(status_code=400, detail="No hay stock suficiente para esta selección.")
 
-    return {
-        "id_reserva": "res-98765",
-        "estado": pago.get("estado", "PENDIENTE"),
-        "monto_total": int(monto_total),
-        "descuento_aplicado": descuento,
-        "id_pago_pendiente": pago.get("id_pago")
-    }
+    # ==========================
+    # Criterio de Aceptación HU-02: Direccionar flujo según categoría
+    # ==========================
+    if tipo_entrada == "GRATUITA":
+        # Flujo de emisión directa (Sin pasar por pagos)
+        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, token)
+        
+        qr_data = f"https://storage.midominio.com/qr/gratis-{reserva.id_evento}.png"
+        await CheckinService.registrar_ticket_puerta("tk-gratis-111", reserva.id_evento, reserva.id_usuario, qr_data)
+        await NotificacionesService.enviar_ticket_correo(reserva.id_usuario, "Evento Gratuito", "2026-12-01T10:00:00Z", qr_data)
+
+        return {
+            "id_reserva": "res-directa-001",
+            "estado": "CONSOLIDADO",
+            "monto_total": 0,
+            "descuento_aplicado": 0,
+            "id_pago_pendiente": None
+        }
+    else:
+        # Flujo original de Reserva Temporal y Pago (HU-03)
+        promo = await PromocionesService.consultar_promocion_vigente(reserva.id_evento, reserva.id_usuario, reserva.cantidad_entradas)
+        descuento = promo.get("porcentaje_descuento", 0)
+        monto_total = (10000 * reserva.cantidad_entradas) * (1 - descuento/100)
+        
+        pago = await PagosService.iniciar_cobro("res-98765", int(monto_total), reserva.id_usuario)
+        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, token)
+
+        return {
+            "id_reserva": "res-98765",
+            "estado": pago.get("estado", "PENDIENTE"),
+            "monto_total": int(monto_total),
+            "descuento_aplicado": descuento,
+            "id_pago_pendiente": pago.get("id_pago")
+        }
 
 # ==========================================
 # ÍTEM BE3: SERVICIOS REQUERIDOS POR OTROS MÓDULOS
@@ -142,14 +178,14 @@ async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = 
 )
 async def validar_entrada_para_checkin(id_entrada: str):
     """
-    **Propósito:** Permitir al módulo de **Check-in** recuperar la data del código QR y nombre de usuario para validación en puerta en caso de error asíncrono.
+    **Propósito:** Permitir al módulo de **Check-in** recuperar la data del código QR y nombre de usuario para validación en puerta.
     
     **Parámetros:**
     - `id_entrada` (Path): El identificador de la entrada a verificar.
     
     **Flujo:**
     1. Recibe el ID de la entrada física.
-    2. Busca los detalles asociados en la base de datos local.
+    2. Busca los detalles en la base de datos local.
     3. Retorna la información necesaria para desencriptar el QR y corroborar la identidad.
     
     **Códigos HTTP Posibles:**
@@ -239,8 +275,8 @@ async def procesar_pago_aprobado(id_reserva: str):
     **Flujo:**
     1. Escucha la aprobación del flujo de dinero.
     2. Se consolida el ticket de acceso y se genera la metadata del código QR.
-    3. **Check-in:** Envío en paralelo del ticket a la API de control en puerta.
-    4. **Notificaciones:** Envío en paralelo de orden de correo electrónico al cliente.
+    3. **Check-in (Síncrono):** Envío en paralelo del ticket a la API de control en puerta.
+    4. **Notificaciones (Síncrono):** Envío en paralelo de orden de correo electrónico al cliente.
     
     **Códigos HTTP Posibles:**
     - `200 OK`: Flujo de validación post-pago finalizado de manera exitosa.
