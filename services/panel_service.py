@@ -7,9 +7,9 @@ class PanelService:
     @classmethod
     async def obtener_info_evento(cls, id_evento: str) -> Optional[Dict]:
         """
-        Contrato: Panel Organizador <-> Entradas / Inventario v1.2
+        Contrato: Panel Organizador <-> Entradas / Inventario v3.0
         Consumidor: Entradas / Inventario
-        Propósito: Recuperar o validar información maestra del evento ante desincronización.
+        Propósito: Fallback para rehidratar BD, o consultar estado ("CANCELADO") antes de operar.
         """
         url = f"{cls.BASE_URL}/api/v1/panel/eventos/{id_evento}"
         
