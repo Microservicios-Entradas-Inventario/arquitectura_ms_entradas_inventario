@@ -1,54 +1,123 @@
 # 🎟️ TicketU - Backend API (Entradas e Inventario)
 
-Bienvenido a la rama `backend` del microservicio de **Entradas e Inventario** del proyecto TicketU. Esta rama contiene exclusivamente el código fuente y las integraciones API de nuestro módulo, desarrollado con **FastAPI**.
+Bienvenido a la rama `backend` del microservicio de **Entradas e Inventario** del proyecto TicketU. Esta rama contiene exclusivamente el código fuente, base de datos e integraciones de API de nuestro módulo, desarrollado con **FastAPI** y **MongoDB**.
 
 ## 👥 Responsable del Rol Backend
 * **Esteban Quinteros** - Desarrollador Backend
 
 ## 🛠️ Stack Tecnológico
-* **Framework:** FastAPI (Python 3.14+)
-* **Servidor ASGI:** Uvicorn
-* **Validación de Datos:** Pydantic
-* **Cliente HTTP Asíncrono:** HTTPX (para invocación a otros microservicios)
+* **Framework Web:** FastAPI (Python 3.12+)
+* **Servidor ASGI:** Uvicorn con recarga en caliente (`--reload`)
+* **Base de Datos NoSQL:** MongoDB con driver asíncrono `motor`
+* **Validación & Serialización:** Pydantic v2
+* **Cliente HTTP Asíncrono:** HTTPX (con SLAs y timeouts estrictos para comunicación inter-servicios)
+* **Contenedores:** Docker & Docker Compose (para despliegue local de MongoDB y Mongo Express)
 
 ---
 
-## 📦 Resumen de esta Rama (Evaluación 1)
+## 🏛️ Estructura del Proyecto
 
-Esta rama ha sido adaptada y limpiada estrictamente para cumplir con la Rúbrica de la Evaluación 1, cubriendo al 100% los ítems **BE1**, **BE2** y **BE3**:
+El backend sigue una arquitectura modular en capas para mantener separación de responsabilidades y alta cohesión:
 
-1. **BE1 (Servicios Propios):** Se implementaron los endpoints principales para soportar las historias de usuario **HU-01** (Visualización de disponibilidad) y **HU-02** (Selección y reserva), incluyendo lógicas de negocio, límites de compra y enrutamiento inteligente (gratuito vs. pago). Documentación OpenAPI (Swagger) autogenerada.
-2. **BE2 (Invocación a Servicios Externos):** Implementación de la capa `services/` utilizando la librería `httpx` para realizar llamadas asíncronas hacia los módulos dependientes, respetando los contratos oficiales:
-   * `CatalogoService`: Actualización estricta de stock vía `PUT`.
-   * `PromocionesService`: Consulta de descuentos aplicables según reglas de negocio.
-   * `PagosService`: Inicio de la orden de cobro.
-   * `CheckinService` y `NotificacionesService`: Distribución paralela del código QR.
-3. **BE3 (Servicios Requeridos por Otros):** Se expusieron endpoints tipo `GET` de solo lectura (como plan de contingencia/Pull) para que Panel Organizador, Check-in y Notificaciones puedan consultar la data estructurada que genera nuestro módulo, dejando el registro explícito en el Swagger de lo que enviamos.
+```text
+Backend/
+├── database.py              # Gestión del ciclo de vida y conexión asíncrona a MongoDB (Motor)
+├── docker-compose.yml       # Orquestación de contenedores para MongoDB y Mongo Express
+├── init_db.js               # Script de inicialización y datos semilla (Seed) de colecciones
+├── main.py                  # Punto de entrada de la aplicación FastAPI y registro de routers
+├── requirements.txt         # Dependencias del proyecto
+├── schema.dbml              # Modelado relacional/documental de base de datos
+├── routers/                 # Controladores y endpoints organizados por dominio
+│   ├── entradas.py          # Emisión, compra (flujo libre/pago), reportes y consulta por usuario
+│   ├── inventario.py        # Consulta de disponibilidad en tiempo real para Catálogo
+│   └── reservas.py          # Webhook de confirmación transaccional desde Pagos
+├── schemas/                 # Esquemas de validación y DTOs (Pydantic)
+│   └── entradas.py          # Modelos de solicitud y respuesta
+└── services/                # Capa de integración desacoplada con otros microservicios (HTTPX)
+    ├── auth_service.py          # Validación de sesiones, JWT y roles con Autenticación
+    ├── catalogo_service.py      # Actualización de stock en Catálogo de Eventos
+    ├── checkin_service.py       # Emisión de tickets y códigos QR en Check-in
+    ├── notificaciones_service.py# Envío asíncrono de tickets por correo
+    ├── pagos_service.py         # Creación e inicio de órdenes de pago con Pasarela
+    └── panel_service.py         # Notificación de métricas y ventas al Panel Organizador
+```
+
+---
+
+## 📦 Cumplimiento de la Rúbrica (Evaluación 1)
+
+Esta rama ha sido adaptada y refactorizada estrictamente para cumplir al 100% con la Rúbrica de la Evaluación 1, cubriendo los ítems **BE1**, **BE2** y **BE3**:
+
+### 1. BE1: Servicios Propios
+Se implementaron los endpoints principales para soportar las historias de usuario del módulo:
+* **HU-01 (Visualización de disponibilidad):** Consulta en tiempo real de capacidad por zona, límites por compra y disponibilidad actual.
+* **HU-02 (Selección y compra/reserva):** Validación de autenticación JWT y roles (`CLIENTE`/`USUARIO`), control de cupos, límites máximos de compra por usuario y derivación inteligente:
+  * **Eventos gratuitos:** Emisión inmediata de tickets y respuesta directa al cliente.
+  * **Eventos de pago:** Creación de reserva con estado `PENDIENTE` e inicio de pasarela en Pagos.
+* **Historial de tickets:** Endpoint para que los clientes consulten sus entradas adquiridas (`GET /api/v1/entradas/usuario/{id_usuario}`).
+
+### 2. BE2: Invocación a Servicios Externos (Integraciones como Consumidor)
+Implementación mediante la capa `services/` con clientes asíncronos `httpx.AsyncClient` y control estricto de SLAs:
+* **Autenticación (`AuthService`):**
+  * Invoca `POST /api/v1/auth/verify` enviando el token en formato cookie (`Cookie: jwt=<token>`).
+  * Valida que el usuario tenga rol `CLIENTE` o `USUARIO` y estado activo antes de permitir compras.
+* **Catálogo (`CatalogoService`):**
+  * Invoca `PUT /api/v1/eventos/{id_evento}/entradas` para sincronizar la reducción de cupos (SLA < 200 ms).
+* **Pasarela de Pagos (`PagosService`):**
+  * Invoca `POST /api/v1/pagos` para iniciar la orden de compra con `id_usuario`, `id_reserva` y `monto_total`.
+* **Check-in (`CheckinService`):**
+  * Invoca `POST /api/v1/entradas/emitir` para registrar los códigos de entrada/QR habilitados para validación física en puertas (SLA < 500 ms).
+* **Notificaciones (`NotificacionesService`):**
+  * Notificación asíncrona para despacho de confirmación y tickets por correo electrónico.
+* **Procesamiento Asíncrono no bloqueante (`asyncio.create_task`):**
+  * Las llamadas post-compra hacia Check-in, Catálogo y Notificaciones se ejecutan concurrentemente en segundo plano para garantizar tiempos de respuesta ultrarrápidos al cliente final.
+* *Nota sobre Promociones:* Conforme al Contrato de Integración oficial v1.0, el consumidor de Promociones es directamente el Frontend (Web/Mobile), por lo cual el cálculo y aplicación de cupones se procesa en el Checkout previo y no añade acoplamiento innecesario a este microservicio.
+
+### 3. BE3: Servicios Requeridos por Otros (Integraciones como Proveedor)
+Se expusieron endpoints documentados para la interoperabilidad con los demás módulos:
+* **Para Catálogo:** `GET /api/v1/inventario/eventos/{id_evento}` con la disponibilidad de tickets por zona en tiempo real.
+* **Para Check-in:** `GET /api/v1/entradas/evento/{id_evento}` para sincronización offline y contingencia de entradas emitidas.
+* **Para Pasarela de Pagos:** `POST /api/v1/reservas/{id_reserva}/confirmar` (Webhook de confirmación transaccional al aprobar el cobro).
+* **Para Panel Organizador:** `GET /api/v1/entradas/reportes/eventos/{id_evento}/ventas` con métricas consolidadas de tickets vendidos, recaudación y asistencia.
+
+---
+
+## 📋 Catálogo de Endpoints de la API
+
+| Método | Ruta | Descripción / Propósito | Consumidor Principal |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/v1/entradas/comprar` | Procesa la compra/reserva de tickets con validación de Auth | Frontend (Web / App) |
+| **GET** | `/api/v1/entradas/usuario/{id_usuario}` | Consulta las entradas activas e historial de un usuario | Frontend (Mis Entradas) |
+| **GET** | `/api/v1/entradas/evento/{id_evento}` | Consulta todas las entradas emitidas de un evento específico | Microservicio Check-in |
+| **GET** | `/api/v1/entradas/reportes/eventos/{id_evento}/ventas` | Reporte consolidado de ventas, ingresos y asistencia | Microservicio Panel Organizador |
+| **GET** | `/api/v1/inventario/eventos/{id_evento}` | Consulta disponibilidad de inventario por zona y precio | Microservicio Catálogo |
+| **POST** | `/api/v1/reservas/{id_reserva}/confirmar` | Webhook de confirmación de pago para emitir tickets | Microservicio Pagos |
 
 ---
 
 ## ⚙️ Ejecución Local (Entorno de Desarrollo)
 
-Para levantar el servidor backend de manera local y visualizar la documentación interactiva de la API, sigue estos pasos:
+Para levantar el microservicio de manera local y visualizar la documentación interactiva OpenAPI/Swagger, sigue estos pasos:
 
-### 1. Clonar el repositorio y cambiar de rama
+### 1. Clonar el repositorio y situarse en la rama backend
 ```bash
 git clone https://github.com/Microservicios-Entradas-Inventario/arquitectura_ms_entradas_inventario.git
-cd arquitectura_ms_entradas_inventario
+cd arquitectura_ms_entradas_inventario/Backend
 git checkout backend
 ```
 
 ### 2. Crear y activar el entorno virtual
-Es altamente recomendado utilizar un entorno virtual para no ensuciar tu instalación global de Python.
+Es altamente recomendado utilizar un entorno virtual para aislar las dependencias:
 
-**En Windows (PowerShell/CMD):**
-```bash
+**En Windows (PowerShell):**
+```powershell
 python -m venv venv
-.\venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 ```
-**En Windows (Bash/Git Bash):**
+**En Linux / macOS / Git Bash:**
 ```bash
-source venv/Scripts/activate
+python3 -m venv venv
+source venv/bin/activate
 ```
 
 ### 3. Instalar dependencias
@@ -57,21 +126,23 @@ pip install -r requirements.txt
 ```
 
 ### 4. Levantar la Base de Datos (MongoDB)
-El microservicio ahora está conectado a una base de datos MongoDB local con datos reales inicializados (semilla). Para levantar el contenedor de la base de datos junto a Mongo Express (interfaz gráfica), ejecuta:
+El microservicio requiere MongoDB con los datos semilla inicializados. Para levantar el contenedor de base de datos junto con Mongo Express (GUI web), ejecuta:
 ```bash
 docker compose up -d
 ```
-*(Nota: Para detener los contenedores cuando termines, usa `docker compose down`)*
+* **MongoDB:** `localhost:27017`
+* **Mongo Express (Panel Web):** [http://localhost:8081](http://localhost:8081)
+*(Para detener los contenedores al finalizar, ejecuta `docker compose down`)*
 
-### 5. Levantar el servidor
-El siguiente comando iniciará el servidor utilizando Uvicorn con modo de recarga automática (`--reload`), útil para ver cambios en tiempo real durante el desarrollo:
+### 5. Iniciar el servidor FastAPI
+Inicia el servidor en modo desarrollo con recarga automática:
 ```bash
 uvicorn main:app --reload
 ```
 
-### 6. Acceder a la Documentación (Swagger)
-Una vez el servidor y la base de datos hayan arrancado exitosamente, abre tu navegador web y visita la siguiente dirección:
+### 6. Explorar la Documentación Swagger UI
+Abre tu navegador web y accede a:
 
 👉 **[http://localhost:8000/docs](http://localhost:8000/docs)**
 
-Dentro del Swagger podrás desplegar cada endpoint, leer su documentación exhaustiva (propósitos, parámetros, flujos y códigos HTTP) y probar la comunicación interactiva mediante el botón "Try it out".
+Dentro de la interfaz de Swagger UI podrás examinar la especificación detallada de cada endpoint (descripciones en formato Markdown, modelos Pydantic, parámetros requeridos, códigos de respuesta HTTP `200`, `400`, `401`, `404`, `500`) y realizar pruebas interactivas con el botón **"Try it out"**.
