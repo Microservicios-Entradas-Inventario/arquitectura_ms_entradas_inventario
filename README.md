@@ -75,23 +75,24 @@ Implementación mediante la capa `services/` con clientes asíncronos `httpx.Asy
 
 ### 3. BE3: Servicios Requeridos por Otros (Integraciones como Proveedor)
 Se expusieron endpoints documentados para la interoperabilidad con los demás módulos:
-* **Para Catálogo:** `GET /api/v1/inventario/eventos/{id_evento}` con la disponibilidad de tickets por zona en tiempo real.
-* **Para Check-in:** `GET /api/v1/entradas/evento/{id_evento}` para sincronización offline y contingencia de entradas emitidas.
-* **Para Pasarela de Pagos:** `POST /api/v1/reservas/{id_reserva}/confirmar` (Webhook de confirmación transaccional al aprobar el cobro).
-* **Para Panel Organizador:** `GET /api/v1/entradas/reportes/eventos/{id_evento}/ventas` con métricas consolidadas de tickets vendidos, recaudación y asistencia.
+* **Para Catálogo:** `POST /api/v1/entradas/procesar-compra` para procesar y registrar compras.
+* **Para Check-in:** `GET /api/v1/entradas/{id_ticket}` para validación individual de una entrada emitida.
+* **Para Panel Organizador:** `GET /api/v1/entradas/eventos/{id_evento}/stock` con métricas de stock y disponibilidad actualizadas.
+* **Para Pagos:** `GET /api/v1/reservas/{id_reserva}` para consultar estado de reservas previo a pago.
+* **Simulación RabbitMQ:** `POST /api/v1/reservas/{id_reserva}/webhook-pago` como webhook de recepción de aprobaciones de pago.
 
 ---
 
 ## 📋 Catálogo de Endpoints de la API
 
-| Método | Ruta | Descripción / Propósito | Consumidor Principal |
+| Método | Ruta | Descripción / Propósito | Sección / Consumidor |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/api/v1/entradas/comprar` | Procesa la compra/reserva de tickets con validación de Auth | Frontend (Web / App) |
-| **GET** | `/api/v1/entradas/usuario/{id_usuario}` | Consulta las entradas activas e historial de un usuario | Frontend (Mis Entradas) |
-| **GET** | `/api/v1/entradas/evento/{id_evento}` | Consulta todas las entradas emitidas de un evento específico | Microservicio Check-in |
-| **GET** | `/api/v1/entradas/reportes/eventos/{id_evento}/ventas` | Reporte consolidado de ventas, ingresos y asistencia | Microservicio Panel Organizador |
-| **GET** | `/api/v1/inventario/eventos/{id_evento}` | Consulta disponibilidad de inventario por zona y precio | Microservicio Catálogo |
-| **POST** | `/api/v1/reservas/{id_reserva}/confirmar` | Webhook de confirmación de pago para emitir tickets | Microservicio Pagos |
+| **GET** | `/api/v1/inventario/{id_evento}` | Obtener Disponibilidad | Inventario (BE1) |
+| **POST** | `/api/v1/entradas/procesar-compra` | Procesar Compra | Servicios Provistos (BE3) - Catálogo |
+| **GET** | `/api/v1/entradas/{id_ticket}` | Consultar Entrada Checkin | Servicios Provistos (BE3) - Check-in |
+| **GET** | `/api/v1/entradas/eventos/{id_evento}/stock` | Consultar Stock Panel | Servicios Provistos (BE3) - Panel Organizador |
+| **POST** | `/api/v1/reservas/{id_reserva}/webhook-pago` | Procesar Pago Aprobado | Simulación RabbitMQ - Pago Aprobado |
+| **GET** | `/api/v1/reservas/{id_reserva}` | Consultar Reserva Pagos | Servicios Provistos (BE3) - Pagos |
 
 ---
 
