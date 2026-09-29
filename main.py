@@ -43,20 +43,6 @@ class StockValidacionResponse(BaseModel):
     cantidad_entrada_comprada: int
     permite_eliminar: bool
 
-class ValidacionEntradaResponse(BaseModel):
-    id_entrada: str
-    id_usuario: str
-    nombre_usuario: str
-    qr_data: str
-    valida: bool
-
-class DetalleReservaNotificacion(BaseModel):
-    id_reserva: str
-    id_usuario: str
-    nombre_evento: str
-    fecha_evento: str
-    cantidad_entradas: int
-
 # ==========================================
 # ÍTEM BE1: SERVICIOS PROPIOS
 # ==========================================
@@ -94,7 +80,7 @@ async def obtener_disponibilidad(id_evento: str):
     "/api/v1/reservas", 
     tags=["Reservas (BE1)"], 
     response_model=ReservaResponse,
-    responses={200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 400: {"description": "Límite superado, datos inválidos o stock insuficiente"}, 401: {"description": "Token inválido o expirado"}, 403: {"description": "Token sin permisos"}}
+    responses={200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 400: {"description": "Límite superado, datos inválidos o stock insuficiente"}, 401: {"description": "Cookie no enviada o expirada en el servicio Auth."}, 403: {"description": "Sesión válida pero sin permisos según Auth."}}
 )
 async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(None)):
     """
@@ -187,66 +173,6 @@ async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(
 # ==========================================
 # ÍTEM BE3: SERVICIOS REQUERIDOS POR OTROS MÓDULOS
 # ==========================================
-
-@app.get(
-    "/api/v1/entradas/{id_entrada}/validacion", 
-    tags=["Integración Externa (BE3) - Para Check-in"], 
-    response_model=ValidacionEntradaResponse,
-    responses={200: {"description": "Datos de acceso validados"}, 404: {"description": "Ticket inexistente"}}
-)
-async def validar_entrada_para_checkin(id_entrada: str):
-    """
-    **Propósito:** Permitir al módulo de **Check-in** recuperar la data del código QR y nombre de usuario para validación en puerta.
-    
-    **Parámetros:**
-    - `id_entrada` (Path): El identificador de la entrada a verificar.
-    
-    **Flujo:**
-    1. Recibe el ID de la entrada física.
-    2. Busca los detalles en la base de datos local.
-    3. Retorna la información necesaria para desencriptar el QR y corroborar la identidad.
-    
-    **Códigos HTTP Posibles:**
-    - `200 OK`: Datos encontrados y válidos para ingresar.
-    - `404 Not Found`: La entrada no existe o ha sido anulada.
-    """
-    return {
-        "id_entrada": id_entrada,
-        "id_usuario": "usr-12345",
-        "nombre_usuario": "Estudiante Anonimo",
-        "qr_data": "https://storage.midominio.com/qr/tk-998877.png",
-        "valida": True
-    }
-
-@app.get(
-    "/api/v1/reservas/{id_reserva}/detalles", 
-    tags=["Integración Externa (BE3) - Para Notificaciones"], 
-    response_model=DetalleReservaNotificacion,
-    responses={200: {"description": "Detalles recuperados exitosamente"}, 404: {"description": "Reserva no encontrada"}}
-)
-async def obtener_detalles_para_notificacion(id_reserva: str):
-    """
-    **Propósito:** Entregar información detallada de la compra a **Notificaciones** para que pueda personalizar la plantilla del correo electrónico.
-    
-    **Parámetros:**
-    - `id_reserva` (Path): El identificador de la orden de compra.
-    
-    **Flujo:**
-    1. Busca la reserva y cruza datos con el evento.
-    2. Extrae el nombre, fecha y cantidades.
-    3. Retorna el payload omitiendo datos sensibles.
-    
-    **Códigos HTTP Posibles:**
-    - `200 OK`: Detalles de reserva listos para su consumo.
-    - `404 Not Found`: El ID de reserva es incorrecto.
-    """
-    return {
-        "id_reserva": id_reserva,
-        "id_usuario": "usr-12345",
-        "nombre_evento": "Gala de Informática",
-        "fecha_evento": "2026-11-15T20:00:00Z",
-        "cantidad_entradas": 2
-    }
 
 @app.get(
     "/api/v1/inventario/{id_evento}/stock-validacion", 
