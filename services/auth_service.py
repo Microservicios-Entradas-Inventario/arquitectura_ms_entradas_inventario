@@ -5,13 +5,13 @@ class AuthService:
     BASE_URL = "http://auth-service:8000"
 
     @classmethod
-    async def validar_sesion(cls, token: str) -> Optional[Dict]:
+    async def validar_sesion(cls, cookie_header: str) -> Optional[Dict]:
         """
-        Contrato: Entradas/Inventario <-> Autenticación (Auth)
-        Verifica la identidad del cliente. Retorna los datos seguros del usuario.
+        Contrato: Entradas/Inventario <-> Autenticación (Auth) v2.0
+        Verifica la identidad del cliente mediante Cookie HttpOnly.
         """
-        url = f"{cls.BASE_URL}/api/v1/auth/me"
-        headers = {"Authorization": f"Bearer {token}"}
+        url = f"{cls.BASE_URL}/api/auth/me"
+        headers = {"Cookie": cookie_header}
         
         async with httpx.AsyncClient() as client:
             try:

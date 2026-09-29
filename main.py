@@ -96,41 +96,39 @@ async def obtener_disponibilidad(id_evento: str):
     response_model=ReservaResponse,
     responses={200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 400: {"description": "Límite superado, datos inválidos o stock insuficiente"}, 401: {"description": "Token inválido o expirado"}, 403: {"description": "Token sin permisos"}}
 )
-async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = Header(None)):
+async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(None)):
     """
     **Propósito:** Crear una reserva temporal de entradas o emitir entradas gratuitas directamente (Soporte a HU-02 y HU-03).
     
     **Parámetros:**
     - `reserva` (Body): Objeto que contiene `id_evento`, `id_usuario` y `cantidad_entradas` (debe ser mayor a 0).
-    - `Authorization` (Header): Token JWT del usuario para validación de origen en Auth y Catálogo.
+    - `Cookie` (Header): Cabecera de sesión original (HttpOnly) reenviada a Auth.
     
     **Flujo:**
-    1. **Autenticación (Auth):** Intercepta el token, valida sesión y extrae el perfil del usuario (nombre, correo, rol).
+    1. **Autenticación (Auth v2.0):** Intercepta la Cookie, valida sesión y extrae el perfil del usuario (nombre, correo, rol).
     2. **Validación (HU-02):** Verifica que la cantidad no supere el límite máximo permitido por transacción y que exista stock suficiente.
     3. **Identificación (HU-02):** Si el evento es GRATUITO, emite el ticket directamente y lo distribuye a Check-in y Notificaciones con los datos extraídos de Auth.
     4. Si el evento es PAGADO:
        - **Promociones:** Consulta el descuento aplicable.
        - **Pagos:** Solicita a Pagos el inicio de un cobro, obteniendo un ID de pago pendiente.
-    5. **Catálogo:** Actualiza el aforo restante enviando el token de sesión.
+    5. **Catálogo:** Actualiza el aforo restante enviando un token de sesión genérico o el ID de usuario.
     6. Retorna los detalles de la reserva junto con el estado (CONSOLIDADO para gratuitas, PENDIENTE para pagadas).
     
     **Códigos HTTP Posibles:**
     - `200 OK`: Reserva pre-aprobada o ticket gratuito emitido exitosamente.
     - `400 Bad Request`: Límite máximo superado o stock insuficiente.
-    - `401 Unauthorized`: Token no enviado o expirado en el servicio Auth.
-    - `403 Forbidden`: Token válido pero sin permisos según Auth.
+    - `401 Unauthorized`: Cookie no enviada o expirada en el servicio Auth.
+    - `403 Forbidden`: Sesión válida pero sin permisos según Auth.
     """
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Falta el encabezado Authorization con el token JWT requerido por Auth.")
+    if not cookie:
+        raise HTTPException(status_code=401, detail="Falta el encabezado Cookie requerido por Auth.")
         
-    token = authorization.replace("Bearer ", "")
-
     # ==========================
-    # Paso 1: Contrato Auth (Validar sesión y extraer datos)
+    # Paso 1: Contrato Auth v2.0 (Validar sesión por Cookie HttpOnly)
     # ==========================
-    usuario_auth = await AuthService.validar_sesion(token)
+    usuario_auth = await AuthService.validar_sesion(cookie)
     if not usuario_auth:
-        raise HTTPException(status_code=401, detail="No autorizado: Token expirado o inválido según el servicio de Autenticación.")
+        raise HTTPException(status_code=401, detail="No autorizado: Cookie expirada o inválida según el servicio de Autenticación.")
         
     id_usuario = usuario_auth.get("id_usuario", reserva.id_usuario)
     nombre_usuario = usuario_auth.get("nombre", "Usuario Desconocido")
@@ -154,7 +152,7 @@ async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = 
     # ==========================
     if tipo_entrada == "GRATUITA":
         # Flujo de emisión directa (Sin pasar por pagos)
-        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, token)
+        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, id_usuario)
         
         qr_data = f"https://storage.midominio.com/qr/gratis-{reserva.id_evento}.png"
         
@@ -176,7 +174,7 @@ async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = 
         monto_total = (10000 * reserva.cantidad_entradas) * (1 - descuento/100)
         
         pago = await PagosService.iniciar_cobro("res-98765", int(monto_total), id_usuario)
-        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, token)
+        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, id_usuario)
 
         return {
             "id_reserva": "res-98765",
