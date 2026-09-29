@@ -48,7 +48,7 @@ Para asegurar la interoperabilidad sin acoplamiento, este servicio mantiene cont
 ## 🚀 Planificación y Entregas (Sprints)
 El desarrollo está estructurado en 4 Sprints iterativos, alineados con las entregas y presentaciones oficiales del semestre:
 
-* **Sprint 1 (Avance 1 - 01/10):** Base de Datos, Stock y Selección (HU-06, HU-01, HU-02).
+* **Sprint 1 (Avance 1 - 01/10):** Base de Datos, Stock y Selección (~~HU-06~~, HU-01, HU-02).
 * **Sprint 2 (Avance 2 - 22/10):** Ciclo de Reserva y Emisión de Entradas (HU-03, HU-04, HU-05).
 * **Sprint 3 (Avance 3 - 05/11):** Asincronía (RabbitMQ) y Reglas de Negocio (HU-07, HU-09, HU-08).
 * **Sprint 4 (Entrega Final - 25/11):** Integración E2E a través del API Gateway, Estabilización y Despliegue On-Premise.
