@@ -36,12 +36,9 @@ class ReservaResponse(BaseModel):
     descuento_aplicado: float
     id_pago_pendiente: Optional[str] = None
 
-class StockValidacionResponse(BaseModel):
+class StockPanelResponse(BaseModel):
     id_evento: str
-    stock_actual: int
-    cantidad_entrada_reservada: int
-    cantidad_entrada_comprada: int
-    permite_eliminar: bool
+    stock: int
 
 # ==========================================
 # ÍTEM BE1: SERVICIOS PROPIOS
@@ -146,7 +143,12 @@ async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(
     # ==========================
     if tipo_entrada == "GRATUITA":
         # Flujo de emisión directa (Sin pasar por pagos)
-        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, id_usuario)
+        nuevo_stock = stock_actual - reserva.cantidad_entradas
+        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, nuevo_stock, id_usuario)
+        
+        # Simulación de RabbitMQ (Notificación a Panel si stock llega a 0)
+        if nuevo_stock == 0:
+            print(f"[RabbitMQ - Mock] Publicando en entradas.evento.stock.v1 -> {{'id_evento': '{reserva.id_evento}', 'stock': 0}}")
         
         qr_data = f"https://storage.midominio.com/qr/gratis-{reserva.id_evento}.png"
         
@@ -167,8 +169,13 @@ async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(
         descuento = promo.get("porcentaje_descuento", 0)
         monto_total = (10000 * reserva.cantidad_entradas) * (1 - descuento/100)
         
+        nuevo_stock = stock_actual - reserva.cantidad_entradas
         pago = await PagosService.iniciar_cobro("res-98765", int(monto_total), id_usuario)
-        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, id_usuario)
+        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, nuevo_stock, id_usuario)
+
+        # Simulación de RabbitMQ (Notificación a Panel si stock llega a 0)
+        if nuevo_stock == 0:
+            print(f"[RabbitMQ - Mock] Publicando en entradas.evento.stock.v1 -> {{'id_evento': '{reserva.id_evento}', 'stock': 0}}")
 
         return {
             "id_reserva": "res-98765",
@@ -183,33 +190,37 @@ async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(
 # ==========================================
 
 @app.get(
-    "/api/v1/inventario/{id_evento}/stock-validacion", 
+    "/api/v1/entradas/eventos/{id_evento}/stock", 
     tags=["Integración Externa (BE3) - Para Panel Organizador"], 
-    response_model=StockValidacionResponse,
-    responses={200: {"description": "Validación exitosa"}, 404: {"description": "Evento sin inventario registrado"}}
+    response_model=StockPanelResponse,
+    responses={
+        200: {"description": "Stock obtenido exitosamente"}, 
+        400: {"description": "Formato de id_evento inválido"},
+        404: {"description": "Evento no encontrado en Entradas / Inventario"},
+        500: {"description": "Error interno de Entradas / Inventario"}
+    }
 )
-async def validar_stock_para_panel(id_evento: str):
+async def consultar_stock_panel(id_evento: str):
     """
-    **Propósito:** Informar al **Panel Organizador** si un evento posee compras asociadas, bloqueando su posible eliminación desde el catálogo principal.
+    **Propósito:** Proveer al Panel Organizador el stock actual de un evento. Se utiliza para sincronización y como validación previa antes de que Panel permita eliminar un evento.
     
     **Parámetros:**
-    - `id_evento` (Path): ID del evento que se intenta borrar.
+    - `id_evento` (Path): ID del evento a consultar.
     
     **Flujo:**
-    1. El Panel Organizador consulta este endpoint antes de borrar el evento.
-    2. Inventario evalúa si hay entradas reservadas o compradas.
-    3. Retorna el flag `permite_eliminar` bloqueando o habilitando la operación en el front.
+    1. El Panel Organizador consulta este endpoint por demanda (Pull).
+    2. Entradas evalúa el stock actual en su base de datos.
+    3. Retorna la cantidad exacta de tickets disponibles.
     
     **Códigos HTTP Posibles:**
-    - `200 OK`: Validación calculada sin errores.
-    - `404 Not Found`: El evento no tiene historial de control de stock.
+    - `200 OK`: Stock calculado sin errores.
+    - `400 Bad Request`: Formato de ID inválido.
+    - `404 Not Found`: El evento no tiene inventario registrado.
+    - `500 Internal Server Error`: Falla interna.
     """
     return {
         "id_evento": id_evento,
-        "stock_actual": 148,
-        "cantidad_entrada_reservada": 1,
-        "cantidad_entrada_comprada": 1,
-        "permite_eliminar": False # No permite eliminar si ya hay compras
+        "stock": 148 # Simulación de stock actual
     }
 
 @app.post(
