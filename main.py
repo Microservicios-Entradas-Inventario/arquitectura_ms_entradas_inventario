@@ -6,6 +6,7 @@ from services.catalogo_service import CatalogoService
 from services.pagos_service import PagosService
 from services.notificaciones_service import NotificacionesService
 from services.checkin_service import CheckinService
+from services.auth_service import AuthService
 
 app = FastAPI(
     title="TicketU - API de Entradas e Inventario",
@@ -93,7 +94,7 @@ async def obtener_disponibilidad(id_evento: str):
     "/api/v1/reservas", 
     tags=["Reservas (BE1)"], 
     response_model=ReservaResponse,
-    responses={200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 400: {"description": "Límite superado, datos inválidos o stock insuficiente"}}
+    responses={200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 400: {"description": "Límite superado, datos inválidos o stock insuficiente"}, 401: {"description": "Token inválido o expirado"}, 403: {"description": "Token sin permisos"}}
 )
 async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = Header(None)):
     """
@@ -101,22 +102,39 @@ async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = 
     
     **Parámetros:**
     - `reserva` (Body): Objeto que contiene `id_evento`, `id_usuario` y `cantidad_entradas` (debe ser mayor a 0).
-    - `Authorization` (Header): Token JWT del usuario para validación de origen en Catálogo.
+    - `Authorization` (Header): Token JWT del usuario para validación de origen en Auth y Catálogo.
     
     **Flujo:**
-    1. **Validación (HU-02):** Verifica que la cantidad no supere el límite máximo permitido por transacción y que exista stock suficiente.
-    2. **Identificación (HU-02):** Si el evento es GRATUITO, emite el ticket directamente y lo distribuye a Check-in y Notificaciones.
-    3. Si el evento es PAGADO:
+    1. **Autenticación (Auth):** Intercepta el token, valida sesión y extrae el perfil del usuario (nombre, correo, rol).
+    2. **Validación (HU-02):** Verifica que la cantidad no supere el límite máximo permitido por transacción y que exista stock suficiente.
+    3. **Identificación (HU-02):** Si el evento es GRATUITO, emite el ticket directamente y lo distribuye a Check-in y Notificaciones con los datos extraídos de Auth.
+    4. Si el evento es PAGADO:
        - **Promociones:** Consulta el descuento aplicable.
        - **Pagos:** Solicita a Pagos el inicio de un cobro, obteniendo un ID de pago pendiente.
-    4. **Catálogo:** Actualiza el aforo restante enviando el token de sesión.
-    5. Retorna los detalles de la reserva junto con el estado (CONSOLIDADO para gratuitas, PENDIENTE para pagadas).
+    5. **Catálogo:** Actualiza el aforo restante enviando el token de sesión.
+    6. Retorna los detalles de la reserva junto con el estado (CONSOLIDADO para gratuitas, PENDIENTE para pagadas).
     
     **Códigos HTTP Posibles:**
     - `200 OK`: Reserva pre-aprobada o ticket gratuito emitido exitosamente.
-    - `400 Bad Request`: Límite máximo superado, stock insuficiente o error en parámetros obligatorios.
+    - `400 Bad Request`: Límite máximo superado o stock insuficiente.
+    - `401 Unauthorized`: Token no enviado o expirado en el servicio Auth.
+    - `403 Forbidden`: Token válido pero sin permisos según Auth.
     """
-    token = authorization.replace("Bearer ", "") if authorization else "dummy_token"
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Falta el encabezado Authorization con el token JWT requerido por Auth.")
+        
+    token = authorization.replace("Bearer ", "")
+
+    # ==========================
+    # Paso 1: Contrato Auth (Validar sesión y extraer datos)
+    # ==========================
+    usuario_auth = await AuthService.validar_sesion(token)
+    if not usuario_auth:
+        raise HTTPException(status_code=401, detail="No autorizado: Token expirado o inválido según el servicio de Autenticación.")
+        
+    id_usuario = usuario_auth.get("id_usuario", reserva.id_usuario)
+    nombre_usuario = usuario_auth.get("nombre", "Usuario Desconocido")
+    correo_usuario = usuario_auth.get("correo", "correo@ejemplo.com")
 
     # Simulación de datos de la base de datos para evaluar reglas de negocio (HU-02)
     maximo_permitido = 4
@@ -139,8 +157,10 @@ async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = 
         await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, token)
         
         qr_data = f"https://storage.midominio.com/qr/gratis-{reserva.id_evento}.png"
-        await CheckinService.registrar_ticket_puerta("tk-gratis-111", reserva.id_evento, reserva.id_usuario, qr_data)
-        await NotificacionesService.enviar_ticket_correo(reserva.id_usuario, "Evento Gratuito", "2026-12-01T10:00:00Z", qr_data)
+        
+        # Despachando a Check-in y Notificaciones con los datos confiables obtenidos de Auth
+        await CheckinService.registrar_ticket_puerta("tk-gratis-111", reserva.id_evento, id_usuario, nombre_usuario, qr_data)
+        await NotificacionesService.enviar_ticket_correo(id_usuario, correo_usuario, "Evento Gratuito", "2026-12-01T10:00:00Z", qr_data)
 
         return {
             "id_reserva": "res-directa-001",
@@ -151,11 +171,11 @@ async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = 
         }
     else:
         # Flujo original de Reserva Temporal y Pago (HU-03)
-        promo = await PromocionesService.consultar_promocion_vigente(reserva.id_evento, reserva.id_usuario, reserva.cantidad_entradas)
+        promo = await PromocionesService.consultar_promocion_vigente(reserva.id_evento, id_usuario, reserva.cantidad_entradas)
         descuento = promo.get("porcentaje_descuento", 0)
         monto_total = (10000 * reserva.cantidad_entradas) * (1 - descuento/100)
         
-        pago = await PagosService.iniciar_cobro("res-98765", int(monto_total), reserva.id_usuario)
+        pago = await PagosService.iniciar_cobro("res-98765", int(monto_total), id_usuario)
         await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, stock_actual - reserva.cantidad_entradas, token)
 
         return {
@@ -283,10 +303,12 @@ async def procesar_pago_aprobado(id_reserva: str):
     - `400 Bad Request`: Inconsistencia en la simulación del webhook.
     """
     id_usuario = "usr-12345"
+    nombre_usuario = "Esteban Quinteros"
+    correo_usuario = "esteban@ticketu.com"
     id_evento = "evt-77889"
     qr_data = "https://storage.midominio.com/qr/tk-998877.png"
 
-    await CheckinService.registrar_ticket_puerta("tk-998877", id_evento, id_usuario, qr_data)
-    await NotificacionesService.enviar_ticket_correo(id_usuario, "Gala de Informática", "2026-11-15T20:00:00Z", qr_data)
+    await CheckinService.registrar_ticket_puerta("tk-998877", id_evento, id_usuario, nombre_usuario, qr_data)
+    await NotificacionesService.enviar_ticket_correo(id_usuario, correo_usuario, "Gala de Informática", "2026-11-15T20:00:00Z", qr_data)
 
     return {"message": "Ticket emitido y notificaciones distribuidas correctamente."}

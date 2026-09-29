@@ -4,7 +4,7 @@ class CheckinService:
     BASE_URL = "http://checkin-service:8000"
 
     @classmethod
-    async def registrar_ticket_puerta(cls, id_entrada: str, id_evento: str, id_usuario: str, qr_data: str) -> bool:
+    async def registrar_ticket_puerta(cls, id_entrada: str, id_evento: str, id_usuario: str, nombre_usuario: str, qr_data: str) -> bool:
         """
         Contrato: Contrato_Entradas_Checkin.docx
         Entradas (Consumidor) -> Check-in (Proveedor)
@@ -15,6 +15,7 @@ class CheckinService:
             "id_entrada": id_entrada,
             "id_evento": id_evento,
             "id_usuario": id_usuario,
+            "nombre_usuario": nombre_usuario,
             "qr_data": qr_data
         }
         

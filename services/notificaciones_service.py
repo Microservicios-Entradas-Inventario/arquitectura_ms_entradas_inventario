@@ -4,7 +4,7 @@ class NotificacionesService:
     BASE_URL = "http://notificaciones-service:8000"
 
     @classmethod
-    async def enviar_ticket_correo(cls, id_usuario: str, nombre_evento: str, fecha_evento: str, qr_data: str) -> bool:
+    async def enviar_ticket_correo(cls, id_usuario: str, correo_usuario: str, nombre_evento: str, fecha_evento: str, qr_data: str) -> bool:
         """
         Contrato: Contrato_Entradas_Notificaciones_v2.docx
         Entradas (Consumidor) -> Notificaciones (Proveedor)
@@ -13,6 +13,7 @@ class NotificacionesService:
         url = f"{cls.BASE_URL}/api/v1/notificaciones/ticket"
         payload = {
             "id_usuario": id_usuario,
+            "correo_usuario": correo_usuario,
             "nombre_evento": nombre_evento,
             "fecha_evento": fecha_evento,
             "qr_data": qr_data
