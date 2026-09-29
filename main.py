@@ -4,7 +4,6 @@ from typing import List, Optional
 from services.promociones_service import PromocionesService
 from services.catalogo_service import CatalogoService
 from services.pagos_service import PagosService
-from services.notificaciones_service import NotificacionesService
 from services.checkin_service import CheckinService
 from services.auth_service import AuthService
 
@@ -24,24 +23,22 @@ class InventarioResponse(BaseModel):
     tipo_entrada: str
     precio_unitario: int
 
-class ReservaRequest(BaseModel):
-    id_evento: str = Field(..., description="Identificador único del evento.")
-    # Regla Crítica v3.0: Prohibido utilizar id_usuario del payload.
-    cantidad_entradas: int = Field(gt=0, description="Cantidad de entradas a adquirir.")
+class ProcesarCompraRequest(BaseModel):
+    id_evento: str = Field(..., description="Identificador único del evento seleccionado.")
+    tipo_entrada: str = Field(..., description="Tipo de entrada seleccionada (ej. General, VIP).")
+    cantidad: int = Field(gt=0, description="Cantidad de entradas a comprar.")
+    token_sesion: str = Field(..., description="Token de autenticación enviado por Catálogo.")
+    codigo_promocional: Optional[str] = Field(None, description="Código de descuento ingresado por el usuario.")
 
-class ReservaResponse(BaseModel):
-    id_reserva: str
-    estado: str
-    monto_total: int
-    descuento_aplicado: float
-    id_pago_pendiente: Optional[str] = None
+class ProcesarCompraResponse(BaseModel):
+    nuevo_stock: int
 
 class StockPanelResponse(BaseModel):
     id_evento: str
     stock: int
 
 # ==========================================
-# ÍTEM BE1: SERVICIOS PROPIOS
+# ÍTEM BE1/BE2: SERVICIOS PROPIOS Y CONSUMO EXTERNO
 # ==========================================
 
 @app.get(
@@ -53,18 +50,6 @@ class StockPanelResponse(BaseModel):
 async def obtener_disponibilidad(id_evento: str):
     """
     **Propósito:** Consultar el stock actual y detalles comerciales de un evento en específico (Soporte a HU-01).
-    
-    **Parámetros:**
-    - `id_evento` (Path): El identificador único del evento a consultar.
-    
-    **Flujo:**
-    1. Recibe el ID del evento.
-    2. Consulta en la base de datos la colección `inventario_evento`.
-    3. Retorna la cantidad de stock disponible y expone si la categoría es PAGADA o GRATUITA.
-    
-    **Códigos HTTP Posibles:**
-    - `200 OK`: Datos obtenidos correctamente.
-    - `404 Not Found`: No existe inventario asociado al evento solicitado.
     """
     return {
         "id_evento": id_evento, 
@@ -74,116 +59,97 @@ async def obtener_disponibilidad(id_evento: str):
     }
 
 @app.post(
-    "/api/v1/reservas", 
-    tags=["Reservas (BE1)"], 
-    response_model=ReservaResponse,
+    "/api/v1/entradas/procesar-compra", 
+    tags=["Reservas y Compras (BE1 / BE2)"], 
+    response_model=ProcesarCompraResponse,
     responses={
-        200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 
-        400: {"description": "Límite superado, datos inválidos o stock insuficiente"}, 
-        401: {"description": "Cookie expirada o inválida según Auth."}, 
-        403: {"description": "Sesión válida pero sin permisos según dominio Entradas."},
-        500: {"description": "Error interno en Auth."},
-        503: {"description": "Servicio Auth no disponible (Timeout / Caída)."}
+        200: {"description": "Compra procesada y stock actualizado"}, 
+        400: {"description": "Parámetro ausente o inválido (ej. cantidad <= 0)"}, 
+        401: {"description": "Token de sesión del cliente no válido o expirado"}, 
+        403: {"description": "Sesión válida pero sin permisos según dominio Entradas"},
+        404: {"description": "El evento o el tipo de entrada solicitado no existe"},
+        500: {"description": "Error interno del servicio de Entradas / Inventario"},
+        503: {"description": "Servicio Auth no disponible (Timeout / Caída)"}
     }
 )
-async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(None)):
+async def procesar_compra(compra: ProcesarCompraRequest, cookie: Optional[str] = Header(None)):
     """
-    **Propósito:** Crear una reserva temporal de entradas o emitir entradas gratuitas directamente (Soporte a HU-02 y HU-03).
-    
-    **Parámetros:**
-    - `reserva` (Body): Objeto que contiene `id_evento` y `cantidad_entradas` (debe ser mayor a 0).
-    - `Cookie` (Header): Cabecera de sesión original (HttpOnly) reenviada a Auth.
-    
-    **Flujo:**
-    1. **Autenticación (Auth v3.0):** Intercepta la Cookie, hace Introspección Centralizada y delega identidad a Auth.
-    2. **Autorización:** Verifica que el rol provisto por Auth tenga permisos en nuestro dominio.
-    3. **Validación (HU-02):** Verifica que la cantidad no supere el límite permitido y exista stock.
-    4. **Identificación (HU-02):** Si es GRATUITO, emite directo. Si es PAGADO, pasa por Promociones y Pagos.
-    5. **Catálogo:** Actualiza el aforo restante enviando el ID de usuario confiable.
-    
-    **Códigos HTTP Posibles:**
-    - `200 OK`: Reserva pre-aprobada o ticket emitido.
-    - `400 Bad Request`: Límite máximo superado o stock insuficiente.
-    - `401 / 403 / 500 / 503`: Errores delegados por el contrato de Introspección Auth v3.0.
+    **Propósito:** Inicia la reserva y el flujo de procesamiento de compra de las entradas seleccionadas por el cliente.
+    (Implementación del Contrato Catálogo v2.0, Promociones v1.0, y Notificaciones v1.1).
     """
-    if not cookie:
-        raise HTTPException(status_code=401, detail="Falta el encabezado Cookie requerido por Auth.")
+    # Si no hay cookie en los headers, usamos el token de sesión inyectado por el payload del Catálogo 
+    auth_token = cookie if cookie else compra.token_sesion
+    if not auth_token:
+        raise HTTPException(status_code=401, detail="Falta el token de sesión o cookie requerida.")
         
     # ==========================
     # Paso 1: Contrato Auth v3.0 (Introspección Centralizada)
     # ==========================
-    # Auth Service arrojará directamente las excepciones HTTP (401, 403, 500, 503) en caso de error.
-    usuario_auth = await AuthService.validar_sesion(cookie)
+    usuario_auth = await AuthService.validar_sesion(auth_token)
         
-    # Única fuente de verdad de la identidad (Regla Crítica 1)
     id_usuario = usuario_auth.get("id_usuario")
     nombre_usuario = usuario_auth.get("nombre_completo", "Usuario Desconocido")
     correo_usuario = usuario_auth.get("correo_electronico", "correo@ejemplo.com")
     rol_usuario = usuario_auth.get("rol", "").upper()
 
-    # Autorización de Dominio (Regla Crítica 2)
     if rol_usuario not in ["CLIENTE", "USUARIO"]:
-        raise HTTPException(status_code=403, detail="Prohibido: Su rol no tiene permisos para realizar compras de entradas.")
+        raise HTTPException(status_code=403, detail="Prohibido: Su rol no tiene permisos para realizar compras.")
 
-    # Simulación de datos de la base de datos para evaluar reglas de negocio (HU-02)
-    maximo_permitido = 4
+    # Simulación de datos de la base de datos
     stock_actual = 148
-    tipo_entrada = "PAGADA" # Imagina que esto viene de la base de datos
+    precio_unitario = 10000
+    precio_base = precio_unitario * compra.cantidad
 
-    # ==========================
-    # Criterio de Aceptación HU-02: Validar cantidad > 0 (Pydantic) y <= límite máximo
-    # ==========================
-    if reserva.cantidad_entradas > maximo_permitido:
-        raise HTTPException(status_code=400, detail=f"Tu selección supera el límite máximo permitido por transacción ({maximo_permitido}).")
-    if reserva.cantidad_entradas > stock_actual:
+    if compra.cantidad > stock_actual:
         raise HTTPException(status_code=400, detail="No hay stock suficiente para esta selección.")
 
-    # ==========================
-    # Criterio de Aceptación HU-02: Direccionar flujo según categoría
-    # ==========================
-    if tipo_entrada == "GRATUITA":
+    nuevo_stock = stock_actual - compra.cantidad
+
+    if compra.tipo_entrada.upper() == "GRATUITA":
         # Flujo de emisión directa (Sin pasar por pagos)
-        nuevo_stock = stock_actual - reserva.cantidad_entradas
-        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, nuevo_stock, id_usuario)
+        await CatalogoService.actualizar_stock_catalogo(compra.id_evento, nuevo_stock, id_usuario)
         
-        # Simulación de RabbitMQ (Notificación a Panel si stock llega a 0)
+        # Contrato Notificaciones v1.1 (Asincronía vía RabbitMQ)
+        print(f"[RabbitMQ - Mock] Evento 'entradas_emitidas' publicado para Notificaciones -> {{'correo': '{correo_usuario}', 'evento': '{compra.id_evento}'}}")
+        
+        # Contrato Panel v1.2 (Asincronía vía RabbitMQ)
         if nuevo_stock == 0:
-            print(f"[RabbitMQ - Mock] Publicando en entradas.evento.stock.v1 -> {{'id_evento': '{reserva.id_evento}', 'stock': 0}}")
+            print(f"[RabbitMQ - Mock] Evento 'entradas.evento.stock.v1' publicado para Panel -> {{'id_evento': '{compra.id_evento}', 'stock': 0}}")
         
-        qr_data = f"https://storage.midominio.com/qr/gratis-{reserva.id_evento}.png"
-        
-        # Despachando a Check-in y Notificaciones con los datos confiables obtenidos de Auth
-        await CheckinService.registrar_ticket_puerta("tk-gratis-111", reserva.id_evento, id_usuario, nombre_usuario, qr_data)
-        await NotificacionesService.enviar_ticket_correo(id_usuario, correo_usuario, "Evento Gratuito", "2026-12-01T10:00:00Z", qr_data)
+        qr_data = f"https://storage.midominio.com/qr/gratis-{compra.id_evento}.png"
+        await CheckinService.registrar_ticket_puerta("tk-gratis-111", compra.id_evento, id_usuario, nombre_usuario, qr_data)
 
-        return {
-            "id_reserva": "res-directa-001",
-            "estado": "CONSOLIDADO",
-            "monto_total": 0,
-            "descuento_aplicado": 0,
-            "id_pago_pendiente": None
-        }
+        # Retorna estrictamente el esquema que exige Catálogo
+        return {"nuevo_stock": nuevo_stock}
     else:
-        # Flujo original de Reserva Temporal y Pago (HU-03)
-        promo = await PromocionesService.consultar_promocion_vigente(reserva.id_evento, id_usuario, reserva.cantidad_entradas)
-        descuento = promo.get("porcentaje_descuento", 0)
-        monto_total = (10000 * reserva.cantidad_entradas) * (1 - descuento/100)
+        # ==========================
+        # Contrato Promociones v1.0
+        # ==========================
+        if compra.codigo_promocional:
+            promo = await PromocionesService.validar_codigo(
+                nombre_codigo=compra.codigo_promocional,
+                id_evento=compra.id_evento,
+                cantidad_entradas=compra.cantidad,
+                id_usuario=id_usuario,
+                rol_usuario=rol_usuario,
+                precio_base=precio_base
+            )
+            descuento = promo.get("porcentaje_descuento", 0)
+        else:
+            descuento = 0
+
+        monto_total = precio_base * (1 - descuento/100)
         
-        nuevo_stock = stock_actual - reserva.cantidad_entradas
+        # Iniciar cobro
         pago = await PagosService.iniciar_cobro("res-98765", int(monto_total), id_usuario)
-        await CatalogoService.actualizar_stock_catalogo(reserva.id_evento, nuevo_stock, id_usuario)
+        await CatalogoService.actualizar_stock_catalogo(compra.id_evento, nuevo_stock, id_usuario)
 
-        # Simulación de RabbitMQ (Notificación a Panel si stock llega a 0)
+        # Contrato Panel v1.2 (Asincronía vía RabbitMQ)
         if nuevo_stock == 0:
-            print(f"[RabbitMQ - Mock] Publicando en entradas.evento.stock.v1 -> {{'id_evento': '{reserva.id_evento}', 'stock': 0}}")
+            print(f"[RabbitMQ - Mock] Evento 'entradas.evento.stock.v1' publicado para Panel -> {{'id_evento': '{compra.id_evento}', 'stock': 0}}")
 
-        return {
-            "id_reserva": "res-98765",
-            "estado": pago.get("estado", "PENDIENTE"),
-            "monto_total": int(monto_total),
-            "descuento_aplicado": descuento,
-            "id_pago_pendiente": pago.get("id_pago")
-        }
+        # Retorna estrictamente el esquema que exige Catálogo
+        return {"nuevo_stock": nuevo_stock}
 
 # ==========================================
 # ÍTEM BE3: SERVICIOS REQUERIDOS POR OTROS MÓDULOS
@@ -203,20 +169,6 @@ async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(
 async def consultar_stock_panel(id_evento: str):
     """
     **Propósito:** Proveer al Panel Organizador el stock actual de un evento. Se utiliza para sincronización y como validación previa antes de que Panel permita eliminar un evento.
-    
-    **Parámetros:**
-    - `id_evento` (Path): ID del evento a consultar.
-    
-    **Flujo:**
-    1. El Panel Organizador consulta este endpoint por demanda (Pull).
-    2. Entradas evalúa el stock actual en su base de datos.
-    3. Retorna la cantidad exacta de tickets disponibles.
-    
-    **Códigos HTTP Posibles:**
-    - `200 OK`: Stock calculado sin errores.
-    - `400 Bad Request`: Formato de ID inválido.
-    - `404 Not Found`: El evento no tiene inventario registrado.
-    - `500 Internal Server Error`: Falla interna.
     """
     return {
         "id_evento": id_evento,
@@ -230,20 +182,7 @@ async def consultar_stock_panel(id_evento: str):
 )
 async def procesar_pago_aprobado(id_reserva: str):
     """
-    **Propósito:** Simular el momento en el que se recibe el evento asíncrono de `PagoAprobado` (Originalmente vía RabbitMQ) para disparar la emisión definitiva (HU-09).
-    
-    **Parámetros:**
-    - `id_reserva` (Path): El ID de la reserva consolidada.
-    
-    **Flujo:**
-    1. Escucha la aprobación del flujo de dinero.
-    2. Se consolida el ticket de acceso y se genera la metadata del código QR.
-    3. **Check-in (Síncrono):** Envío en paralelo del ticket a la API de control en puerta.
-    4. **Notificaciones (Síncrono):** Envío en paralelo de orden de correo electrónico al cliente.
-    
-    **Códigos HTTP Posibles:**
-    - `200 OK`: Flujo de validación post-pago finalizado de manera exitosa.
-    - `400 Bad Request`: Inconsistencia en la simulación del webhook.
+    **Propósito:** Simular el evento de PagoAprobado para disparar la emisión definitiva.
     """
     id_usuario = "usr-12345"
     nombre_usuario = "Esteban Quinteros"
@@ -252,6 +191,8 @@ async def procesar_pago_aprobado(id_reserva: str):
     qr_data = "https://storage.midominio.com/qr/tk-998877.png"
 
     await CheckinService.registrar_ticket_puerta("tk-998877", id_evento, id_usuario, nombre_usuario, qr_data)
-    await NotificacionesService.enviar_ticket_correo(id_usuario, correo_usuario, "Gala de Informática", "2026-11-15T20:00:00Z", qr_data)
+    
+    # Contrato Notificaciones v1.1 (Asincronía vía RabbitMQ)
+    print(f"[RabbitMQ - Mock] Evento 'entradas_emitidas' publicado para Notificaciones -> {{'correo': '{correo_usuario}', 'evento': '{id_evento}'}}")
 
     return {"message": "Ticket emitido y notificaciones distribuidas correctamente."}

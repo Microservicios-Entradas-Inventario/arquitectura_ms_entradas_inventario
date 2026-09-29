@@ -1,32 +1,32 @@
 import httpx
-from typing import Optional
+from typing import Dict
 
 class PromocionesService:
-    BASE_URL = "http://promociones-service:8000" # URL del microservicio de Promociones (ejemplo)
+    BASE_URL = "http://promociones-service:8000"
 
     @classmethod
-    async def consultar_promocion_vigente(cls, id_evento: str, id_usuario: str, cantidad_entradas: int) -> dict:
+    async def validar_codigo(cls, nombre_codigo: str, id_evento: str, cantidad_entradas: int, id_usuario: str, rol_usuario: str, precio_base: int) -> Dict:
         """
-        Evalúa las reglas de negocio de promociones activas para un evento, usuario y cantidad.
-        Cumple con el ítem BE2 de la rúbrica (Código de invocación a servicio externo).
-        Basado en el Contrato de Interfaz "Entradas / Inventario <-> Promociones".
+        Contrato: Entradas <-> Promociones v1.0
+        Consumidor: Entradas
         """
-        url = f"{cls.BASE_URL}/api/v1/promociones/evaluar"
+        url = f"{cls.BASE_URL}/promociones/validar/{nombre_codigo}"
         payload = {
             "id_evento": id_evento,
-            "id_usuario": id_usuario,
-            "cantidad_entradas": cantidad_entradas
+            "cantidad_entradas": cantidad_entradas,
+            "usuario": {
+                "id_usuario": id_usuario,
+                "rol_usuario": rol_usuario
+            },
+            "precio_base": precio_base
         }
         
         async with httpx.AsyncClient() as client:
             try:
-                # SLA < 200ms según contrato
-                response = await client.post(url, json=payload, timeout=0.2) 
+                response = await client.post(url, json=payload, timeout=0.3)
                 if response.status_code == 200:
-                    return response.json() # ej: {"porcentaje_descuento": 15, "id_promocion": "promo-estudiante"}
-                else:
-                    return {"porcentaje_descuento": 0, "id_promocion": None}
+                    return response.json()
+                return {"valido": False, "porcentaje_descuento": 0}
             except httpx.RequestError as exc:
-                # Fallback: Entradas asume 0% de descuento si Promociones falla o demora
-                print(f"Error de conexión con Promociones: {exc}")
-                return {"porcentaje_descuento": 0, "id_promocion": None}
+                print(f"Error comunicando con Promociones: {exc}")
+                return {"valido": False, "porcentaje_descuento": 0}
