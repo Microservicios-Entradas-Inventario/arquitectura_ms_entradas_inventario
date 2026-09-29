@@ -24,9 +24,9 @@ class InventarioResponse(BaseModel):
     precio_unitario: int
 
 class ReservaRequest(BaseModel):
-    id_evento: str
-    id_usuario: str
-    cantidad_entradas: int = Field(gt=0)
+    id_evento: str = Field(..., description="Identificador único del evento.")
+    id_usuario: str = Field(..., description="Identificador del usuario que realiza la reserva.")
+    cantidad_entradas: int = Field(gt=0, description="Cantidad de entradas a adquirir.")
 
 class ReservaResponse(BaseModel):
     id_reserva: str
@@ -60,18 +60,54 @@ class DetalleReservaNotificacion(BaseModel):
 # ÍTEM BE1: SERVICIOS PROPIOS
 # ==========================================
 
-@app.get("/api/v1/inventario/{id_evento}", tags=["Inventario (BE1)"], response_model=InventarioResponse)
+@app.get(
+    "/api/v1/inventario/{id_evento}", 
+    tags=["Inventario (BE1)"], 
+    response_model=InventarioResponse,
+    responses={200: {"description": "Disponibilidad obtenida exitosamente"}, 404: {"description": "Evento no encontrado"}}
+)
 async def obtener_disponibilidad(id_evento: str):
-    """ HU-01: Visualización de disponibilidad. """
+    """
+    **Propósito:** Consultar el stock actual y detalles comerciales de un evento en específico (Soporte a HU-01).
+    
+    **Parámetros:**
+    - `id_evento` (Path): El identificador único del evento a consultar.
+    
+    **Flujo:**
+    1. Recibe el ID del evento.
+    2. Consulta en la base de datos la colección `inventario_evento`.
+    3. Retorna la cantidad de stock disponible y el precio unitario.
+    
+    **Códigos HTTP Posibles:**
+    - `200 OK`: Datos obtenidos correctamente.
+    - `404 Not Found`: No existe inventario asociado al evento solicitado.
+    """
     return {"id_evento": id_evento, "stock_actual": 148, "tipo_entrada": "PAGADA", "precio_unitario": 10000}
 
-@app.post("/api/v1/reservas", tags=["Reservas (BE1)"], response_model=ReservaResponse)
+@app.post(
+    "/api/v1/reservas", 
+    tags=["Reservas (BE1)"], 
+    response_model=ReservaResponse,
+    responses={200: {"description": "Reserva creada y cobro iniciado"}, 400: {"description": "Datos inválidos o stock insuficiente"}}
+)
 async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = Header(None)):
-    """ 
-    HU-03: Reserva temporal de cupo.
-    1. Llama a Promociones (Síncrono) para calcular el descuento.
-    2. Llama a Pagos para iniciar cobro (Síncrono).
-    3. Llama a Catálogo para actualizar stock (Síncrono) vía PUT enviando el token.
+    """
+    **Propósito:** Crear una reserva temporal de entradas (Soporte a HU-03).
+    
+    **Parámetros:**
+    - `reserva` (Body): Objeto que contiene `id_evento`, `id_usuario` y `cantidad_entradas`.
+    - `authorization` (Header): Token JWT del usuario para validación de origen en Catálogo.
+    
+    **Flujo:**
+    1. **Promociones (Síncrono):** Consulta el descuento aplicable según contrato.
+    2. Calcula el valor total restando el porcentaje de descuento obtenido.
+    3. **Pagos (Síncrono):** Solicita a Pagos el inicio de un cobro, obteniendo un ID de pago en estado PENDIENTE.
+    4. **Catálogo (Síncrono):** Llama a Catálogo para actualizar el aforo restante enviando el token de sesión.
+    5. Retorna los detalles de la reserva junto con el estado del pago.
+    
+    **Códigos HTTP Posibles:**
+    - `200 OK`: Reserva pre-aprobada exitosamente.
+    - `400 Bad Request`: Stock insuficiente o error en parámetros obligatorios.
     """
     token = authorization.replace("Bearer ", "") if authorization else "dummy_token"
 
@@ -98,11 +134,27 @@ async def crear_reserva(reserva: ReservaRequest, authorization: Optional[str] = 
 # ÍTEM BE3: SERVICIOS REQUERIDOS POR OTROS MÓDULOS
 # ==========================================
 
-@app.get("/api/v1/entradas/{id_entrada}/validacion", tags=["Integración Externa (BE3) - Para Check-in"], response_model=ValidacionEntradaResponse)
+@app.get(
+    "/api/v1/entradas/{id_entrada}/validacion", 
+    tags=["Integración Externa (BE3) - Para Check-in"], 
+    response_model=ValidacionEntradaResponse,
+    responses={200: {"description": "Datos de acceso validados"}, 404: {"description": "Ticket inexistente"}}
+)
 async def validar_entrada_para_checkin(id_entrada: str):
     """
-    Rúbrica: Expone los datos "QR y nombre de usuario".
-    Fallback/Pull API en caso de que el envío paralelo falle o Check-in necesite re-validar.
+    **Propósito:** Permitir al módulo de **Check-in** recuperar la data del código QR y nombre de usuario para validación en puerta en caso de error asíncrono.
+    
+    **Parámetros:**
+    - `id_entrada` (Path): El identificador de la entrada a verificar.
+    
+    **Flujo:**
+    1. Recibe el ID de la entrada física.
+    2. Busca los detalles asociados en la base de datos local.
+    3. Retorna la información necesaria para desencriptar el QR y corroborar la identidad.
+    
+    **Códigos HTTP Posibles:**
+    - `200 OK`: Datos encontrados y válidos para ingresar.
+    - `404 Not Found`: La entrada no existe o ha sido anulada.
     """
     return {
         "id_entrada": id_entrada,
@@ -112,11 +164,27 @@ async def validar_entrada_para_checkin(id_entrada: str):
         "valida": True
     }
 
-@app.get("/api/v1/reservas/{id_reserva}/detalles", tags=["Integración Externa (BE3) - Para Notificaciones"], response_model=DetalleReservaNotificacion)
+@app.get(
+    "/api/v1/reservas/{id_reserva}/detalles", 
+    tags=["Integración Externa (BE3) - Para Notificaciones"], 
+    response_model=DetalleReservaNotificacion,
+    responses={200: {"description": "Detalles recuperados exitosamente"}, 404: {"description": "Reserva no encontrada"}}
+)
 async def obtener_detalles_para_notificacion(id_reserva: str):
     """
-    Rúbrica: Expone "id usuario, nombre evento, fecha y cantidad de entradas".
-    Fallback/Pull API para que Notificaciones obtenga el detalle de una compra.
+    **Propósito:** Entregar información detallada de la compra a **Notificaciones** para que pueda personalizar la plantilla del correo electrónico.
+    
+    **Parámetros:**
+    - `id_reserva` (Path): El identificador de la orden de compra.
+    
+    **Flujo:**
+    1. Busca la reserva y cruza datos con el evento.
+    2. Extrae el nombre, fecha y cantidades.
+    3. Retorna el payload omitiendo datos sensibles.
+    
+    **Códigos HTTP Posibles:**
+    - `200 OK`: Detalles de reserva listos para su consumo.
+    - `404 Not Found`: El ID de reserva es incorrecto.
     """
     return {
         "id_reserva": id_reserva,
@@ -126,11 +194,27 @@ async def obtener_detalles_para_notificacion(id_reserva: str):
         "cantidad_entradas": 2
     }
 
-@app.get("/api/v1/inventario/{id_evento}/stock-validacion", tags=["Integración Externa (BE3) - Para Panel Organizador"], response_model=StockValidacionResponse)
+@app.get(
+    "/api/v1/inventario/{id_evento}/stock-validacion", 
+    tags=["Integración Externa (BE3) - Para Panel Organizador"], 
+    response_model=StockValidacionResponse,
+    responses={200: {"description": "Validación exitosa"}, 404: {"description": "Evento sin inventario registrado"}}
+)
 async def validar_stock_para_panel(id_evento: str):
     """
-    Contrato: Contrato_Entradas_Panel_Unificado_v3.docx
-    Permite al Panel validar si un evento tiene compras antes de permitir su eliminación.
+    **Propósito:** Informar al **Panel Organizador** si un evento posee compras asociadas, bloqueando su posible eliminación desde el catálogo principal.
+    
+    **Parámetros:**
+    - `id_evento` (Path): ID del evento que se intenta borrar.
+    
+    **Flujo:**
+    1. El Panel Organizador consulta este endpoint antes de borrar el evento.
+    2. Inventario evalúa si hay entradas reservadas o compradas.
+    3. Retorna el flag `permite_eliminar` bloqueando o habilitando la operación en el front.
+    
+    **Códigos HTTP Posibles:**
+    - `200 OK`: Validación calculada sin errores.
+    - `404 Not Found`: El evento no tiene historial de control de stock.
     """
     return {
         "id_evento": id_evento,
@@ -140,17 +224,27 @@ async def validar_stock_para_panel(id_evento: str):
         "permite_eliminar": False # No permite eliminar si ya hay compras
     }
 
-# ==========================================
-# SIMULACIÓN DE ASINCRONÍA (RABBITMQ) -> EMISIÓN DE TICKETS
-# ==========================================
-
-@app.post("/api/v1/reservas/{id_reserva}/webhook-pago", tags=["Simulación RabbitMQ - Pago Aprobado"])
+@app.post(
+    "/api/v1/reservas/{id_reserva}/webhook-pago", 
+    tags=["Simulación RabbitMQ - Pago Aprobado"],
+    responses={200: {"description": "Proceso de emisión completado"}, 400: {"description": "Pago rechazado o inválido"}}
+)
 async def procesar_pago_aprobado(id_reserva: str):
     """
-    HU-09: Emisión definitiva.
-    Simula la recepción del evento asíncrono 'PagoAprobado' desde el broker RabbitMQ.
-    1. Llama a Checkin para distribuir el QR.
-    2. Llama a Notificaciones para enviar el correo.
+    **Propósito:** Simular el momento en el que se recibe el evento asíncrono de `PagoAprobado` (Originalmente vía RabbitMQ) para disparar la emisión definitiva (HU-09).
+    
+    **Parámetros:**
+    - `id_reserva` (Path): El ID de la reserva consolidada.
+    
+    **Flujo:**
+    1. Escucha la aprobación del flujo de dinero.
+    2. Se consolida el ticket de acceso y se genera la metadata del código QR.
+    3. **Check-in:** Envío en paralelo del ticket a la API de control en puerta.
+    4. **Notificaciones:** Envío en paralelo de orden de correo electrónico al cliente.
+    
+    **Códigos HTTP Posibles:**
+    - `200 OK`: Flujo de validación post-pago finalizado de manera exitosa.
+    - `400 Bad Request`: Inconsistencia en la simulación del webhook.
     """
     id_usuario = "usr-12345"
     id_evento = "evt-77889"
