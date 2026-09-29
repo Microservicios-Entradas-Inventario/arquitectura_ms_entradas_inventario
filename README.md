@@ -56,14 +56,21 @@ source venv/Scripts/activate
 pip install -r requirements.txt
 ```
 
-### 4. Levantar el servidor
+### 4. Levantar la Base de Datos (MongoDB)
+El microservicio ahora está conectado a una base de datos MongoDB local con datos reales inicializados (semilla). Para levantar el contenedor de la base de datos junto a Mongo Express (interfaz gráfica), ejecuta:
+```bash
+docker compose up -d
+```
+*(Nota: Para detener los contenedores cuando termines, usa `docker compose down`)*
+
+### 5. Levantar el servidor
 El siguiente comando iniciará el servidor utilizando Uvicorn con modo de recarga automática (`--reload`), útil para ver cambios en tiempo real durante el desarrollo:
 ```bash
 uvicorn main:app --reload
 ```
 
-### 5. Acceder a la Documentación (Swagger)
-Una vez el servidor indique que ha arrancado exitosamente, abre tu navegador web y visita la siguiente dirección:
+### 6. Acceder a la Documentación (Swagger)
+Una vez el servidor y la base de datos hayan arrancado exitosamente, abre tu navegador web y visita la siguiente dirección:
 
 👉 **[http://localhost:8000/docs](http://localhost:8000/docs)**
 

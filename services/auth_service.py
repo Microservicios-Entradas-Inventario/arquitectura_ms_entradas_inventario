@@ -12,7 +12,10 @@ class AuthService:
         Verifica la identidad del cliente mediante Introspección Centralizada.
         """
         url = f"{cls.BASE_URL}/internal/validar-sesion"
-        headers = {"Cookie": cookie_header}
+        
+        # Formatear como cabecera Cookie si viene como token raw (según contrato Auth v3.0)
+        cookie_value = cookie_header if "jwt=" in cookie_header else f"jwt={cookie_header}"
+        headers = {"Cookie": cookie_value}
         
         async with httpx.AsyncClient() as client:
             try:
