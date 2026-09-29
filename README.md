@@ -12,7 +12,7 @@ El proyecto está construido bajo una arquitectura de microservicios, operando c
 * **Bastián Parra** - QA
 
 ## 🛠️ Stack Tecnológico
-* **Backend:** Node.js
+* **Backend:** FastAPI
 * **Base de Datos:** MongoDB
 * **Mensajería Asíncrona:** RabbitMQ (Broker de eventos)
 * **Infraestructura:** Docker & Docker Compose (Despliegue On-Premise)
