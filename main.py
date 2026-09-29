@@ -26,7 +26,7 @@ class InventarioResponse(BaseModel):
 
 class ReservaRequest(BaseModel):
     id_evento: str = Field(..., description="Identificador único del evento.")
-    id_usuario: str = Field(..., description="Identificador del usuario que realiza la reserva.")
+    # Regla Crítica v3.0: Prohibido utilizar id_usuario del payload.
     cantidad_entradas: int = Field(gt=0, description="Cantidad de entradas a adquirir.")
 
 class ReservaResponse(BaseModel):
@@ -80,45 +80,53 @@ async def obtener_disponibilidad(id_evento: str):
     "/api/v1/reservas", 
     tags=["Reservas (BE1)"], 
     response_model=ReservaResponse,
-    responses={200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 400: {"description": "Límite superado, datos inválidos o stock insuficiente"}, 401: {"description": "Cookie no enviada o expirada en el servicio Auth."}, 403: {"description": "Sesión válida pero sin permisos según Auth."}}
+    responses={
+        200: {"description": "Reserva creada y cobro iniciado / Emisión directa iniciada"}, 
+        400: {"description": "Límite superado, datos inválidos o stock insuficiente"}, 
+        401: {"description": "Cookie expirada o inválida según Auth."}, 
+        403: {"description": "Sesión válida pero sin permisos según dominio Entradas."},
+        500: {"description": "Error interno en Auth."},
+        503: {"description": "Servicio Auth no disponible (Timeout / Caída)."}
+    }
 )
 async def crear_reserva(reserva: ReservaRequest, cookie: Optional[str] = Header(None)):
     """
     **Propósito:** Crear una reserva temporal de entradas o emitir entradas gratuitas directamente (Soporte a HU-02 y HU-03).
     
     **Parámetros:**
-    - `reserva` (Body): Objeto que contiene `id_evento`, `id_usuario` y `cantidad_entradas` (debe ser mayor a 0).
+    - `reserva` (Body): Objeto que contiene `id_evento` y `cantidad_entradas` (debe ser mayor a 0).
     - `Cookie` (Header): Cabecera de sesión original (HttpOnly) reenviada a Auth.
     
     **Flujo:**
-    1. **Autenticación (Auth v2.0):** Intercepta la Cookie, valida sesión y extrae el perfil del usuario (nombre, correo, rol).
-    2. **Validación (HU-02):** Verifica que la cantidad no supere el límite máximo permitido por transacción y que exista stock suficiente.
-    3. **Identificación (HU-02):** Si el evento es GRATUITO, emite el ticket directamente y lo distribuye a Check-in y Notificaciones con los datos extraídos de Auth.
-    4. Si el evento es PAGADO:
-       - **Promociones:** Consulta el descuento aplicable.
-       - **Pagos:** Solicita a Pagos el inicio de un cobro, obteniendo un ID de pago pendiente.
-    5. **Catálogo:** Actualiza el aforo restante enviando un token de sesión genérico o el ID de usuario.
-    6. Retorna los detalles de la reserva junto con el estado (CONSOLIDADO para gratuitas, PENDIENTE para pagadas).
+    1. **Autenticación (Auth v3.0):** Intercepta la Cookie, hace Introspección Centralizada y delega identidad a Auth.
+    2. **Autorización:** Verifica que el rol provisto por Auth tenga permisos en nuestro dominio.
+    3. **Validación (HU-02):** Verifica que la cantidad no supere el límite permitido y exista stock.
+    4. **Identificación (HU-02):** Si es GRATUITO, emite directo. Si es PAGADO, pasa por Promociones y Pagos.
+    5. **Catálogo:** Actualiza el aforo restante enviando el ID de usuario confiable.
     
     **Códigos HTTP Posibles:**
-    - `200 OK`: Reserva pre-aprobada o ticket gratuito emitido exitosamente.
+    - `200 OK`: Reserva pre-aprobada o ticket emitido.
     - `400 Bad Request`: Límite máximo superado o stock insuficiente.
-    - `401 Unauthorized`: Cookie no enviada o expirada en el servicio Auth.
-    - `403 Forbidden`: Sesión válida pero sin permisos según Auth.
+    - `401 / 403 / 500 / 503`: Errores delegados por el contrato de Introspección Auth v3.0.
     """
     if not cookie:
         raise HTTPException(status_code=401, detail="Falta el encabezado Cookie requerido por Auth.")
         
     # ==========================
-    # Paso 1: Contrato Auth v2.0 (Validar sesión por Cookie HttpOnly)
+    # Paso 1: Contrato Auth v3.0 (Introspección Centralizada)
     # ==========================
+    # Auth Service arrojará directamente las excepciones HTTP (401, 403, 500, 503) en caso de error.
     usuario_auth = await AuthService.validar_sesion(cookie)
-    if not usuario_auth:
-        raise HTTPException(status_code=401, detail="No autorizado: Cookie expirada o inválida según el servicio de Autenticación.")
         
-    id_usuario = usuario_auth.get("id_usuario", reserva.id_usuario)
-    nombre_usuario = usuario_auth.get("nombre", "Usuario Desconocido")
-    correo_usuario = usuario_auth.get("correo", "correo@ejemplo.com")
+    # Única fuente de verdad de la identidad (Regla Crítica 1)
+    id_usuario = usuario_auth.get("id_usuario")
+    nombre_usuario = usuario_auth.get("nombre_completo", "Usuario Desconocido")
+    correo_usuario = usuario_auth.get("correo_electronico", "correo@ejemplo.com")
+    rol_usuario = usuario_auth.get("rol", "").upper()
+
+    # Autorización de Dominio (Regla Crítica 2)
+    if rol_usuario not in ["CLIENTE", "USUARIO"]:
+        raise HTTPException(status_code=403, detail="Prohibido: Su rol no tiene permisos para realizar compras de entradas.")
 
     # Simulación de datos de la base de datos para evaluar reglas de negocio (HU-02)
     maximo_permitido = 4
