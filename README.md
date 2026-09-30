@@ -41,6 +41,10 @@ Backend/
     ├── pagos_service.py         # Creación e inicio de órdenes de pago con Pasarela
     └── panel_service.py         # Notificación de métricas y ventas al Panel Organizador
 ```
+* **Backend:** FastAPI
+* **Base de Datos:** MongoDB
+* **Mensajería Asíncrona:** RabbitMQ (Broker de eventos)
+* **Infraestructura:** Docker & Docker Compose (Despliegue On-Premise)
 
 ---
 
@@ -93,6 +97,10 @@ Se expusieron endpoints documentados para la interoperabilidad con los demás m�
 | **GET** | `/api/v1/entradas/eventos/{id_evento}/stock` | Consultar Stock Panel | Servicios Provistos (BE3) - Panel Organizador |
 | **POST** | `/api/v1/reservas/{id_reserva}/webhook-pago` | Procesar Pago Aprobado | Simulación RabbitMQ - Pago Aprobado |
 | **GET** | `/api/v1/reservas/{id_reserva}` | Consultar Reserva Pagos | Servicios Provistos (BE3) - Pagos |
+* **Sprint 1 (Avance 1 - 01/10):** Base de Datos, Stock y Selección (~~HU-06~~, HU-01, HU-02).
+* **Sprint 2 (Avance 2 - 22/10):** Ciclo de Reserva y Emisión de Entradas (HU-03, HU-04, HU-05).
+* **Sprint 3 (Avance 3 - 05/11):** Asincronía (RabbitMQ) y Reglas de Negocio (HU-07, HU-09, HU-08).
+* **Sprint 4 (Entrega Final - 25/11):** Integración E2E a través del API Gateway, Estabilización y Despliegue On-Premise.
 
 ---
 
