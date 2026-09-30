@@ -1,0 +1,58 @@
+# ==============================================================================
+# .gitignore — Branch: main (TicketU - Entradas e Inventario)
+# ==============================================================================
+
+# Sistema Operativo
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# Editores e IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# Variables de Entorno y Secretos
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Residuos de desarrollo Frontend / Node.js
+node_modules/
+.next/
+dist/
+out/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Residuos de desarrollo Python / Backend
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Datos locales y persistencia (MongoDB / Docker)
+data/
+mongo_data/
+*.dump
+*.bson
+
+# Carpetas y artefactos de branches aún no integradas en main
+front-end/
+back-end/
+database/
+docker-compose.yml
