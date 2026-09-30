@@ -3,3 +3,6 @@ uvicorn
 pydantic
 httpx
 motor
+pytest
+pytest-asyncio
+pytest-html
