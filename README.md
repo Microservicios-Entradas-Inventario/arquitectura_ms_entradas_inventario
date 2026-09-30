@@ -20,26 +20,28 @@ Bienvenido a la rama `backend` del microservicio de **Entradas e Inventario** de
 El backend sigue una arquitectura modular en capas para mantener separación de responsabilidades y alta cohesión:
 
 ```text
-Backend/
-├── database.py              # Gestión del ciclo de vida y conexión asíncrona a MongoDB (Motor)
-├── docker-compose.yml       # Orquestación de contenedores para MongoDB y Mongo Express
-├── init_db.js               # Script de inicialización y datos semilla (Seed) de colecciones
-├── main.py                  # Punto de entrada de la aplicación FastAPI y registro de routers
-├── requirements.txt         # Dependencias del proyecto
-├── schema.dbml              # Modelado relacional/documental de base de datos
-├── routers/                 # Controladores y endpoints organizados por dominio
-│   ├── entradas.py          # Emisión, compra (flujo libre/pago), reportes y consulta por usuario
-│   ├── inventario.py        # Consulta de disponibilidad en tiempo real para Catálogo
-│   └── reservas.py          # Webhook de confirmación transaccional desde Pagos
-├── schemas/                 # Esquemas de validación y DTOs (Pydantic)
-│   └── entradas.py          # Modelos de solicitud y respuesta
-└── services/                # Capa de integración desacoplada con otros microservicios (HTTPX)
-    ├── auth_service.py          # Validación de sesiones, JWT y roles con Autenticación
-    ├── catalogo_service.py      # Actualización de stock en Catálogo de Eventos
-    ├── checkin_service.py       # Emisión de tickets y códigos QR en Check-in
-    ├── notificaciones_service.py# Envío asíncrono de tickets por correo
-    ├── pagos_service.py         # Creación e inicio de órdenes de pago con Pasarela
-    └── panel_service.py         # Notificación de métricas y ventas al Panel Organizador
+├── back-end/
+│   ├── database.py              # Gestión del ciclo de vida y conexión asíncrona a MongoDB (Motor)
+│   ├── main.py                  # Punto de entrada de la aplicación FastAPI y registro de routers
+│   ├── requirements.txt         # Dependencias del proyecto
+│   ├── routers/                 # Controladores y endpoints organizados por dominio
+│   │   ├── entradas.py          # Emisión, compra (flujo libre/pago), reportes y consulta por usuario
+│   │   ├── inventario.py        # Consulta de disponibilidad en tiempo real para Catálogo
+│   │   └── reservas.py          # Webhook de confirmación transaccional desde Pagos
+│   ├── schemas/                 # Esquemas de validación y DTOs (Pydantic)
+│   │   └── entradas.py          # Modelos de solicitud y respuesta
+│   ├── services/                # Capa de integración desacoplada con otros microservicios (HTTPX)
+│   │   ├── auth_service.py          # Validación de sesiones, JWT y roles con Autenticación
+│   │   ├── catalogo_service.py      # Actualización de stock en Catálogo de Eventos
+│   │   ├── checkin_service.py       # Emisión de tickets y códigos QR en Check-in
+│   │   ├── notificaciones_service.py# Envío asíncrono de tickets por correo
+│   │   ├── pagos_service.py         # Creación e inicio de órdenes de pago con Pasarela
+│   │   └── panel_service.py         # Notificación de métricas y ventas al Panel Organizador
+│   └── tests/                   # Pruebas automatizadas (Pytest) y colección Postman
+├── database/                    # Capa desacoplada de persistencia y base de datos
+│   ├── init_db.js               # Script de inicialización y datos semilla (Seed) de colecciones
+│   └── schema.dbml              # Modelado relacional/documental de base de datos
+├── docker-compose.yml           # Orquestación de contenedores para MongoDB y Mongo Express
 ```
 * **Backend:** FastAPI
 * **Base de Datos:** MongoDB
