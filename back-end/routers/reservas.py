@@ -57,29 +57,56 @@ async def procesar_pago_aprobado(id_reserva: str):
     )
     
     id_usuario = reserva.get("id_usuario", "usr-12345")
-    nombre_usuario = "Esteban Quinteros (Simulado)"
-    correo_usuario = "esteban@ticketu.com"
+    nombre_usuario = reserva.get("nombre_usuario", "Esteban Quinteros (Simulado)")
+    correo_usuario = reserva.get("correo_usuario", "esteban@ticketu.com")
     id_evento = reserva["id_evento"]
+    
+    evento = await db.inventario_evento.find_one({"id_evento": id_evento})
+    nombre_evento = evento.get("nombre_evento", f"Evento {id_evento}") if evento else f"Evento {id_evento}"
+    fecha_evento = evento.get("fecha_evento", "2026-11-20") if evento else "2026-11-20"
+    hora_evento = evento.get("hora_evento", "20:00") if evento else "20:00"
     
     for i in range(cantidad):
         id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
-        qr_data = f"https://storage.midominio.com/qr/{id_entrada}.png"
+        qr_data_url = f"https://storage.midominio.com/qr/{id_entrada}.png"
+        # Estructura del QR para Check-in conforme a regla de negocio v2.1 (objeto JSON con id_evento e id_entrada)
+        qr_checkin = {
+            "id_evento": id_evento,
+            "id_entrada": id_entrada
+        }
         
         await db.entrada.insert_one({
             "id_entrada": id_entrada,
             "id_reserva": id_reserva,
             "id_usuario": id_usuario,
+            "nombre_usuario": nombre_usuario,
+            "correo_usuario": correo_usuario,
             "rol_usuario": "CLIENTE",
             "tipo_acceso": "GENERAL",
             "precio_final_pagado": reserva.get("monto_total", 0) // cantidad,
             "estado_entrada": "EMITIDA",
             "nombre_archivo_qr": f"{id_entrada}.png",
-            "qr_data": qr_data,
+            "qr_data": qr_data_url,
             "fecha_emision": datetime.utcnow()
         })
         
-        asyncio.create_task(CheckinService.registrar_ticket_puerta(id_entrada, id_evento, nombre_usuario, qr_data))
-        asyncio.create_task(NotificacionesService.enviar_ticket_correo(correo_usuario, nombre_usuario, f"Evento {id_evento}", "2026-11-15", "20:00", qr_data))
+        # Despacho en paralelo a Check-in (v2.1) y Notificaciones (v3)
+        asyncio.create_task(CheckinService.registrar_ticket_puerta(
+            id_entrada=id_entrada, 
+            id_evento=id_evento, 
+            nombre_usuario=nombre_usuario, 
+            qr_data=qr_checkin
+        ))
+        asyncio.create_task(NotificacionesService.enviar_ticket_correo(
+            correo_comprador=correo_usuario, 
+            nombre_comprador=nombre_usuario, 
+            id_usuario=id_usuario,
+            nombre_evento=nombre_evento, 
+            id_evento=id_evento,
+            fecha_evento=fecha_evento, 
+            hora_evento=hora_evento, 
+            qr_data=qr_data_url
+        ))
 
     return {"message": "Ticket emitido y notificaciones distribuidas correctamente."}
 

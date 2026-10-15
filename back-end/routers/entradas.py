@@ -75,6 +75,9 @@ async def procesar_compra(compra: ProcesarCompraRequest):
     stock_actual = evento_db.get("stock_actual", 0)
     precio_unitario = evento_db.get("precio_unitario", 0)
     precio_base = precio_unitario * compra.cantidad
+    nombre_evento = evento_db.get("nombre_evento", f"Evento {compra.id_evento}")
+    fecha_evento = evento_db.get("fecha_evento", "2026-12-01")
+    hora_evento = evento_db.get("hora_evento", "20:00")
 
     if compra.cantidad <= 0 or compra.cantidad > stock_actual:
         raise HTTPException(status_code=400, detail="Parámetro ausente o inválido (ej. cantidad <= 0 o stock insuficiente).")
@@ -88,10 +91,13 @@ async def procesar_compra(compra: ProcesarCompraRequest):
             {"$set": {"stock_actual": nuevo_stock}, "$inc": {"cantidad_entrada_comprada": compra.cantidad}}
         )
         
+        # Persistencia de nombre_usuario y correo_usuario acordada con Check-in (v2.1) y Notificaciones (v3)
         await db.reserva_entrada.insert_one({
             "id_reserva": id_reserva,
             "id_evento": compra.id_evento,
             "id_usuario": id_usuario,
+            "nombre_usuario": nombre_usuario,
+            "correo_usuario": correo_usuario,
             "rol_usuario": "CLIENTE",
             "cantidad_entrada": compra.cantidad,
             "id_promocion": None,
@@ -104,25 +110,47 @@ async def procesar_compra(compra: ProcesarCompraRequest):
         })
         
         id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
-        qr_data = f"https://storage.midominio.com/qr/gratis-{id_entrada}.png"
+        qr_data_url = f"https://storage.midominio.com/qr/gratis-{id_entrada}.png"
         
         await db.entrada.insert_one({
             "id_entrada": id_entrada,
             "id_reserva": id_reserva,
             "id_usuario": id_usuario,
+            "nombre_usuario": nombre_usuario,
+            "correo_usuario": correo_usuario,
             "rol_usuario": "CLIENTE",
             "tipo_acceso": "GENERAL",
             "precio_final_pagado": 0,
             "estado_entrada": "EMITIDA",
             "nombre_archivo_qr": f"gratis-{id_entrada}.png",
-            "qr_data": qr_data,
+            "qr_data": qr_data_url,
             "fecha_emision": datetime.utcnow()
         })
         
-        # Ejecutar en paralelo (Regla 2) Notificaciones, Catálogo y Check-in
-        asyncio.create_task(NotificacionesService.enviar_ticket_correo(correo_usuario, nombre_usuario, compra.id_evento, "2026-12-01", "00:00", qr_data))
+        # Estructura de QR para Check-in (Regla de negocio Contrato v2.1: Objeto JSON con id_evento e id_entrada)
+        qr_checkin = {
+            "id_evento": compra.id_evento,
+            "id_entrada": id_entrada
+        }
+        
+        # Ejecutar en paralelo (Regla 2): Notificaciones (v3), Catálogo y Check-in (v2.1)
+        asyncio.create_task(NotificacionesService.enviar_ticket_correo(
+            correo_comprador=correo_usuario,
+            nombre_comprador=nombre_usuario,
+            id_usuario=id_usuario,
+            nombre_evento=nombre_evento,
+            id_evento=compra.id_evento,
+            fecha_evento=fecha_evento,
+            hora_evento=hora_evento,
+            qr_data=qr_data_url
+        ))
         asyncio.create_task(CatalogoService.actualizar_stock_catalogo(compra.id_evento, nuevo_stock, compra.token_sesion))
-        asyncio.create_task(CheckinService.registrar_ticket_puerta(id_entrada, compra.id_evento, nombre_usuario, qr_data))
+        asyncio.create_task(CheckinService.registrar_ticket_puerta(
+            id_entrada=id_entrada,
+            id_evento=compra.id_evento,
+            nombre_usuario=nombre_usuario,
+            qr_data=qr_checkin
+        ))
         
         if nuevo_stock == 0:
             print(f"[RabbitMQ - Mock] Evento 'entradas.evento.stock.v1' publicado para Panel -> {{'id_evento': '{compra.id_evento}', 'stock': 0}}")
@@ -135,10 +163,13 @@ async def procesar_compra(compra: ProcesarCompraRequest):
         )
         
         expira_en = datetime.utcnow() + timedelta(minutes=15)
+        # Persistencia de nombre_usuario y correo_usuario al momento de la reserva (Acuerdo Check-in v2.1)
         await db.reserva_entrada.insert_one({
             "id_reserva": id_reserva,
             "id_evento": compra.id_evento,
             "id_usuario": id_usuario,
+            "nombre_usuario": nombre_usuario,
+            "correo_usuario": correo_usuario,
             "rol_usuario": "CLIENTE",
             "cantidad_entrada": compra.cantidad,
             "id_promocion": None,
@@ -215,7 +246,7 @@ async def consultar_entrada_checkin(id_ticket: str):
         
     return {
         "id_ticket": entrada["id_entrada"],
-        "nombre_usuario": "Sebastián Fuentes", 
+        "nombre_usuario": entrada.get("nombre_usuario", "Sebastián Fuentes"), 
         "usuario": {
             "id_usuario": entrada["id_usuario"],
             "rol_usuario": entrada["rol_usuario"].lower()

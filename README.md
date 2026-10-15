@@ -72,9 +72,11 @@ Implementación mediante la capa `services/` con clientes asíncronos `httpx.Asy
 * **Pasarela de Pagos (`PagosService`):**
   * Invoca `POST /api/v1/pagos` para iniciar la orden de compra con `id_usuario`, `id_reserva` y `monto_total`.
 * **Check-in (`CheckinService`):**
-  * Invoca `POST /api/v1/entradas/emitir` para registrar los códigos de entrada/QR habilitados para validación física en puertas (SLA < 500 ms).
+  * Invoca `POST /api/v1/checkin/tickets` para registrar en puerta el ticket consolidado (Contrato v2.1, SLA < 300 ms).
+  * Envía el objeto estructurado `qr_data` (`id_evento`, `id_entrada`) y el `nombre_usuario` persistido directamente en nuestra base de datos para agilizar el control de acceso sin consultas adicionales a Auth.
 * **Notificaciones (`NotificacionesService`):**
-  * Notificación asíncrona para despacho de confirmación y tickets por correo electrónico.
+  * Publica el evento `entradas_emitidas` en el Exchange RabbitMQ `entradas.events` (Contrato v3, SLA < 200 ms).
+  * Despacha el payload completo de compra (`correo_comprador`, `nombre_comprador`, `id_usuario`, `nombre_evento`, `id_evento`, `fecha_evento`, `hora_evento`, `qr_data`) y procesa confirmaciones asíncronas desde el Exchange `notificaciones.confirmacion_envio`.
 * **Procesamiento Asíncrono no bloqueante (`asyncio.create_task`):**
   * Las llamadas post-compra hacia Check-in, Catálogo y Notificaciones se ejecutan concurrentemente en segundo plano para garantizar tiempos de respuesta ultrarrápidos al cliente final.
 * *Nota sobre Promociones:* Conforme al Contrato de Integración oficial v1.0, el consumidor de Promociones es directamente el Frontend (Web/Mobile), por lo cual el cálculo y aplicación de cupones se procesa en el Checkout previo y no añade acoplamiento innecesario a este microservicio.
