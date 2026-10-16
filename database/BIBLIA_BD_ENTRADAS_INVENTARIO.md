@@ -86,6 +86,7 @@ Una `reserva_entrada` depende de un `inventario_evento`. A su vez, una `entrada`
 | `id_reserva` | `string` | [PK] | NOT NULL | UNIQUE | Identificador de retención temporal. |
 | `id_evento` | `string` | [FK] | NOT NULL | String | Relación al inventario. |
 | `id_usuario` | `string` | [FK Ext] | NOT NULL | String | Cliente solicitante. |
+| `nombre_usuario` | `string` | — | NOT NULL | String | Nombre del cliente solicitante. |
 | `rol_usuario` | `string` | — | NOT NULL | enum: ["CLIENTE"] | Rol de comprador. |
 | `cantidad_entrada` | `int` | — | NOT NULL | minimum: 1 | Cantidad reservada. |
 | `id_promocion` | `string` | [FK Ext] | NULLABLE | ["string", "null"] | Referencia de promoción. |
@@ -103,12 +104,13 @@ Una `reserva_entrada` depende de un `inventario_evento`. A su vez, una `entrada`
 | `id_entrada` | `string` | [PK] | NOT NULL | UNIQUE | Ticket generado inmutable. |
 | `id_reserva` | `string` | [FK] | NOT NULL | String | Reserva de origen. |
 | `id_usuario` | `string` | [FK Ext] | NOT NULL | String | Titular de la entrada. |
+| `nombre_usuario` | `string` | — | NOT NULL | String | Nombre del titular de la entrada. |
 | `rol_usuario` | `string` | — | NOT NULL | enum: ["CLIENTE"] | Rol del titular. |
 | `tipo_acceso` | `string` | — | NOT NULL | enum: ["GENERAL"] | Modalidad de acceso. |
 | `precio_final_pagado`| `int` | — | NOT NULL | minimum: 0 | Cobro real liquidado. |
 | `estado_entrada` | `string` | — | NOT NULL | enum: ["EMITIDA", "ANULADA"]| Estado operativo del ticket. |
 | `nombre_archivo_qr` | `string` | — | NOT NULL | String | Nombre del archivo de imagen. |
-| `qr_data` | `string` | — | NOT NULL | String | URL del recurso QR en bucket. |
+| `qr_data` | `object` | — | NOT NULL | Object | Objeto estructurado codificado en el QR. |
 | `fecha_emision` | `date` | — | NOT NULL | Date | Instante de generación del ticket. |
 
 ---
@@ -125,7 +127,7 @@ Existen también índices únicos (UNIQUE) para todas las PK lógicas (`id_event
 - **HU2 (Validación Límites):** Cumplido en `maximo_ticket` y `cantidad_entrada` con límites numéricos.
 - **HU3 (Reserva TTL):** Cumplido con `fecha_expiracion` y TTL Index.
 - **HU4 (Precio Inmutable):** Cumplido con `precio_final_pagado` estricto en la colección `entrada`.
-- **HU5 (Registro de Archivo QR):** Cumplido almacenando URL directa en `qr_data`.
+- **HU5 (Registro de Archivo QR):** Cumplido almacenando objeto JSON estructurado en `qr_data`.
 - **HU6 (Alerta Stock 0):** Validado cuando `stock_actual` de `inventario_evento` decrece hasta cero.
 - **HU7 (Límite histórico):** Soportado nativamente por índices de búsqueda compuestos.
 - **HU8 (Consolidación Pagos):** Relación asíncrona perfecta usando `id_pago`.

@@ -30,6 +30,7 @@ erDiagram
         string id_reserva "[PK] NOT NULL"
         string id_evento "[FK] NOT NULL"
         string id_usuario "[FK Ext] NOT NULL"
+        string nombre_usuario "NOT NULL"
         string rol_usuario "NOT NULL"
         int cantidad_entrada "NOT NULL"
         string id_promocion "[FK Ext] NULLABLE"
@@ -46,12 +47,13 @@ erDiagram
         string id_entrada "[PK] NOT NULL"
         string id_reserva "[FK] NOT NULL"
         string id_usuario "[FK Ext] NOT NULL"
+        string nombre_usuario "NOT NULL"
         string rol_usuario "NOT NULL"
         string tipo_acceso "NOT NULL"
         int precio_final_pagado "NOT NULL"
         string estado_entrada "NOT NULL"
         string nombre_archivo_qr "NOT NULL"
-        string qr_data "NOT NULL"
+        object qr_data "NOT NULL"
         date fecha_emision "NOT NULL"
     }
 ```
@@ -90,6 +92,7 @@ Registra las intenciones de compra (reservas) que un cliente realiza. Tienen un 
 | `id_reserva` | `string` | PK (Lógico) | No | Identificador único de la reserva. |
 | `id_evento` | `string` | FK | No | Evento asociado a la reserva (Referencia a `inventario_evento`). |
 | `id_usuario` | `string` | FK | No | Identificador del usuario que realiza la reserva (Referencia a la entidad Usuario externa). |
+| `nombre_usuario` | `string` | - | No | Nombre del usuario que realiza la reserva. |
 | `rol_usuario` | `string` | - | No | Rol del usuario, debe ser `CLIENTE`. |
 | `cantidad_entrada` | `int` | - | No | Cantidad de entradas solicitadas en esta reserva (mínimo 1). |
 | `id_promocion` | `string` | - | Sí | Identificador de alguna promoción o cupón aplicado, si aplica. |
@@ -112,12 +115,13 @@ Representa cada ticket individual definitivo que un cliente ha adquirido y que s
 | `id_entrada` | `string` | PK (Lógico) | No | Identificador único del ticket generado. |
 | `id_reserva` | `string` | FK | No | Reserva origen que dio lugar a la emisión de este ticket (Referencia a `reserva_entrada`). |
 | `id_usuario` | `string` | FK | No | Usuario propietario del ticket (Referencia a la entidad Usuario externa). |
+| `nombre_usuario` | `string` | - | No | Nombre del usuario propietario del ticket. |
 | `rol_usuario` | `string` | - | No | Rol del propietario, debe ser `CLIENTE`. |
 | `tipo_acceso` | `string` | - | No | Área o categoría de acceso (`GENERAL`). |
 | `precio_final_pagado` | `int` | - | No | El precio que efectivamente se pagó por esta entrada individual. |
 | `estado_entrada` | `string` | - | No | Estado del ticket, usualmente `EMITIDA` o `ANULADA`. |
 | `nombre_archivo_qr` | `string` | - | No | Nombre del recurso para acceder al código QR asociado. |
-| `qr_data` | `string` | - | No | Datos o URL codificada en el código QR generado. |
+| `qr_data` | `object` | - | No | Datos estructurados (objeto con URL, hash, etc.) codificados en el código QR generado. |
 | `fecha_emision` | `date` | - | No | Fecha en la cual se emitió formalmente el ticket. |
 
 ---
