@@ -1,13 +1,167 @@
 from fastapi import APIRouter, HTTPException
 from database import get_database
+from schemas.entradas import (
+    CrearReservaHoldRequest, 
+    CrearReservaHoldResponse, 
+    DetalleReservaResponse
+)
 from services.notificaciones_service import NotificacionesService
 from services.checkin_service import CheckinService
-from datetime import datetime
+from datetime import datetime, timedelta
 import asyncio
 import uuid
 
 router = APIRouter()
 
+# ============================================================================
+# HU-03: Reserva Temporal de Cupo (Hold)
+# ============================================================================
+@router.post(
+    "/hold",
+    tags=["Reservas (HU-03)"],
+    response_model=CrearReservaHoldResponse,
+    responses={
+        200: {"description": "Cupo reservado temporalmente con holdId generado"},
+        400: {"description": "Stock insuficiente, cantidad inválida o evento cancelado"},
+        404: {"description": "El evento especificado no existe"},
+        500: {"description": "Error interno del servidor o BD"}
+    }
+)
+async def crear_reserva_hold(solicitud: CrearReservaHoldRequest):
+    """
+    ### 🎟️ HU-03: Reserva Temporal de Cupo
+    **Propósito:** Descuenta temporalmente los cupos solicitados del stock disponible y genera
+    un identificador único de reserva (`holdId` / `id_reserva`) con un tiempo límite de vigencia
+    para permitir al cliente completar el proceso de checkout.
+    
+    ### ⏱️ Reglas de Negocio:
+    1. Descuenta temporalmente del stock disponible (`stock_actual`) y lo añade a `cantidad_entrada_reservada`.
+    2. Establece un tiempo de expiración (por defecto 15 minutos).
+    3. Si no se recibe pago dentro del plazo, el sistema libera automáticamente los cupos al pool disponible.
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Base de datos no disponible")
+
+    if solicitud.cantidad <= 0:
+        raise HTTPException(status_code=400, detail="La cantidad debe ser mayor a 0")
+
+    evento = await db.inventario_evento.find_one({"id_evento": solicitud.id_evento})
+    if not evento:
+        raise HTTPException(status_code=404, detail="El evento solicitado no existe")
+
+    if evento.get("estado_gestion") == "CANCELADO":
+        raise HTTPException(status_code=400, detail="El evento se encuentra cancelado")
+
+    stock_disponible = evento.get("stock_actual", 0)
+    if solicitud.cantidad > stock_disponible:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Stock insuficiente. Disponibles: {stock_disponible}, solicitados: {solicitud.cantidad}"
+        )
+
+    # Descuento atómico temporal de cupos
+    await db.inventario_evento.update_one(
+        {"id_evento": solicitud.id_evento},
+        {
+            "$inc": {
+                "stock_actual": -solicitud.cantidad,
+                "cantidad_entrada_reservada": solicitud.cantidad
+            }
+        }
+    )
+
+    hold_id = f"hold-{uuid.uuid4().hex[:8]}"
+    ahora = datetime.utcnow()
+    expira_en = ahora + timedelta(minutes=solicitud.tiempo_limite_minutos)
+    precio_unitario = evento.get("precio_unitario", 0)
+    monto_total = precio_unitario * solicitud.cantidad
+
+    nombre_usuario = solicitud.nombre_usuario or "Cliente en Checkout"
+
+    doc_reserva = {
+        "id_reserva": hold_id,
+        "id_evento": solicitud.id_evento,
+        "id_usuario": solicitud.id_usuario,
+        "nombre_usuario": nombre_usuario,
+        "rol_usuario": "CLIENTE",
+        "cantidad_entrada": solicitud.cantidad,
+        "id_promocion": None,
+        "porcentaje_descuento": 0,
+        "monto_total": monto_total,
+        "id_pago": None,
+        "estado_reserva": "RESERVADO",
+        "fecha_creacion": ahora,
+        "fecha_expiracion": expira_en
+    }
+    await db.reserva_entrada.insert_one(doc_reserva)
+
+    tiempo_restante_segundos = int((expira_en - ahora).total_seconds())
+
+    return {
+        "hold_id": hold_id,
+        "id_reserva": hold_id,
+        "id_evento": solicitud.id_evento,
+        "id_usuario": solicitud.id_usuario,
+        "cantidad_entrada": solicitud.cantidad,
+        "monto_total": monto_total,
+        "estado_reserva": "RESERVADO",
+        "fecha_creacion": ahora,
+        "fecha_expiracion": expira_en,
+        "tiempo_restante_segundos": tiempo_restante_segundos
+    }
+
+@router.post(
+    "/{id_reserva}/cancelar",
+    tags=["Reservas (HU-03)"],
+    responses={
+        200: {"description": "Reserva cancelada y cupos liberados de inmediato"},
+        400: {"description": "La reserva no está en estado RESERVADO"},
+        404: {"description": "Reserva no encontrada"}
+    }
+)
+async def cancelar_reserva_hold(id_reserva: str):
+    """
+    ### 🛑 HU-03: Liberación Anticipada de Cupo
+    Permite al usuario o al checkout liberar voluntariamente los cupos reservados
+    antes de la expiración del tiempo límite, devolviendo el stock al pool disponible.
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Base de datos no disponible")
+
+    reserva = await db.reserva_entrada.find_one({"id_reserva": id_reserva})
+    if not reserva:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+
+    if reserva.get("estado_reserva") != "RESERVADO":
+        raise HTTPException(
+            status_code=400, 
+            detail=f"La reserva ya está en estado {reserva.get('estado_reserva')} y no puede cancelarse"
+        )
+
+    cantidad = reserva.get("cantidad_entrada", 1)
+    id_evento = reserva["id_evento"]
+
+    # Liberación atómica de cupos
+    await db.reserva_entrada.update_one(
+        {"id_reserva": id_reserva},
+        {"$set": {"estado_reserva": "CANCELADO", "fecha_cancelacion": datetime.utcnow()}}
+    )
+    await db.inventario_evento.update_one(
+        {"id_evento": id_evento},
+        {"$inc": {"stock_actual": cantidad, "cantidad_entrada_reservada": -cantidad}}
+    )
+
+    return {
+        "mensaje": "Reserva cancelada exitosamente y cupos devueltos al pool disponible",
+        "id_reserva": id_reserva,
+        "cupos_liberados": cantidad
+    }
+
+# ============================================================================
+# Simulación RabbitMQ - Webhook Pago Aprobado (HU-05)
+# ============================================================================
 @router.post(
     "/{id_reserva}/webhook-pago", 
     tags=["Simulación RabbitMQ - Pago Aprobado"],
@@ -65,7 +219,10 @@ async def procesar_pago_aprobado(id_reserva: str):
     nombre_evento = evento.get("nombre_evento", f"Evento {id_evento}") if evento else f"Evento {id_evento}"
     fecha_evento = evento.get("fecha_evento", "2026-11-20") if evento else "2026-11-20"
     hora_evento = evento.get("hora_evento", "20:00") if evento else "20:00"
+    lugar_ingreso = evento.get("lugar_ingreso", "Puerta Principal - Acceso General") if evento else "Puerta Principal - Acceso General"
     
+    entradas_generadas = []
+
     for i in range(cantidad):
         id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
         qr_data_url = f"https://storage.midominio.com/qr/{id_entrada}.png"
@@ -75,22 +232,28 @@ async def procesar_pago_aprobado(id_reserva: str):
             "id_entrada": id_entrada
         }
         
-        await db.entrada.insert_one({
+        qr_obj = {
+            "url": qr_data_url,
+            "hash": uuid.uuid4().hex[:7]
+        }
+        
+        doc_entrada = {
             "id_entrada": id_entrada,
             "id_reserva": id_reserva,
             "id_usuario": id_usuario,
             "nombre_usuario": nombre_usuario,
-            "correo_usuario": correo_usuario,
             "rol_usuario": "CLIENTE",
-            "tipo_acceso": "GENERAL",
-            "precio_final_pagado": reserva.get("monto_total", 0) // cantidad,
+            "tipo_acceso": "GENERAL",  # Criterio 1 HU-04: Acceso general sin mapas numerados
+            "precio_final_pagado": reserva.get("monto_total", 0) // cantidad,  # Criterio 2 HU-04: Precio final inmutable
             "estado_entrada": "EMITIDA",
             "nombre_archivo_qr": f"{id_entrada}.png",
-            "qr_data": qr_data_url,
+            "qr_data": qr_obj,
             "fecha_emision": datetime.utcnow()
-        })
+        }
+        await db.entrada.insert_one(doc_entrada)
+        entradas_generadas.append(id_entrada)
         
-        # Despacho en paralelo a Check-in (v2.1) y Notificaciones (v3)
+        # Despacho en paralelo a Check-in (v2.1) y Notificaciones (v3) - HU-05
         asyncio.create_task(CheckinService.registrar_ticket_puerta(
             id_entrada=id_entrada, 
             id_evento=id_evento, 
@@ -108,13 +271,20 @@ async def procesar_pago_aprobado(id_reserva: str):
             qr_data=qr_data_url
         ))
 
-    return {"message": "Ticket emitido y notificaciones distribuidas correctamente."}
+    return {
+        "message": "Ticket emitido y notificaciones distribuidas correctamente.",
+        "entradas_emitidas": entradas_generadas
+    }
 
+# ============================================================================
+# Consulta de Reserva (BE3 Pagos y HU-03 Hold con tiempo restante)
+# ============================================================================
 @router.get(
     "/{id_reserva}", 
-    tags=["Servicios Provistos (BE3) - Pagos"],
+    tags=["Servicios Provistos (BE3) - Pagos", "Reservas (HU-03)"],
+    response_model=DetalleReservaResponse,
     responses={
-        200: {"description": "Datos de la reserva retornados exitosamente para verificación de orden"},
+        200: {"description": "Datos de la reserva retornados exitosamente con tiempo restante"},
         404: {"description": "Reserva no encontrada"},
         500: {"description": "Error interno del servidor"}
     }
@@ -122,20 +292,12 @@ async def procesar_pago_aprobado(id_reserva: str):
 async def consultar_reserva_pagos(id_reserva: str):
     """
     ###  Propósito
-    Proporciona al microservicio de Pagos la información esencial de una reserva (monto total y cantidad) para que puedan inicializar y auditar la transacción en su propia base de datos (Soporte a Contrato Pagos v2.1).
-
-    ###  Parámetros
-    - **`id_reserva`** *(str) (Path)*: Identificador único de la reserva que Pagos necesita consultar.
-
-    ###  Flujo de Funcionamiento
-    1. Se recibe el `id_reserva` por la ruta.
-    2. Se busca el documento de la reserva en la colección `reserva_entrada`.
-    3. Se retorna un subconjunto seguro de datos (`id_reserva`, `monto_total`, `cantidad_entrada`, `estado_reserva`) sin exponer datos sensibles del usuario.
-
-    ###  Códigos HTTP Posibles
-    - **`200 OK`**: Datos de la reserva retornados exitosamente.
-    - **`404 Not Found`**: El `id_reserva` no fue encontrado (pudo haber expirado por TTL o ser inválido).
-    - **`500 Internal Server Error`**: Ocurrió un problema de conexión con la base de datos MongoDB.
+    Proporciona al microservicio de Pagos y al Checkout del Frontend la información esencial
+    de una reserva (monto total, cantidad, estado y tiempo restante en pantalla).
+    
+    ### ⏱️ Control Automático de Expiración (HU-03):
+    Si el tiempo límite de la reserva transcurrió sin confirmación de pago, el cupo se libera
+    inmediatamente al pool de stock disponible y se retorna el estado `EXPIRADO`.
     """
     db = get_database()
     if db is None:
@@ -144,10 +306,43 @@ async def consultar_reserva_pagos(id_reserva: str):
     reserva = await db.reserva_entrada.find_one({"id_reserva": id_reserva})
     if not reserva:
         raise HTTPException(status_code=404, detail="Reserva no encontrada.")
+
+    estado_reserva = reserva.get("estado_reserva", "DESCONOCIDO")
+    fecha_expiracion = reserva.get("fecha_expiracion")
+    ahora = datetime.utcnow()
+    expirada = False
+    tiempo_restante_segundos = 0
+
+    if fecha_expiracion is not None:
+        if ahora > fecha_expiracion and estado_reserva == "RESERVADO":
+            # Liberación automática inmediata por timeout (Criterio 2 HU-03)
+            expirada = True
+            estado_reserva = "EXPIRADO"
+            cantidad = reserva.get("cantidad_entrada", 1)
+            id_evento = reserva["id_evento"]
+
+            await db.reserva_entrada.update_one(
+                {"id_reserva": id_reserva},
+                {"$set": {"estado_reserva": "EXPIRADO"}}
+            )
+            await db.inventario_evento.update_one(
+                {"id_evento": id_evento},
+                {"$inc": {"stock_actual": cantidad, "cantidad_entrada_reservada": -cantidad}}
+            )
+            print(f"[HU-03 On-Read Release] Reserva '{id_reserva}' expiró al ser consultada. Se liberaron {cantidad} cupo(s).")
+        else:
+            tiempo_restante_segundos = max(0, int((fecha_expiracion - ahora).total_seconds()))
         
     return {
         "id_reserva": reserva["id_reserva"],
+        "hold_id": reserva.get("hold_id", reserva["id_reserva"]),
+        "id_evento": reserva.get("id_evento", ""),
+        "id_usuario": reserva.get("id_usuario", ""),
         "monto_total": reserva.get("monto_total", 0),
         "cantidad_entrada": reserva.get("cantidad_entrada", 0),
-        "estado_reserva": reserva.get("estado_reserva", "DESCONOCIDO")
+        "estado_reserva": estado_reserva,
+        "fecha_expiracion": fecha_expiracion,
+        "tiempo_restante_segundos": tiempo_restante_segundos,
+        "expirada": expirada
     }
+

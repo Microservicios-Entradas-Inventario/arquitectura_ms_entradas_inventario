@@ -11,7 +11,7 @@ async def connect_to_mongo():
     global client, database
     try:
         print(f"Conectando a MongoDB en: {MONGO_DETAILS}")
-        client = AsyncIOMotorClient(MONGO_DETAILS)
+        client = AsyncIOMotorClient(MONGO_DETAILS, serverSelectionTimeoutMS=2000)
         database = client[DB_NAME]
         print(f"Conexión exitosa a la base de datos: {DB_NAME}")
     except Exception as e:

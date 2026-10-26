@@ -1,11 +1,17 @@
 from fastapi import APIRouter, HTTPException
-from schemas.entradas import ProcesarCompraRequest, ProcesarCompraResponse
+from schemas.entradas import (
+    ProcesarCompraRequest, 
+    ProcesarCompraResponse,
+    DetalleEntradaAdquirida,
+    CodigoQRAccesoResponse
+)
 from database import get_database
 from services.auth_service import AuthService
 from services.notificaciones_service import NotificacionesService
 from services.pagos_service import PagosService
 from services.catalogo_service import CatalogoService
 from services.checkin_service import CheckinService
+from typing import List
 import asyncio
 from datetime import datetime, timedelta
 import uuid
@@ -97,7 +103,6 @@ async def procesar_compra(compra: ProcesarCompraRequest):
             "id_evento": compra.id_evento,
             "id_usuario": id_usuario,
             "nombre_usuario": nombre_usuario,
-            "correo_usuario": correo_usuario,
             "rol_usuario": "CLIENTE",
             "cantidad_entrada": compra.cantidad,
             "id_promocion": None,
@@ -111,19 +116,22 @@ async def procesar_compra(compra: ProcesarCompraRequest):
         
         id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
         qr_data_url = f"https://storage.midominio.com/qr/gratis-{id_entrada}.png"
+        qr_obj = {
+            "url": qr_data_url,
+            "hash": uuid.uuid4().hex[:7]
+        }
         
         await db.entrada.insert_one({
             "id_entrada": id_entrada,
             "id_reserva": id_reserva,
             "id_usuario": id_usuario,
             "nombre_usuario": nombre_usuario,
-            "correo_usuario": correo_usuario,
             "rol_usuario": "CLIENTE",
             "tipo_acceso": "GENERAL",
             "precio_final_pagado": 0,
             "estado_entrada": "EMITIDA",
             "nombre_archivo_qr": f"gratis-{id_entrada}.png",
-            "qr_data": qr_data_url,
+            "qr_data": qr_obj,
             "fecha_emision": datetime.utcnow()
         })
         
@@ -169,7 +177,6 @@ async def procesar_compra(compra: ProcesarCompraRequest):
             "id_evento": compra.id_evento,
             "id_usuario": id_usuario,
             "nombre_usuario": nombre_usuario,
-            "correo_usuario": correo_usuario,
             "rol_usuario": "CLIENTE",
             "cantidad_entrada": compra.cantidad,
             "id_promocion": None,
@@ -291,4 +298,181 @@ async def consultar_stock_panel(id_evento: str):
     return {
         "id_evento": evento["id_evento"],
         "stock": evento["stock_actual"]
+    }
+
+# ==========================================
+# HU-04: Visualización de Detalles de la Entrada Adquirida (#5)
+# ==========================================
+
+@router.get(
+    "/usuario/{id_usuario}",
+    tags=["Servicios Provistos (BE3) - Clientes / Entradas"],
+    response_model=List[DetalleEntradaAdquirida],
+    responses={
+        200: {"description": "Historial de entradas adquiridas por el cliente retornado con éxito."},
+        500: {"description": "Error al conectar con la base de datos."}
+    }
+)
+async def obtener_historial_entradas_usuario(id_usuario: str):
+    """
+    ### 🎟️ Propósito (HU-04)
+    Permite al cliente visualizar el historial completo de entradas adquiridas vinculadas a su cuenta.
+    
+    ### 📋 Criterios de Aceptación (HU-04):
+    1. **Detalle Completo e Inmutable**: Incluye el código alfanumérico único (`id_entrada`), precio final pagado (`precio_final_pagado`), tipo de acceso general (`tipo_acceso: GENERAL`), nombre del evento (`nombre_evento`), lugar físico de ingreso (`lugar_ingreso`), fecha de emisión y código QR.
+    2. **Omisión de Asiento Numerado**: Dado que el tipo de evento es de entrada general, no se incluye ni se exige selección de asiento en mapa numerado.
+    
+    ### 📥 Parámetros
+    - **`id_usuario`** *(str) (Path)*: Identificador único del usuario o cliente autenticado.
+    
+    ### 📤 Códigos HTTP
+    - **`200 OK`**: Retorna el listado de entradas emitidas para el usuario (array vacío si aún no posee compras).
+    - **`500 Internal Server Error`**: Falla en la persistencia o servicio de base de datos.
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
+        
+    cursor = db.entrada.find({"id_usuario": id_usuario}).sort("fecha_emision", -1)
+    entradas = await cursor.to_list(length=100)
+    
+    resultado = []
+    for ent in entradas:
+        id_res = ent.get("id_reserva", "")
+        id_evt = ent.get("id_evento", "")
+        if not id_evt and id_res:
+            res_doc = await db.reserva_entrada.find_one({"id_reserva": id_res})
+            if res_doc:
+                id_evt = res_doc.get("id_evento", "")
+
+        qr_field = ent.get("qr_data")
+        qr_val = qr_field.get("url") if isinstance(qr_field, dict) else (qr_field or f"https://storage.midominio.com/qr/{ent.get('id_entrada')}.png")
+
+        resultado.append({
+            "id_entrada": ent.get("id_entrada"),
+            "id_reserva": id_res,
+            "id_evento": id_evt,
+            "nombre_evento": ent.get("nombre_evento") or f"Evento {id_evt}",
+            "id_usuario": ent.get("id_usuario", id_usuario),
+            "nombre_usuario": ent.get("nombre_usuario", "Cliente"),
+            "correo_usuario": ent.get("correo_usuario"),
+            "tipo_acceso": ent.get("tipo_acceso", "GENERAL"),
+            "lugar_ingreso": ent.get("lugar_ingreso", "Puerta Principal - Acceso General"),
+            "precio_final_pagado": ent.get("precio_final_pagado", 0),
+            "estado_entrada": ent.get("estado_entrada", "EMITIDA"),
+            "nombre_archivo_qr": ent.get("nombre_archivo_qr", f"{ent.get('id_entrada')}.png"),
+            "qr_data": qr_val,
+            "fecha_emision": ent.get("fecha_emision") or datetime.utcnow()
+        })
+        
+    return resultado
+
+@router.get(
+    "/{id_ticket}/detalle",
+    tags=["Servicios Provistos (BE3) - Clientes / Entradas"],
+    response_model=DetalleEntradaAdquirida,
+    responses={
+        200: {"description": "Detalle inmutable de la entrada obtenido correctamente."},
+        404: {"description": "Entrada no encontrada."},
+        500: {"description": "Error al conectar con la base de datos."}
+    }
+)
+async def obtener_detalle_entrada(id_ticket: str):
+    """
+    ### 🎟️ Propósito (HU-04)
+    Permite al cliente o al sistema visualizar en detalle los datos inmutables de una entrada adquirida específica.
+    
+    ### 📋 Criterios de Aceptación (HU-04):
+    - Presenta el identificador único (`id_entrada`), monto final pagado auditado, nombre del evento, y condiciones físicas de acceso (`lugar_ingreso`).
+    - Omite selección de asientos numerados, indicando `tipo_acceso: GENERAL`.
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
+        
+    entrada = await db.entrada.find_one({"id_entrada": id_ticket})
+    if not entrada:
+        raise HTTPException(status_code=404, detail="La entrada solicitada no existe.")
+        
+    reserva = await db.reserva_entrada.find_one({"id_reserva": entrada.get("id_reserva")})
+    id_evento = entrada.get("id_evento") or (reserva.get("id_evento", "") if reserva else "")
+    qr_field = entrada.get("qr_data")
+    qr_val = qr_field.get("url") if isinstance(qr_field, dict) else (qr_field or f"https://storage.midominio.com/qr/{entrada.get('id_entrada')}.png")
+
+    return {
+        "id_entrada": entrada.get("id_entrada"),
+        "id_reserva": entrada.get("id_reserva", ""),
+        "id_evento": id_evento,
+        "nombre_evento": entrada.get("nombre_evento") or f"Evento {id_evento}",
+        "id_usuario": entrada.get("id_usuario", ""),
+        "nombre_usuario": entrada.get("nombre_usuario", "Cliente"),
+        "correo_usuario": entrada.get("correo_usuario"),
+        "tipo_acceso": entrada.get("tipo_acceso", "GENERAL"),
+        "lugar_ingreso": entrada.get("lugar_ingreso", "Puerta Principal - Acceso General"),
+        "precio_final_pagado": entrada.get("precio_final_pagado", 0),
+        "estado_entrada": entrada.get("estado_entrada", "EMITIDA"),
+        "nombre_archivo_qr": entrada.get("nombre_archivo_qr", f"{entrada.get('id_entrada')}.png"),
+        "qr_data": qr_val,
+        "fecha_emision": entrada.get("fecha_emision") or datetime.utcnow()
+    }
+
+# ==========================================
+# HU-05: Recepción de Código QR de Acceso (#6)
+# ==========================================
+
+@router.get(
+    "/{id_ticket}/qr",
+    tags=["Servicios Provistos (BE3) - Clientes / Entradas"],
+    response_model=CodigoQRAccesoResponse,
+    responses={
+        200: {"description": "Código QR de acceso y habilitación en Check-in retornados con éxito."},
+        400: {"description": "La entrada está anulada o no válida para acceso."},
+        404: {"description": "Entrada no encontrada."},
+        500: {"description": "Error al conectar con la base de datos."}
+    }
+)
+async def obtener_qr_acceso(id_ticket: str):
+    """
+    ### 📱 Propósito (HU-05)
+    Proporciona al cliente su código QR de acceso inmediatamente después de la emisión de la entrada
+    (inmediato en flujo gratuito o tras confirmación de pago en flujo pagado) y valida su habilitación
+    para el control de acceso físico en Check-in.
+    
+    ### 📋 Criterios de Aceptación (HU-05):
+    1. **Generación Inmediata / Post-Pago**: La entrada debe estar en estado `EMITIDA`.
+    2. **Estructura del Código QR**: Contiene un payload JSON con `id_evento` e `id_entrada`, vinculado al nombre del asistente.
+    3. **Habilitación en Check-in**: Se confirma que el ticket está listo y habilitado para lectura en torniquetes o escáneres de acceso.
+    
+    ### 📥 Parámetros
+    - **`id_ticket`** *(str) (Path)*: Identificador único de la entrada (ej. `tk-998877`).
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
+        
+    entrada = await db.entrada.find_one({"id_entrada": id_ticket})
+    if not entrada:
+        raise HTTPException(status_code=404, detail="La entrada solicitada no existe.")
+        
+    if entrada.get("estado_entrada") == "ANULADA":
+        raise HTTPException(status_code=400, detail="La entrada se encuentra anulada y no puede ser utilizada para acceso.")
+        
+    reserva = await db.reserva_entrada.find_one({"id_reserva": entrada.get("id_reserva")})
+    id_evento = entrada.get("id_evento") or (reserva.get("id_evento", "") if reserva else "")
+    qr_field = entrada.get("qr_data")
+    qr_val = qr_field.get("url") if isinstance(qr_field, dict) else (qr_field or f"https://storage.midominio.com/qr/{entrada['id_entrada']}.png")
+
+    return {
+        "id_entrada": entrada["id_entrada"],
+        "id_evento": id_evento,
+        "nombre_asistente": entrada.get("nombre_usuario", "Asistente"),
+        "nombre_evento": entrada.get("nombre_evento") or f"Evento {id_evento}",
+        "lugar_ingreso": entrada.get("lugar_ingreso", "Puerta Principal - Acceso General"),
+        "tipo_acceso": entrada.get("tipo_acceso", "GENERAL"),
+        "qr_data": qr_val,
+        "qr_payload": {
+            "id_evento": id_evento,
+            "id_entrada": entrada["id_entrada"]
+        },
+        "habilitado_checkin": entrada.get("estado_entrada") == "EMITIDA"
     }
