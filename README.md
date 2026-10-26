@@ -95,14 +95,24 @@ Se expusieron endpoints documentados para la interoperabilidad con los demás m�
 
 | Método | Ruta | Descripción / Propósito | Sección / Consumidor |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/v1/inventario/{id_evento}` | Obtener Disponibilidad | Inventario (BE1) |
-| **POST** | `/api/v1/entradas/procesar-compra` | Procesar Compra | Servicios Provistos (BE3) - Catálogo |
+| **GET** | `/api/v1/inventario/{id_evento}` | Obtener Disponibilidad | Inventario (BE1 / HU-01) |
+| **POST** | `/api/v1/entradas/procesar-compra` | Procesar Compra | Servicios Provistos (BE3) - Catálogo / HU-02 |
 | **GET** | `/api/v1/entradas/{id_ticket}` | Consultar Entrada Checkin | Servicios Provistos (BE3) - Check-in |
+| **GET** | `/api/v1/entradas/usuario/{id_usuario}` | Historial de Entradas Adquiridas | Servicios Provistos (BE3) - Clientes / HU-04 |
+| **GET** | `/api/v1/entradas/{id_ticket}/detalle` | Visualizar Detalle Inmutable de Entrada | Servicios Provistos (BE3) - Clientes / HU-04 |
+| **GET** | `/api/v1/entradas/{id_ticket}/qr` | Recepción de Código QR de Acceso | Servicios Provistos (BE3) - Clientes / HU-05 |
+| **POST** | `/api/v1/reservas/hold` | Reserva Temporal de Cupos (Hold) con TTL | Servicios Provistos (BE3) - Reservas / HU-03 |
+| **POST** | `/api/v1/reservas/{id_reserva}/cancelar` | Cancelar Reserva Temporal y Liberar Cupos | Servicios Provistos (BE3) - Reservas / HU-03 |
+| **GET** | `/api/v1/reservas/{id_reserva}` | Consultar Reserva, Estado y Tiempo Restante | Servicios Provistos (BE3) - Pagos / HU-03 |
+| **POST** | `/api/v1/reservas/{id_reserva}/webhook-pago` | Procesar Pago Aprobado (Emisión + QR) | Simulación RabbitMQ - Pago Aprobado / HU-05 |
 | **GET** | `/api/v1/entradas/eventos/{id_evento}/stock` | Consultar Stock Panel | Servicios Provistos (BE3) - Panel Organizador |
-| **POST** | `/api/v1/reservas/{id_reserva}/webhook-pago` | Procesar Pago Aprobado | Simulación RabbitMQ - Pago Aprobado |
-| **GET** | `/api/v1/reservas/{id_reserva}` | Consultar Reserva Pagos | Servicios Provistos (BE3) - Pagos |
-* **Sprint 1 (Avance 1 - 01/10):** Base de Datos, Stock y Selección (~~HU-06~~, HU-01, HU-02).
-* **Sprint 2 (Avance 2 - 22/10):** Ciclo de Reserva y Emisión de Entradas (HU-03, HU-04, HU-05).
+
+### 🚀 Roadmap de Sprints
+* **Sprint 1 (Avance 1 - 01/10):** Base de Datos, Stock y Selección (HU-01, HU-02).
+* **Sprint 2 (Avance 2 - 22/10):** Ciclo de Reserva y Emisión de Entradas (HU-03, HU-04, HU-05):
+  * **HU-03 (Reserva temporal de cupo):** Descuento atómico de stock, generación de `holdId` / `id_reserva`, cronómetro regresivo (15 min) y worker asíncrono / on-read de liberación automática al expirar.
+  * **HU-04 (Detalles de entrada adquirida):** Código alfanumérico único, monto final pagado auditado inmutable en BD, omisión de asientos numerados (`tipo_acceso: GENERAL`), condiciones físicas de ingreso (`lugar_ingreso`) y nombre del evento.
+  * **HU-05 (Recepción de código QR de acceso):** Entrega inmediata (flujo gratuito) o post-confirmación (flujo pagado) de QR con payload `{id_evento, id_entrada}`, asociado al nombre del asistente y habilitación confirmada para escaneo en Check-in.
 * **Sprint 3 (Avance 3 - 05/11):** Asincronía (RabbitMQ) y Reglas de Negocio (HU-07, HU-09, HU-08).
 * **Sprint 4 (Entrega Final - 25/11):** Integración E2E a través del API Gateway, Estabilización y Despliegue On-Premise.
 
