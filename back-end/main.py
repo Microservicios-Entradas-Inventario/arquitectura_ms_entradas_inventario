@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import asyncio
 from datetime import datetime
 from database import connect_to_mongo, close_mongo_connection, get_database
+from services.broker_service import BrokerService
 
 from routers.inventario import router as inventario_router
 from routers.entradas import router as entradas_router
@@ -48,22 +49,47 @@ async def tarea_liberacion_reservas_expiradas():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Conectar a MongoDB
     await connect_to_mongo()
+    # Conectar al Event Broker compartido (RabbitMQ)
+    await BrokerService.connect()
     # Iniciar monitor de expiración de reservas en segundo plano (HU-03)
     worker_expiracion = asyncio.create_task(tarea_liberacion_reservas_expiradas())
     yield
     worker_expiracion.cancel()
+    # Cerrar broker y base de datos
+    await BrokerService.close()
     await close_mongo_connection()
 
 app = FastAPI(
     title="TicketU - API de Entradas e Inventario",
     description="Microservicio central de Entradas e Inventario. "
                 "Soporta HU-01 (Inventario), HU-02 (Compra), HU-03 (Reserva Temporal Hold), "
-                "HU-04 (Detalle de Entrada) y HU-05 (Recepción de QR).",
-    version="2.0.0",
+                "HU-04 (Detalle de Entrada) y HU-05 (Recepción de QR). "
+                "Integrado con el API Gateway de TicketU y el Event Broker compartido (RabbitMQ).",
+    version="2.1.0",
     lifespan=lifespan
 )
 
+# Endpoint de diagnóstico para el Gateway y Docker Healthcheck
+@app.get("/health", tags=["Salud del Servicio"])
+async def health_check():
+    return {
+        "status": "UP",
+        "service": "entradas-service",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+# ============================================================================
+# Rutas oficiales del API Gateway de TicketU (/api/entradas/*)
+# ============================================================================
+app.include_router(entradas_router, prefix="/api/entradas")
+app.include_router(inventario_router, prefix="/api/entradas/inventario")
+app.include_router(reservas_router, prefix="/api/entradas/reservas")
+
+# ============================================================================
+# Rutas v1 (Compatibilidad directa y retrocompatibilidad de contratos)
+# ============================================================================
 app.include_router(inventario_router, prefix="/api/v1/inventario")
 app.include_router(entradas_router, prefix="/api/v1/entradas")
 app.include_router(reservas_router, prefix="/api/v1/reservas")

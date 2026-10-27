@@ -11,6 +11,7 @@ from services.notificaciones_service import NotificacionesService
 from services.pagos_service import PagosService
 from services.catalogo_service import CatalogoService
 from services.checkin_service import CheckinService
+from services.broker_service import BrokerService
 from typing import List
 import asyncio
 from datetime import datetime, timedelta
@@ -159,9 +160,24 @@ async def procesar_compra(compra: ProcesarCompraRequest):
             nombre_usuario=nombre_usuario,
             qr_data=qr_checkin
         ))
+        # Publicar evento entrada.emitida al Event Broker compartido
+        asyncio.create_task(BrokerService.publish_event("entrada.emitida", {
+            "id_entrada": id_entrada,
+            "id_reserva": id_reserva,
+            "id_evento": compra.id_evento,
+            "id_usuario": id_usuario,
+            "nombre_usuario": nombre_usuario,
+            "tipo_acceso": "GENERAL",
+            "precio_final_pagado": 0,
+            "qr_data": qr_obj,
+            "fecha_emision": datetime.utcnow().isoformat()
+        }))
         
         if nuevo_stock == 0:
-            print(f"[RabbitMQ - Mock] Evento 'entradas.evento.stock.v1' publicado para Panel -> {{'id_evento': '{compra.id_evento}', 'stock': 0}}")
+            asyncio.create_task(BrokerService.publish_event("stock.agotado", {
+                "id_evento": compra.id_evento,
+                "stock": 0
+            }))
         
         return {"nuevo_stock": nuevo_stock}
     else:

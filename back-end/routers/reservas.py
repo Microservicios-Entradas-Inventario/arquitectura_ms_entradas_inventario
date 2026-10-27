@@ -7,6 +7,7 @@ from schemas.entradas import (
 )
 from services.notificaciones_service import NotificacionesService
 from services.checkin_service import CheckinService
+from services.broker_service import BrokerService
 from datetime import datetime, timedelta
 import asyncio
 import uuid
@@ -95,6 +96,17 @@ async def crear_reserva_hold(solicitud: CrearReservaHoldRequest):
         "fecha_expiracion": expira_en
     }
     await db.reserva_entrada.insert_one(doc_reserva)
+
+    # Publicar evento asíncrono al Event Broker compartido (RabbitMQ)
+    asyncio.create_task(BrokerService.publish_event("entrada.reservada", {
+        "id_reserva": hold_id,
+        "hold_id": hold_id,
+        "id_evento": solicitud.id_evento,
+        "id_usuario": solicitud.id_usuario,
+        "cantidad": solicitud.cantidad,
+        "monto_total": monto_total,
+        "fecha_expiracion": expira_en.isoformat()
+    }))
 
     tiempo_restante_segundos = int((expira_en - ahora).total_seconds())
 
@@ -270,6 +282,18 @@ async def procesar_pago_aprobado(id_reserva: str):
             hora_evento=hora_evento, 
             qr_data=qr_data_url
         ))
+        # Publicar evento entrada.emitida al Event Broker compartido
+        asyncio.create_task(BrokerService.publish_event("entrada.emitida", {
+            "id_entrada": id_entrada,
+            "id_reserva": id_reserva,
+            "id_evento": id_evento,
+            "id_usuario": id_usuario,
+            "nombre_usuario": nombre_usuario,
+            "tipo_acceso": "GENERAL",
+            "precio_final_pagado": reserva.get("monto_total", 0) // cantidad,
+            "qr_data": qr_obj,
+            "fecha_emision": doc_entrada["fecha_emision"].isoformat()
+        }))
 
     return {
         "message": "Ticket emitido y notificaciones distribuidas correctamente.",
