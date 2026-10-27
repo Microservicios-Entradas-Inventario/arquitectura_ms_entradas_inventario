@@ -83,37 +83,71 @@ Implementación mediante la capa `services/` con clientes asíncronos `httpx.Asy
 
 ### 3. BE3: Servicios Requeridos por Otros (Integraciones como Proveedor)
 Se expusieron endpoints documentados para la interoperabilidad con los demás módulos:
-* **Para Catálogo:** `POST /api/v1/entradas/procesar-compra` para procesar y registrar compras.
+* **Para Catálogo:** `POST /api/v1/entradas/procesar-compra` (y `/api/entradas/procesar-compra`) para procesar y registrar compras.
 * **Para Check-in:** `GET /api/v1/entradas/{id_ticket}` para validación individual de una entrada emitida.
 * **Para Panel Organizador:** `GET /api/v1/entradas/eventos/{id_evento}/stock` con métricas de stock y disponibilidad actualizadas.
 * **Para Pagos:** `GET /api/v1/reservas/{id_reserva}` para consultar estado de reservas previo a pago.
-* **Simulación RabbitMQ:** `POST /api/v1/reservas/{id_reserva}/webhook-pago` como webhook de recepción de aprobaciones de pago.
+* **Simulación / Webhook Pagos:** `POST /api/v1/reservas/{id_reserva}/webhook-pago` para recepción transaccional directa.
+
+---
+
+## 🌐 Integración con API Gateway y Event Broker (Platform Team)
+
+Este microservicio se encuentra adaptado al ecosistema común de TicketU ([`FWizav/backendticketU`](https://github.com/FWizav/backendticketU)):
+
+### 1. API Gateway Centralizado
+* **Prefijo oficial asignado:** `/api/entradas/*`
+* **Variable de entorno en Gateway:** `ENTRADAS_SERVICE_URL=http://entradas-service:3000` (o `http://localhost:8000`).
+* **Preservación de rutas:** El backend expone rutas nativas tanto bajo `/api/entradas/*` (para el Gateway y el Frontend) como bajo `/api/v1/*` (retrocompatibilidad directa).
+* **Diagnóstico de salud:** Endpoint `GET /health` disponible para el Gateway y healthchecks de Docker.
+
+### 2. Event Broker Compartido (RabbitMQ)
+* **Exchange oficial:** `ticketu.events` (tipo `topic`, durable).
+* **Conexión:** `amqp://ticketu:ticketu_dev@ticketu-rabbitmq:5672/ticketu` (en Docker) o `localhost:5672` (en local).
+* **Cola propia del consumidor:** `entradas.pagos` (vinculada a `pago.*` y `evento.*`).
+* **Eventos Publicados:**
+  * `entrada.reservada`: Notifica la reserva temporal (Hold) con tiempo límite (HU-03).
+  * `entrada.emitida`: Notifica la emisión de una entrada para que Check-in la habilite y Notificaciones envíe correo (HU-05).
+  * `stock.agotado`: Notifica que el stock de un evento llegó a 0 para el Panel Organizador.
+* **Eventos Consumidos:**
+  * `pago.realizado`: Consolida automáticamente la reserva y emite el ticket sin acoplamiento HTTP síncrono.
+  * `pago.rechazado`: Libera inmediatamente el cupo reservado al stock disponible de inventario.
+
+### 3. Red Docker Compartida
+* Todos los contenedores se integran a la red común externa:
+  ```bash
+  docker network create plataforma-eventos-net
+  ```
+* Contenedor del microservicio: `entradas-service` en el puerto `3000`.
 
 ---
 
 ## 📋 Catálogo de Endpoints de la API
 
-| Método | Ruta | Descripción / Propósito | Sección / Consumidor |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/v1/inventario/{id_evento}` | Obtener Disponibilidad | Inventario (BE1 / HU-01) |
-| **POST** | `/api/v1/entradas/procesar-compra` | Procesar Compra | Servicios Provistos (BE3) - Catálogo / HU-02 |
-| **GET** | `/api/v1/entradas/{id_ticket}` | Consultar Entrada Checkin | Servicios Provistos (BE3) - Check-in |
-| **GET** | `/api/v1/entradas/usuario/{id_usuario}` | Historial de Entradas Adquiridas | Servicios Provistos (BE3) - Clientes / HU-04 |
-| **GET** | `/api/v1/entradas/{id_ticket}/detalle` | Visualizar Detalle Inmutable de Entrada | Servicios Provistos (BE3) - Clientes / HU-04 |
-| **GET** | `/api/v1/entradas/{id_ticket}/qr` | Recepción de Código QR de Acceso | Servicios Provistos (BE3) - Clientes / HU-05 |
-| **POST** | `/api/v1/reservas/hold` | Reserva Temporal de Cupos (Hold) con TTL | Servicios Provistos (BE3) - Reservas / HU-03 |
-| **POST** | `/api/v1/reservas/{id_reserva}/cancelar` | Cancelar Reserva Temporal y Liberar Cupos | Servicios Provistos (BE3) - Reservas / HU-03 |
-| **GET** | `/api/v1/reservas/{id_reserva}` | Consultar Reserva, Estado y Tiempo Restante | Servicios Provistos (BE3) - Pagos / HU-03 |
-| **POST** | `/api/v1/reservas/{id_reserva}/webhook-pago` | Procesar Pago Aprobado (Emisión + QR) | Simulación RabbitMQ - Pago Aprobado / HU-05 |
-| **GET** | `/api/v1/entradas/eventos/{id_evento}/stock` | Consultar Stock Panel | Servicios Provistos (BE3) - Panel Organizador |
+| Método | Ruta Gateway | Ruta Directa (v1) | Descripción / Propósito | Sección / Consumidor |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/health` | `/health` | Chequeo de Salud del Contenedor | Plataforma / Gateway |
+| **GET** | `/api/entradas/inventario/{id_evento}` | `/api/v1/inventario/{id_evento}` | Obtener Disponibilidad | Inventario (BE1 / HU-01) |
+| **POST** | `/api/entradas/procesar-compra` | `/api/v1/entradas/procesar-compra` | Procesar Compra | Catálogo (BE3 / HU-02) |
+| **GET** | `/api/entradas/{id_ticket}` | `/api/v1/entradas/{id_ticket}` | Consultar Entrada Check-in | Check-in (BE3) |
+| **GET** | `/api/entradas/usuario/{id_usuario}` | `/api/v1/entradas/usuario/{id_usuario}` | Historial de Entradas Adquiridas | Clientes (BE3 / HU-04) |
+| **GET** | `/api/entradas/{id_ticket}/detalle` | `/api/v1/entradas/{id_ticket}/detalle` | Visualizar Detalle Inmutable de Entrada | Clientes (BE3 / HU-04) |
+| **GET** | `/api/entradas/{id_ticket}/qr` | `/api/v1/entradas/{id_ticket}/qr` | Recepción de Código QR de Acceso | Clientes (BE3 / HU-05) |
+| **POST** | `/api/entradas/reservas/hold` | `/api/v1/reservas/hold` | Reserva Temporal de Cupos (Hold) con TTL | Reservas (BE3 / HU-03) |
+| **POST** | `/api/entradas/reservas/{id_reserva}/cancelar` | `/api/v1/reservas/{id_reserva}/cancelar` | Cancelar Reserva Temporal y Liberar Cupos | Reservas (BE3 / HU-03) |
+| **GET** | `/api/entradas/reservas/{id_reserva}` | `/api/v1/reservas/{id_reserva}` | Consultar Reserva, Estado y Tiempo Restante | Pagos (BE3 / HU-03) |
+| **POST** | `/api/entradas/reservas/{id_reserva}/webhook-pago` | `/api/v1/reservas/{id_reserva}/webhook-pago` | Procesar Pago Aprobado (Emisión + QR) | Simulación Webhook Pagos |
+| **GET** | `/api/entradas/eventos/{id_evento}/stock` | `/api/v1/entradas/eventos/{id_evento}/stock` | Consultar Stock Panel | Panel Organizador (BE3) |
 
 ### 🚀 Roadmap de Sprints
 * **Sprint 1 (Avance 1 - 01/10):** Base de Datos, Stock y Selección (HU-01, HU-02).
-* **Sprint 2 (Avance 2 - 22/10):** Ciclo de Reserva y Emisión de Entradas (HU-03, HU-04, HU-05):
-  * **HU-03 (Reserva temporal de cupo):** Descuento atómico de stock, generación de `holdId` / `id_reserva`, cronómetro regresivo (15 min) y worker asíncrono / on-read de liberación automática al expirar.
+* **Sprint 2 (Avance 2 - 22/10):** Ciclo de Reserva y Emisión de Entradas (HU-03, HU-04, HU-05), Integración con API Gateway y Event Broker (RabbitMQ):
+  * **HU-03 (Reserva temporal de cupo):** Descuento atómico de stock, generación de `holdId` / `id_reserva`, cronómetro regresivo (15 min) y worker asíncrono / on-read de liberación automática al expirar. Evento publicado: `entrada.reservada`.
   * **HU-04 (Detalles de entrada adquirida):** Código alfanumérico único, monto final pagado auditado inmutable en BD, omisión de asientos numerados (`tipo_acceso: GENERAL`), condiciones físicas de ingreso (`lugar_ingreso`) y nombre del evento.
-  * **HU-05 (Recepción de código QR de acceso):** Entrega inmediata (flujo gratuito) o post-confirmación (flujo pagado) de QR con payload `{id_evento, id_entrada}`, asociado al nombre del asistente y habilitación confirmada para escaneo en Check-in.
-* **Sprint 3 (Avance 3 - 05/11):** Asincronía (RabbitMQ) y Reglas de Negocio (HU-07, HU-09, HU-08).
+  * **HU-05 (Recepción de código QR de acceso):** Entrega inmediata (flujo gratuito) o post-confirmación (flujo pagado) de QR con payload `{id_evento, id_entrada}`, asociado al nombre del asistente y habilitación confirmada para escaneo en Check-in. Evento publicado: `entrada.emitida`.
+  * **Integración API Gateway:** Configuración de prefijos `/api/entradas/*`, contenedor `entradas-service` en red `plataforma-eventos-net` y endpoint `/health`.
+  * **Integración RabbitMQ:** Publicador y consumidor asíncrono sobre `ticketu.events` con cola `entradas.pagos` para reaccionar a `pago.realizado` y `pago.rechazado`.
+* **Sprint 3 (Avance 3 - 05/11):** Asincronía Avanzada (RabbitMQ) y Reglas de Negocio (HU-07, HU-09, HU-08).
 * **Sprint 4 (Entrega Final - 25/11):** Integración E2E a través del API Gateway, Estabilización y Despliegue On-Premise.
 
 ---
