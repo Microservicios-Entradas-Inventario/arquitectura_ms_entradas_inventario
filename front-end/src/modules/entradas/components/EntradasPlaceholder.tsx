@@ -16,6 +16,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { GATEWAY_URL } from "@/lib/env";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   obtenerEventos,
@@ -96,7 +97,7 @@ export default function EntradasPlaceholder() {
         setSegundosRestantes((prev) => {
           if (prev <= 1) {
             // Tiempo expirado: liberar stock reservado
-            liberarReservaTemporal(reservaActiva.idEvento, reservaActiva.cantidadEntradas);
+            liberarReservaTemporal(reservaActiva.idEvento, reservaActiva.cantidadEntradas, reservaActiva.idReserva);
             if (eventoActivo && eventoActivo.id === reservaActiva.idEvento) {
               setEventoActivo({
                 ...eventoActivo,
@@ -252,7 +253,7 @@ export default function EntradasPlaceholder() {
         });
 
         setReservaActiva(reserva);
-        setSegundosRestantes(10 * 60);
+        setSegundosRestantes(reserva.segundosRestantes ?? 10 * 60);
       }
     } catch (err: unknown) {
       setErrorValidacion(err instanceof Error ? err.message : "Error al procesar la solicitud.");
@@ -266,6 +267,17 @@ export default function EntradasPlaceholder() {
     if (!eventoActivo || !reservaActiva) return;
     setProcesando(true);
     try {
+      // Simular webhook de pago aprobado en el backend si está activo
+      try {
+        await fetch(`${GATEWAY_URL}/api/entradas/reservas/${reservaActiva.idReserva}/webhook-pago`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(1500),
+        });
+      } catch {
+        // Fallback local
+      }
+
       const emitida = await emitirEntradaDirecta({
         idEvento: eventoActivo.id,
         idUsuario: reservaActiva.idUsuario,
@@ -776,7 +788,7 @@ export default function EntradasPlaceholder() {
                   type="button"
                   onClick={async () => {
                     if (reservaActiva) {
-                      await liberarReservaTemporal(reservaActiva.idEvento, reservaActiva.cantidadEntradas);
+                      await liberarReservaTemporal(reservaActiva.idEvento, reservaActiva.cantidadEntradas, reservaActiva.idReserva);
                       if (eventoActivo && eventoActivo.id === reservaActiva.idEvento) {
                         setEventoActivo({
                           ...eventoActivo,

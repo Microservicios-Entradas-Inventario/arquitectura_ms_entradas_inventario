@@ -155,19 +155,32 @@ export async function crearReservaTemporal(params: {
   total: number;
 }): Promise<ReservaTemporal> {
   try {
-    const res = await fetch(`${GATEWAY_URL}${BASE_PATH}/reservas`, {
+    const res = await fetch(`${GATEWAY_URL}${BASE_PATH}/reservas/hold`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id_evento: params.idEvento,
-        id_usuario: params.idUsuario,
-        cantidad_entradas: params.cantidadEntradas,
-        total: params.total,
+        id_usuario: params.idUsuario || "usr-alumno-uv",
+        cantidad: params.cantidadEntradas,
+        tiempo_limite_minutos: 10,
       }),
       signal: AbortSignal.timeout(2000),
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      return {
+        idReserva: data.hold_id || data.id_reserva,
+        idEvento: data.id_evento || params.idEvento,
+        idUsuario: data.id_usuario || params.idUsuario,
+        cantidadEntradas: data.cantidad_entrada || params.cantidadEntradas,
+        subtotal: params.subtotal,
+        descuento: params.descuento,
+        total: data.monto_total ?? params.total,
+        estado: data.estado_reserva || "RESERVADO",
+        expiraEnMinutos: 10,
+        segundosRestantes: data.tiempo_restante_segundos ?? 600,
+        fechaCreacion: data.fecha_creacion || new Date().toISOString(),
+      };
     }
   } catch (error) {
     console.warn("Backend no disponible para reserva, simulando hold temporal:", error);
@@ -189,6 +202,7 @@ export async function crearReservaTemporal(params: {
     total: params.total,
     estado: "PENDIENTE",
     expiraEnMinutos: 10,
+    segundosRestantes: 600,
     fechaCreacion: new Date().toISOString(),
   };
 }
@@ -197,14 +211,19 @@ export async function crearReservaTemporal(params: {
  * HU-03: Liberar cupos si la reserva expira o el usuario cancela la orden.
  * Devuelve las entradas al pool de stock disponible.
  */
-export async function liberarReservaTemporal(idEvento: string, cantidadEntradas: number): Promise<void> {
+export async function liberarReservaTemporal(
+  idEvento: string, 
+  cantidadEntradas: number,
+  idReserva?: string
+): Promise<void> {
   try {
-    await fetch(`${GATEWAY_URL}${BASE_PATH}/reservas/liberar`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_evento: idEvento, cantidad_entradas: cantidadEntradas }),
-      signal: AbortSignal.timeout(1500),
-    });
+    if (idReserva) {
+      await fetch(`${GATEWAY_URL}${BASE_PATH}/reservas/${idReserva}/cancelar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(1500),
+      });
+    }
   } catch {
     // Modo local / fallback
   }
@@ -299,6 +318,35 @@ export async function obtenerEntradaEmitida(idEntrada: string): Promise<EntradaE
     } catch {
       // Fallback a memoria
     }
+  }
+
+  // Intentar consultar al backend si está levantado
+  try {
+    const res = await fetch(`${GATEWAY_URL}${BASE_PATH}/${idEntrada}/detalle`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(1500),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        idEntrada: data.id_entrada,
+        idEvento: data.id_evento,
+        nombreEvento: data.nombre_evento,
+        nombreComprador: data.nombre_usuario || "Cliente",
+        correoComprador: data.correo_usuario || "usuario@ejemplo.com",
+        tipoAcceso: data.tipo_acceso || "Entrada General",
+        precioFinal: data.precio_final_pagado || 0,
+        cantidadEntradas: 1,
+        qrData: data.qr_data,
+        fechaEvento: "2026-11-20",
+        horaEvento: "20:00",
+        lugarEvento: data.lugar_ingreso || "Puerta Principal",
+        fechaEmision: data.fecha_emision ? new Date(data.fecha_emision).toLocaleDateString("es-CL") : new Date().toLocaleDateString("es-CL"),
+      };
+    }
+  } catch {
+    // Backend no disponible, proceder al fallback
   }
 
   if (ticketsEmitidosLocal[idEntrada]) {
