@@ -16,6 +16,9 @@ services:
       BROKER_URL: "amqp://ticketu:ticketu_dev@ticketu-rabbitmq:5672/ticketu"
       EVENT_EXCHANGE: "ticketu.events"
       QUEUE_NAME: "entradas.pagos"
+      PANEL_SERVICE_URL: "http://organizador-service:3000"
+      AUTH_SERVICE_URL: "http://auth-service:8000"
+      PAGOS_SERVICE_URL: "http://pagos-service:8000"
     depends_on:
       - mongodb
     networks:
