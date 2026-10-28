@@ -59,6 +59,7 @@ dbRef.createCollection("reserva_entrada", {
         "id_reserva",
         "id_evento",
         "id_usuario",
+        "nombre_usuario",
         "rol_usuario",
         "cantidad_entrada",
         "id_promocion",
@@ -75,6 +76,7 @@ dbRef.createCollection("reserva_entrada", {
         id_reserva: { bsonType: "string" },
         id_evento: { bsonType: "string" },
         id_usuario: { bsonType: "string" },
+        nombre_usuario: { bsonType: "string" },
         rol_usuario: { bsonType: "string", enum: ["CLIENTE"] },
         cantidad_entrada: { bsonType: "int", minimum: 1 },
         id_promocion: { bsonType: ["string", "null"] },
@@ -106,6 +108,7 @@ dbRef.createCollection("entrada", {
         "id_entrada",
         "id_reserva",
         "id_usuario",
+        "nombre_usuario",
         "rol_usuario",
         "tipo_acceso",
         "precio_final_pagado",
@@ -120,12 +123,13 @@ dbRef.createCollection("entrada", {
         id_entrada: { bsonType: "string" },
         id_reserva: { bsonType: "string" },
         id_usuario: { bsonType: "string" },
+        nombre_usuario: { bsonType: "string" },
         rol_usuario: { bsonType: "string", enum: ["CLIENTE"] },
         tipo_acceso: { bsonType: "string", enum: ["GENERAL"] },
         precio_final_pagado: { bsonType: "int", minimum: 0 },
         estado_entrada: { bsonType: "string", enum: ["EMITIDA", "ANULADA"] },
         nombre_archivo_qr: { bsonType: "string" },
-        qr_data: { bsonType: "string" },
+        qr_data: { bsonType: "object" },
         fecha_emision: { bsonType: "date" }
       }
     }
@@ -175,6 +179,7 @@ dbRef.reserva_entrada.insertMany([
     id_reserva: "res-98765",
     id_evento: "evt-77889",
     id_usuario: "usr-12345",
+    nombre_usuario: "Sebastián Fuentes",
     rol_usuario: "CLIENTE",
     cantidad_entrada: NumberInt(1),
     id_promocion: "promo-estudiante-2026",
@@ -189,6 +194,7 @@ dbRef.reserva_entrada.insertMany([
     id_reserva: "res-98766",
     id_evento: "evt-77889",
     id_usuario: "usr-54321",
+    nombre_usuario: "Sebastián Fuentes",
     rol_usuario: "CLIENTE",
     cantidad_entrada: NumberInt(1),
     id_promocion: null,
@@ -205,11 +211,15 @@ dbRef.entrada.insertOne({
   id_entrada: "tk-998877",
   id_reserva: "res-98765",
   id_usuario: "usr-12345",
+  nombre_usuario: "Sebastián Fuentes",
   rol_usuario: "CLIENTE",
   tipo_acceso: "GENERAL",
   precio_final_pagado: NumberInt(8500),
   estado_entrada: "EMITIDA",
   nombre_archivo_qr: "tk-998877.png",
-  qr_data: "[https://storage.midominio.com/qr/tk-998877.png](https://storage.midominio.com/qr/tk-998877.png)",
+  qr_data: {
+    url: "https://storage.midominio.com/qr/tk-998877.png",
+    hash: "abc1234"
+  },
   fecha_emision: ahora
 });
