@@ -71,8 +71,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Endpoint de diagnóstico para el Gateway y Docker Healthcheck
+# Endpoint de diagnóstico para Docker interno (/health) y a través del Gateway (/api/entradas/health)
 @app.get("/health", tags=["Salud del Servicio"])
+@app.get("/api/entradas/health", tags=["Salud del Servicio"])
 async def health_check():
     return {
         "status": "UP",

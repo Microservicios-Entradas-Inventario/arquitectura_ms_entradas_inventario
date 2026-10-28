@@ -18,6 +18,8 @@ COPY . .
 EXPOSE 3000
 
 ENV PORT=3000
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
 
 # Iniciar servidor Uvicorn escuchando en 0.0.0.0
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]

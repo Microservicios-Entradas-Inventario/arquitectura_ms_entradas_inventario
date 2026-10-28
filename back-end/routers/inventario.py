@@ -10,6 +10,12 @@ router = APIRouter()
     response_model=InventarioResponse,
     responses={200: {"description": "Disponibilidad obtenida exitosamente"}, 404: {"description": "Evento no encontrado"}}
 )
+@router.get(
+    "/disponibilidad/{id_evento}",
+    tags=["Inventario (BE1)"],
+    response_model=InventarioResponse,
+    include_in_schema=False
+)
 async def obtener_disponibilidad(id_evento: str):
     """
     ###  Propósito
