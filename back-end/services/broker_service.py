@@ -35,9 +35,11 @@ class BrokerService:
             )
             # Declarar cola durable propia para entradas
             queue = await cls.channel.declare_queue(QUEUE_NAME, durable=True)
-            # Enlazar cola a eventos de interés (pago.* y evento.*)
+            # Enlazar cola a eventos de interés (pago.*, evento.* y eventos de Panel Organizador)
             await queue.bind(cls.exchange, routing_key="pago.*")
             await queue.bind(cls.exchange, routing_key="evento.*")
+            await queue.bind(cls.exchange, routing_key="panel.#")
+            await queue.bind(cls.exchange, routing_key="panel.evento.entradas.v1")
             
             # Iniciar consumidor en background
             cls.consumer_task = asyncio.create_task(cls._consume(queue))
@@ -145,6 +147,54 @@ class BrokerService:
                     {"$inc": {"stock_actual": cant, "cantidad_entrada_reservada": -cant}}
                 )
                 print(f"[RabbitMQ - pago.rechazado] Reserva '{id_reserva}' liberada. Se devolvieron {cant} cupos.")
+
+        elif routing_key.startswith("panel.") or event_name in ["evento_creado", "evento_publicado", "evento_actualizado"]:
+            # Evento originado desde Panel Organizador (Outbox Pattern)
+            payload = envelope.get("payload", data)
+            sub_tipo = envelope.get("envelope", {}).get("tipo", event_name)
+            id_evt = payload.get("id_evento") or envelope.get("envelope", {}).get("id_evento")
+
+            if id_evt:
+                cant = int(payload.get("cantidad_entradas") or 100)
+                estado_g = payload.get("estado_gestion", "PUBLICADO").upper()
+                if estado_g not in ["BORRADOR", "PUBLICADO", "FINALIZADO", "CANCELADO", "AGOTADO"]:
+                    estado_g = "PUBLICADO"
+                tipo_e = payload.get("tipo_entrada", "PAGADA").upper()
+                if tipo_e not in ["PAGADA", "GRATUITA"]:
+                    tipo_e = "PAGADA"
+                id_usr = payload.get("id_usuario") or "org-panel"
+                precio_u = int(payload.get("precio") or 10000)
+                
+                evento_existente = await db.inventario_evento.find_one({"id_evento": id_evt})
+                if evento_existente:
+                    await db.inventario_evento.update_one(
+                        {"id_evento": id_evt},
+                        {
+                            "$set": {
+                                "stock_actual": cant,
+                                "stock_inicial": cant,
+                                "tipo_entrada": tipo_e,
+                                "estado_gestion": estado_g,
+                                "fecha_actualizacion": datetime.utcnow()
+                            }
+                        }
+                    )
+                else:
+                    await db.inventario_evento.insert_one({
+                        "id_evento": id_evt,
+                        "id_usuario": id_usr,
+                        "rol_usuario": "ORGANIZADOR",
+                        "tipo_entrada": tipo_e,
+                        "precio_unitario": precio_u,
+                        "stock_inicial": cant,
+                        "stock_actual": cant,
+                        "cantidad_entrada_reservada": 0,
+                        "cantidad_entrada_comprada": 0,
+                        "maximo_ticket": 10,
+                        "estado_gestion": estado_g,
+                        "fecha_actualizacion": datetime.utcnow()
+                    })
+                print(f"[RabbitMQ - Panel Organizador] Evento '{sub_tipo}' procesado para evento '{id_evt}'. Stock sincronizado a {cant}.")
 
     @classmethod
     async def publish_event(cls, event_name: str, data: dict):

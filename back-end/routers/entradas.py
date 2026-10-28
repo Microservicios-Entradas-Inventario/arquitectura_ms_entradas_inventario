@@ -222,7 +222,8 @@ async def procesar_compra(compra: ProcesarCompraRequest):
         asyncio.create_task(CatalogoService.actualizar_stock_catalogo(compra.id_evento, nuevo_stock, compra.token_sesion))
              
         if nuevo_stock == 0:
-            print(f"[RabbitMQ - Mock] Evento 'entradas.evento.stock.v1' publicado para Panel -> {{'id_evento': '{compra.id_evento}', 'stock': 0}}")
+            asyncio.create_task(BrokerService.publish_event("entradas.evento.stock.v1", {"id_evento": compra.id_evento, "stock": 0}))
+            asyncio.create_task(BrokerService.publish_event("stock.agotado", {"id_evento": compra.id_evento, "stock": 0}))
 
         return {"nuevo_stock": nuevo_stock}
 
