@@ -26,7 +26,7 @@ async def consolidar_y_emitir_entradas(
     id_pago: Optional[str] = None
 ) -> List[str]:
     """
-    Consolida una reserva en estado RESERVADO cuando el pago pasa a APROBADO (Contrato Pagos v2.2, Sección 3 y 5)
+    Consolida una reserva en estado RESERVADO cuando el pago pasa a APROBADO (Contrato Pagos v2.3, Sección 3 y 5)
     y emite las entradas con código QR, notificando a Check-in, Notificaciones y RabbitMQ.
     """
     id_reserva = reserva["id_reserva"]
@@ -42,7 +42,6 @@ async def consolidar_y_emitir_entradas(
         {"$set": update_fields}
     )
     if res_update.modified_count == 0:
-        # Si ya fue consolidada previamente (idempotencia), retornar las entradas ya emitidas
         cursor = db.entrada.find({"id_reserva": id_reserva})
         existentes = await cursor.to_list(length=100)
         return [e["id_entrada"] for e in existentes if "id_entrada" in e]
@@ -98,7 +97,6 @@ async def consolidar_y_emitir_entradas(
         await db.entrada.insert_one(doc_entrada)
         entradas_generadas.append(id_entrada)
 
-        # Despacho en paralelo a Check-in (v2.1) y Notificaciones (v3) - HU-05
         asyncio.create_task(CheckinService.registrar_ticket_puerta(
             id_entrada=id_entrada,
             id_evento=id_evento,
@@ -137,18 +135,18 @@ async def liberar_reserva_y_anular_pago(
     reserva: Dict[str, Any],
     nuevo_estado: str = "EXPIRADO",
     motivo: str = "Hold de la reserva vencido: el usuario pagó fuera de plazo",
-    token_sesion: Optional[str] = None,
+    cookie_header: Optional[str] = None,
     anular_en_pagos: bool = True
 ) -> Optional[Dict[str, Any]]:
     """
     Libera los cupos de una reserva en estado RESERVADO y, si tiene un id_pago asociado,
-    invoca a Pagos (Operación 4: POST /api/v1/pagos/{id_pago}/reembolso) para anular o reembolsar el pago.
+    invoca a Pagos (Operación 4: POST /api/v1/pagos/{id_pago}/reembolso) reenviando el header Cookie (jwt).
     """
     id_reserva = reserva["id_reserva"]
     cantidad = reserva.get("cantidad_entrada", 1)
     id_evento = reserva["id_evento"]
     id_pago = reserva.get("id_pago")
-    token_para_pagos = token_sesion or reserva.get("token_sesion")
+    cookie_para_pagos = cookie_header or reserva.get("cookie_header") or reserva.get("token_sesion")
 
     res_update = await db.reserva_entrada.update_one(
         {"id_reserva": id_reserva, "estado_reserva": "RESERVADO"},
@@ -165,7 +163,7 @@ async def liberar_reserva_y_anular_pago(
         resultado_pagos = await PagosService.anular_pago(
             id_pago=id_pago,
             motivo=motivo,
-            token_sesion=token_para_pagos
+            cookie_header=cookie_para_pagos
         )
     return resultado_pagos
 
@@ -180,7 +178,7 @@ async def liberar_reserva_y_anular_pago(
     responses={
         200: {"description": "Cupo reservado temporalmente con holdId generado"},
         400: {"description": "Stock insuficiente, cantidad inválida o evento cancelado"},
-        401: {"description": "NO_AUTENTICADO: Token inválido o rechazado por Auth"},
+        401: {"description": "NO_AUTENTICADO: Cookie 'jwt' inválida o rechazada por Auth"},
         404: {"description": "El evento especificado no existe"},
         503: {"description": "AUTH_NO_DISPONIBLE: Servicio de Auth no disponible"},
         500: {"description": "Error interno del servidor o BD"}
@@ -188,19 +186,17 @@ async def liberar_reserva_y_anular_pago(
 )
 async def crear_reserva_hold(
     solicitud: CrearReservaHoldRequest,
-    authorization: Optional[str] = Header(default=None),
+    cookie: Optional[str] = Header(default=None),
     jwt: Optional[str] = Cookie(default=None)
 ):
     """
     ### 🎟️ HU-03: Reserva Temporal de Cupo
     **Propósito:** Descuenta temporalmente los cupos solicitados del stock disponible y genera
-    un identificador único de reserva (`holdId` / `id_reserva`) con un tiempo límite de vigencia
-    para permitir al cliente completar el proceso de checkout.
+    un identificador único de reserva (`holdId` / `id_reserva`) con un tiempo límite de vigencia.
     
-    ### 🔐 Integración con Auth (Contrato Pagos v2.2):
-    Si se envía el token de sesión (`Authorization: Bearer`, `token_sesion` o cookie `jwt`), se valida
-    la sesión con Auth y se obtienen de ahí los datos del comprador (**nombre, RUT y correo**), sin
-    que el cliente tenga que rellenarlos a mano en la pantalla de pago.
+    ### 🔐 Integración con Auth (Contrato Pagos v2.3):
+    Si se recibe el header `Cookie` del navegador con la cookie `jwt`, se valida la sesión con Auth
+    reenviando el header `Cookie` tal cual, y se obtienen de ahí los datos del comprador (**nombre, RUT y correo**).
     """
     db = get_database()
     if db is None:
@@ -209,8 +205,8 @@ async def crear_reserva_hold(
     if solicitud.cantidad <= 0 or solicitud.cantidad > 100:
         raise HTTPException(status_code=400, detail="La cantidad debe estar entre 1 y 100")
 
-    token_bruto = authorization or solicitud.token_sesion or jwt
-    token_jwt = AuthService.extraer_jwt(token_bruto or "")
+    origen_cookie = cookie or (f"jwt={jwt}" if jwt else None) or solicitud.token_sesion
+    cookie_reenvio = AuthService.formatear_cookie_header(origen_cookie or "")
 
     id_usuario = solicitud.id_usuario
     nombre_usuario = solicitud.nombre_usuario
@@ -218,8 +214,8 @@ async def crear_reserva_hold(
     correo_usuario = solicitud.correo_usuario
     rol_usuario = "usuario"
 
-    if token_jwt:
-        usuario_auth = await AuthService.validar_sesion(token_jwt)
+    if cookie_reenvio:
+        usuario_auth = await AuthService.validar_sesion(cookie_reenvio)
         id_usuario = usuario_auth.get("id_usuario") or id_usuario
         nombre_usuario = usuario_auth.get("nombre") or usuario_auth.get("nombre_completo") or nombre_usuario
         rut_usuario = usuario_auth.get("rut") or rut_usuario
@@ -227,7 +223,7 @@ async def crear_reserva_hold(
         rol_usuario = (usuario_auth.get("rol") or "usuario").lower()
 
     if not id_usuario:
-        raise HTTPException(status_code=400, detail="Se requiere un token_sesion válido de Auth o el campo id_usuario.")
+        raise HTTPException(status_code=400, detail="Se requiere el header Cookie ('jwt') válido de Auth o el campo id_usuario.")
 
     nombre_usuario = nombre_usuario or "Cliente en Checkout"
 
@@ -245,7 +241,6 @@ async def crear_reserva_hold(
             detail=f"Stock insuficiente. Disponibles: {stock_disponible}, solicitados: {solicitud.cantidad}"
         )
 
-    # Descuento atómico temporal de cupos
     await db.inventario_evento.update_one(
         {"id_evento": solicitud.id_evento},
         {
@@ -275,14 +270,13 @@ async def crear_reserva_hold(
         "porcentaje_descuento": 0,
         "monto_total": monto_total,
         "id_pago": None,
-        "token_sesion": token_jwt or None,
+        "cookie_header": cookie_reenvio or None,
         "estado_reserva": "RESERVADO",
         "fecha_creacion": ahora,
         "fecha_expiracion": expira_en
     }
     await db.reserva_entrada.insert_one(doc_reserva)
 
-    # Publicar evento asíncrono al Event Broker compartido (RabbitMQ)
     asyncio.create_task(BrokerService.publish_event("entrada.reservada", {
         "id_reserva": hold_id,
         "hold_id": hold_id,
@@ -317,11 +311,11 @@ async def crear_reserva_hold(
 
 @router.post(
     "/{id_reserva}/iniciar-pago",
-    tags=["Reservas (HU-03)", "Integración Pagos v2.2"],
+    tags=["Reservas (HU-03)", "Integración Pagos v2.3"],
     responses={
         200: {"description": "Intención de pago creada en Pagos (devuelve id_pago y url_checkout)"},
         400: {"description": "La reserva no está en estado RESERVADO o ya expiró"},
-        401: {"description": "NO_AUTENTICADO: Falta el token o Auth lo rechazó"},
+        401: {"description": "NO_AUTENTICADO: Falta la cookie 'jwt' o Auth la rechazó"},
         404: {"description": "Reserva no encontrada"},
         409: {"description": "CONFLICTO_IDEMPOTENCIA: La reserva ya tiene un pago con datos distintos"},
         422: {"description": "ORDEN_INCONSISTENTE: Total o cantidad no coinciden"},
@@ -332,12 +326,12 @@ async def crear_reserva_hold(
 async def iniciar_pago_reserva(
     id_reserva: str,
     solicitud: Optional[IniciarPagoReservaRequest] = None,
-    authorization: Optional[str] = Header(default=None),
+    cookie: Optional[str] = Header(default=None),
     jwt: Optional[str] = Cookie(default=None)
 ):
     """
-    ### 💳 Operación 2 (Contrato Pagos ↔ Entradas v2.2): Crear intención de pago para una reserva
-    Invoca `POST /api/v1/pagos/transacciones` enviando el JWT del comprador emitido por Auth.
+    ### 💳 Operación 2 (Contrato Pagos ↔ Entradas v2.3): Crear intención de pago para una reserva
+    Invoca `POST /api/v1/pagos/transacciones` reenviando el header `Cookie` (`jwt`) que llegó del navegador tal cual.
     - Almacena únicamente `id_pago` como referencia en la reserva (ignora `client_secret`).
     - Retorna `url_checkout` para redirigir al comprador a la pantalla de pago.
     - Si Pagos responde `503 AUTH_NO_DISPONIBLE`, no se crea ni modifica ningún pago y basta con reintentar.
@@ -356,14 +350,13 @@ async def iniciar_pago_reserva(
             detail=f"La reserva se encuentra en estado {reserva.get('estado_reserva')} y no admite iniciar cobro."
         )
 
-    # Priorizar header Authorization si vienen ambos (Sección 2.5 Contrato Pagos v2.2)
     token_body = solicitud.token_sesion if solicitud else None
-    token_bruto = authorization or token_body or jwt or reserva.get("token_sesion")
-    token_jwt = AuthService.extraer_jwt(token_bruto or "")
-    if not token_jwt:
+    origen_cookie = cookie or (f"jwt={jwt}" if jwt else None) or token_body or reserva.get("cookie_header") or reserva.get("token_sesion")
+    cookie_reenvio = AuthService.formatear_cookie_header(origen_cookie or "")
+    if not cookie_reenvio or not AuthService.extraer_jwt(cookie_reenvio):
         raise HTTPException(
             status_code=401,
-            detail={"error": "NO_AUTENTICADO", "mensaje": "Falta el token de sesión emitido por Auth."}
+            detail={"error": "NO_AUTENTICADO", "mensaje": "Falta el header Cookie con la cookie 'jwt' emitida por Auth."}
         )
 
     metodo = solicitud.metodo if solicitud and solicitud.metodo else "formulario"
@@ -372,7 +365,7 @@ async def iniciar_pago_reserva(
         id_reserva=id_reserva,
         total=int(reserva.get("monto_total", 0)),
         cantidad_entradas=int(reserva.get("cantidad_entrada", 1)),
-        token_sesion=token_jwt,
+        cookie_header=cookie_reenvio,
         id_evento=reserva.get("id_evento"),
         metodo=metodo
     )
@@ -389,10 +382,9 @@ async def iniciar_pago_reserva(
             }
         )
 
-    # Guardar solo id_pago como referencia (Regla Sección 2.6 y 5) y actualizar token_sesion para polling
     await db.reserva_entrada.update_one(
         {"id_reserva": id_reserva},
-        {"$set": {"id_pago": pago["id_pago"], "token_sesion": token_jwt}}
+        {"$set": {"id_pago": pago["id_pago"], "cookie_header": cookie_reenvio}}
     )
 
     return pago
@@ -400,22 +392,22 @@ async def iniciar_pago_reserva(
 
 @router.get(
     "/{id_reserva}/estado-pago",
-    tags=["Reservas (HU-03)", "Integración Pagos v2.2"],
+    tags=["Reservas (HU-03)", "Integración Pagos v2.3"],
     responses={
         200: {"description": "Estado actual del pago consultado en Pagos (consolidando o liberando reserva si es final)"},
-        401: {"description": "NO_AUTENTICADO: Falta el token o Auth lo rechazó"},
+        401: {"description": "NO_AUTENTICADO: Falta la cookie 'jwt' o Auth la rechazó"},
         404: {"description": "Reserva o pago no encontrado"},
         503: {"description": "AUTH_NO_DISPONIBLE: Auth no respondió; reintentar más tarde"}
     }
 )
 async def consultar_estado_pago_reserva(
     id_reserva: str,
-    authorization: Optional[str] = Header(default=None),
+    cookie: Optional[str] = Header(default=None),
     jwt: Optional[str] = Cookie(default=None)
 ):
     """
-    ### 🔍 Operación 3 (Contrato Pagos ↔ Entradas v2.2): Consultar estado del pago (Polling)
-    Consulta `GET /api/v1/pagos/{id_pago}` enviando `Authorization: Bearer <JWT>`.
+    ### 🔍 Operación 3 (Contrato Pagos ↔ Entradas v2.3): Consultar estado del pago (Polling)
+    Consulta `GET /api/v1/pagos/{id_pago}` reenviando el header `Cookie` (`jwt`) tal cual.
     - Si `estado_pago == "APROBADO"`, consolida la reserva y emite las entradas con QR automáticamente.
     - Si `estado_pago` es `"RECHAZADO"`, `"ANULADO"` o `"REEMBOLSADO"`, libera el stock reservado.
     - Si Pagos responde `503 AUTH_NO_DISPONIBLE`, informa que es reintentable sin alterar la reserva.
@@ -432,10 +424,10 @@ async def consultar_estado_pago_reserva(
     if not id_pago:
         raise HTTPException(status_code=404, detail="La reserva aún no tiene un id_pago asociado")
 
-    token_bruto = authorization or jwt or reserva.get("token_sesion")
-    token_jwt = AuthService.extraer_jwt(token_bruto or "")
+    origen_cookie = cookie or (f"jwt={jwt}" if jwt else None) or reserva.get("cookie_header") or reserva.get("token_sesion")
+    cookie_reenvio = AuthService.formatear_cookie_header(origen_cookie or "")
 
-    info_pago = await PagosService.consultar_estado_pago(id_pago=id_pago, token_sesion=token_jwt)
+    info_pago = await PagosService.consultar_estado_pago(id_pago=id_pago, cookie_header=cookie_reenvio)
     codigo_http = info_pago.get("codigo_http")
     codigo_error = info_pago.get("error")
 
@@ -479,14 +471,14 @@ async def consultar_estado_pago_reserva(
 async def cancelar_reserva_hold(
     id_reserva: str,
     solicitud: Optional[AnularPagoReservaRequest] = None,
-    authorization: Optional[str] = Header(default=None),
+    cookie: Optional[str] = Header(default=None),
     jwt: Optional[str] = Cookie(default=None)
 ):
     """
-    ### 🛑 HU-03 y Operación 4 (Pagos v2.2): Liberación de Cupo y Anulación/Reembolso de Pago
+    ### 🛑 HU-03 y Operación 4 (Pagos v2.3): Liberación de Cupo y Anulación/Reembolso de Pago
     Permite liberar voluntariamente los cupos reservados antes o al expirar el tiempo límite,
     devolviendo el stock al pool disponible. Si la reserva ya tenía un `id_pago` creado en Pagos,
-    invoca `POST /api/v1/pagos/{id_pago}/reembolso` con el JWT del comprador o staff para anular o reembolsar el pago.
+    invoca `POST /api/v1/pagos/{id_pago}/reembolso` reenviando el header `Cookie` (`jwt`) tal cual.
     """
     db = get_database()
     if db is None:
@@ -504,8 +496,8 @@ async def cancelar_reserva_hold(
 
     cantidad = reserva.get("cantidad_entrada", 1)
     token_body = solicitud.token_sesion if solicitud else None
-    token_bruto = authorization or token_body or jwt or reserva.get("token_sesion")
-    token_jwt = AuthService.extraer_jwt(token_bruto or "")
+    origen_cookie = cookie or (f"jwt={jwt}" if jwt else None) or token_body or reserva.get("cookie_header") or reserva.get("token_sesion")
+    cookie_reenvio = AuthService.formatear_cookie_header(origen_cookie or "")
     motivo = (
         solicitud.motivo
         if solicitud and solicitud.motivo
@@ -517,7 +509,7 @@ async def cancelar_reserva_hold(
         reserva=reserva,
         nuevo_estado="CANCELADO",
         motivo=motivo,
-        token_sesion=token_jwt,
+        cookie_header=cookie_reenvio,
         anular_en_pagos=True
     )
 
@@ -577,7 +569,7 @@ async def procesar_pago_aprobado(id_reserva: str):
 )
 async def consultar_reserva_pagos(
     id_reserva: str,
-    authorization: Optional[str] = Header(default=None),
+    cookie: Optional[str] = Header(default=None),
     jwt: Optional[str] = Cookie(default=None)
 ):
     """
@@ -585,10 +577,10 @@ async def consultar_reserva_pagos(
     Proporciona al microservicio de Pagos (`GET /api/v1/entradas/reservas/{id_reserva}`, INT-01 #29) y al Checkout del Frontend
     la información esencial de una reserva (monto total, cantidad, estado y tiempo restante en pantalla).
     
-    ### ⏱️ Control Automático de Expiración y Anulación en Pagos (HU-03 + Contrato Pagos v2.2):
+    ### ⏱️ Control Automático de Expiración y Anulación en Pagos (HU-03 + Contrato Pagos v2.3):
     Si el tiempo límite de la reserva transcurrió sin confirmación de pago, el cupo se libera
     inmediatamente al pool de stock disponible, se retorna el estado `EXPIRADO` y, si existía un `id_pago`,
-    se solicita la anulación/reembolso a Pagos (`POST /api/v1/pagos/{id_pago}/reembolso`).
+    se solicita la anulación/reembolso a Pagos (`POST /api/v1/pagos/{id_pago}/reembolso`) reenviando el header `Cookie` (`jwt`).
     """
     db = get_database()
     if db is None:
@@ -606,19 +598,18 @@ async def consultar_reserva_pagos(
 
     if fecha_expiracion is not None:
         if ahora > fecha_expiracion and estado_reserva == "RESERVADO":
-            # Liberación automática inmediata por timeout (Criterio 2 HU-03) + Anulación en Pagos v2.2
             expirada = True
             estado_reserva = "EXPIRADO"
             cantidad = reserva.get("cantidad_entrada", 1)
-            token_bruto = authorization or jwt or reserva.get("token_sesion")
-            token_jwt = AuthService.extraer_jwt(token_bruto or "")
+            origen_cookie = cookie or (f"jwt={jwt}" if jwt else None) or reserva.get("cookie_header") or reserva.get("token_sesion")
+            cookie_reenvio = AuthService.formatear_cookie_header(origen_cookie or "")
 
             await liberar_reserva_y_anular_pago(
                 db=db,
                 reserva=reserva,
                 nuevo_estado="EXPIRADO",
                 motivo="Hold de la reserva vencido: el usuario pagó fuera de plazo",
-                token_sesion=token_jwt,
+                cookie_header=cookie_reenvio,
                 anular_en_pagos=True
             )
             print(f"[HU-03 On-Read Release] Reserva '{id_reserva}' expiró al ser consultada. Se liberaron {cantidad} cupo(s).")

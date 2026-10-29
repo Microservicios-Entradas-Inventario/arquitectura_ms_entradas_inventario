@@ -11,9 +11,9 @@ class InventarioResponse(BaseModel):
 class ProcesarCompraRequest(BaseModel):
     id_evento: str = Field(..., description="Identificador único del evento seleccionado.")
     tipo_entrada: str = Field(..., description="Tipo de entrada seleccionada (ej. General, VIP, Gratuita, Pagada).")
-    cantidad: int = Field(gt=0, description="Cantidad de entradas a comprar (1 a 100 según contrato Pagos v2.2).")
-    token_sesion: str = Field(..., description="JWT del comprador emitido por Auth al iniciar sesión.")
-    metodo: Optional[str] = Field(default="formulario", description="Método de cobro en Pagos v2.2: 'formulario' o 'checkout'.")
+    cantidad: int = Field(gt=0, description="Cantidad de entradas a comprar (1 a 100 según contrato Pagos v2.3).")
+    token_sesion: Optional[str] = Field(default=None, description="Opcional por retrocompatibilidad con Catálogo; en v2.3 se prioriza el header Cookie (jwt=<token>).")
+    metodo: Optional[str] = Field(default="formulario", description="Método de cobro en Pagos v2.3: 'formulario' o 'checkout'.")
 
 class ProcesarCompraResponse(BaseModel):
     nuevo_stock: int
@@ -30,12 +30,12 @@ class ProcesarCompraResponse(BaseModel):
 # ==========================================
 class CrearReservaHoldRequest(BaseModel):
     id_evento: str = Field(..., description="Identificador único del evento para reservar.")
-    id_usuario: Optional[str] = Field(default=None, description="Identificador del usuario (si se envía token_sesion, se obtiene automáticamente desde Auth).")
+    id_usuario: Optional[str] = Field(default=None, description="Identificador del usuario (si viene la cookie 'jwt', se obtiene automáticamente desde Auth).")
     cantidad: int = Field(default=1, gt=0, le=100, description="Cantidad de cupos a reservar temporalmente (1 a 100).")
-    nombre_usuario: Optional[str] = Field(default=None, description="Nombre del cliente (obtenido automáticamente de Auth si viene token_sesion).")
-    rut_usuario: Optional[str] = Field(default=None, description="RUT del cliente (obtenido automáticamente de Auth si viene token_sesion).")
-    correo_usuario: Optional[str] = Field(default=None, description="Correo electrónico del comprador (obtenido automáticamente de Auth si viene token_sesion).")
-    token_sesion: Optional[str] = Field(default=None, description="JWT emitido por Auth al iniciar sesión.")
+    nombre_usuario: Optional[str] = Field(default=None, description="Nombre del cliente (obtenido automáticamente de Auth desde la cookie 'jwt').")
+    rut_usuario: Optional[str] = Field(default=None, description="RUT del cliente (obtenido automáticamente de Auth desde la cookie 'jwt').")
+    correo_usuario: Optional[str] = Field(default=None, description="Correo electrónico del comprador (obtenido automáticamente de Auth desde la cookie 'jwt').")
+    token_sesion: Optional[str] = Field(default=None, description="Opcional; en v2.3 se usa el header Cookie (jwt=<token>).")
     tiempo_limite_minutos: int = Field(default=15, gt=0, le=60, description="Tiempo límite de vigencia de la reserva en minutos.")
 
 class CrearReservaHoldResponse(BaseModel):
@@ -62,9 +62,9 @@ class DetalleReservaResponse(BaseModel):
     rut_usuario: Optional[str] = None
     correo_usuario: Optional[str] = None
     cantidad_entrada: int
-    cantidad_entradas: int = Field(default=0, description="Alias compatible con Contrato Pagos v2.2 (INT-01).")
+    cantidad_entradas: int = Field(default=0, description="Alias compatible con Contrato Pagos v2.3 (INT-01).")
     monto_total: int
-    total: int = Field(default=0, description="Alias compatible con Contrato Pagos v2.2 (INT-01).")
+    total: int = Field(default=0, description="Alias compatible con Contrato Pagos v2.3 (INT-01).")
     id_pago: Optional[str] = None
     estado_reserva: str
     fecha_expiracion: Optional[datetime] = None
@@ -72,8 +72,8 @@ class DetalleReservaResponse(BaseModel):
     expirada: bool = False
 
 class IniciarPagoReservaRequest(BaseModel):
-    token_sesion: Optional[str] = Field(default=None, description="JWT del comprador emitido por Auth (también puede enviarse en header Authorization: Bearer).")
     metodo: Optional[str] = Field(default="formulario", description="'formulario' (por defecto) o 'checkout'.")
+    token_sesion: Optional[str] = Field(default=None, description="Opcional; en Contrato Pagos v2.3 se reenvía el header Cookie (jwt=<token>) tal cual.")
 
 class AnularPagoReservaRequest(BaseModel):
     motivo: str = Field(
@@ -82,7 +82,7 @@ class AnularPagoReservaRequest(BaseModel):
         max_length=255,
         description="Razón de la anulación o reembolso en Pagos (3 a 255 caracteres)."
     )
-    token_sesion: Optional[str] = Field(default=None, description="JWT de Auth del comprador dueño del pago o de un usuario staff.")
+    token_sesion: Optional[str] = Field(default=None, description="Opcional; en Contrato Pagos v2.3 se reenvía el header Cookie (jwt=<token>).")
 
 # ==========================================
 # HU-04: Visualización de Detalles de Entrada Adquirida

@@ -26,7 +26,7 @@ router = APIRouter()
     responses={
         200: {"description": "Compra procesada, stock actualizado e intención de pago iniciada (incluye url_checkout)"}, 
         400: {"description": "Parámetro ausente o inválido (ej. cantidad <= 0 o > 100)"}, 
-        401: {"description": "NO_AUTENTICADO: Token de sesión ausente, inválido, expirado o no emitido por Auth"}, 
+        401: {"description": "NO_AUTENTICADO: Cookie 'jwt' ausente, inválida, expirada o rechazada por Auth"}, 
         404: {"description": "El evento o el tipo de entrada solicitado no existe"},
         503: {"description": "AUTH_NO_DISPONIBLE o servicio externo temporalmente no disponible (reintentar)"},
         500: {"description": "Error interno del servicio de Entradas / Inventario"}
@@ -34,49 +34,42 @@ router = APIRouter()
 )
 async def procesar_compra(
     compra: ProcesarCompraRequest,
-    authorization: Optional[str] = Header(default=None),
+    cookie: Optional[str] = Header(default=None),
     jwt: Optional[str] = Cookie(default=None)
 ):
     """
     ###  Propósito
-    Punto de entrada principal para procesar una intención de compra iniciada desde el Catálogo. Descuenta el stock, valida la identidad en Auth, inicializa reservas y delega el cobro (si aplica) a Pagos, integrándose con todo el ecosistema (Soporte a Contrato Catálogo v2.0 y Contrato Pagos ↔ Entradas v2.2).
+    Punto de entrada principal para procesar una intención de compra iniciada desde el Catálogo. Descuenta el stock, valida la identidad en Auth reenviando el header `Cookie` (`jwt`), inicializa reservas y delega el cobro (si aplica) a Pagos (Soporte a Contrato Catálogo v2.0 y Contrato Pagos ↔ Entradas v2.3).
 
     ###  Parámetros
-    - **`compra`** *(ProcesarCompraRequest) (Body)*: Objeto JSON con el `id_evento`, `tipo_entrada`, `cantidad`, `token_sesion` y opcionalmente `metodo`.
-    - **`Authorization`** *(Header, opcional)*: `Bearer <JWT del comprador emitido por Auth>` (priorizado si vienen ambos según Contrato Pagos v2.2).
+    - **`Cookie`** *(Header)*: Header `Cookie` recibido del navegador con la cookie `jwt` emitida por Auth (reenviado tal cual a Auth y a Pagos según Contrato Pagos v2.3).
+    - **`compra`** *(ProcesarCompraRequest) (Body)*: Objeto JSON con `id_evento`, `tipo_entrada`, `cantidad` y opcionalmente `metodo`.
 
     ###  Flujo de Funcionamiento
-    1. Se valida la sesión del usuario contra el microservicio de Autenticación (`GET /internal/validar-sesion`). De esa respuesta se obtienen los datos del comprador (**nombre, RUT y correo**) sin pedirlos a mano en pantalla. Se verifica que el rol sea válido (`USUARIO`, `CLIENTE` o `STAFF`).
-    2. Se comprueba que el evento exista, no esté cancelado y cuente con stock suficiente (1 a 100 entradas según Contrato Pagos v2.2).
+    1. Se valida la sesión del usuario contra el microservicio de Autenticación (`GET /internal/validar-sesion`) enviando el header `Cookie` (`jwt`). De esa respuesta se obtienen los datos del comprador (**nombre, RUT y correo**) sin pedirlos a mano en pantalla. Se verifica que el rol sea válido (`USUARIO`, `CLIENTE` o `STAFF`).
+    2. Se comprueba que el evento exista, no esté cancelado y cuente con stock suficiente (1 a 100 entradas según Contrato Pagos v2.3).
     3. Se descuenta el stock absoluto (`stock_actual`) de inmediato para evitar concurrencia.
     4. **(Si es Gratuita)**: Se consolida, se emite directamente el QR y se notifica en paralelo a Check-in y Catálogo.
-    5. **(Si es Pagada)**: Se genera una reserva con TTL temporal y se invoca síncronamente a Pagos (**Contrato Pagos v2.2**) enviando el JWT emitido por Auth. Se almacena únicamente `id_pago` como referencia (ignorando `client_secret`) y se devuelve `url_checkout` para redirigir al comprador.
+    5. **(Si es Pagada)**: Se genera una reserva con TTL temporal y se invoca síncronamente a Pagos (**Contrato Pagos v2.3**) reenviando el header `Cookie` tal cual llegó del navegador (sin `Authorization: Bearer` ni `token_sesion` en el body). Se almacena únicamente `id_pago` como referencia (ignorando `client_secret`) y se devuelve `url_checkout` para redirigir al comprador.
     6. Si Pagos responde `503 AUTH_NO_DISPONIBLE` o `401 NO_AUTENTICADO`, no se crea ningún pago, se revierte la reserva local y se propaga el código para que el cliente pueda reintentar limpiamente.
-
-    ###  Códigos HTTP Posibles
-    - **`200 OK`**: Proceso completado, retorna el `nuevo_stock` y datos de redirección (`id_pago`, `url_checkout`).
-    - **`400 Bad Request`**: Cantidad inválida, stock insuficiente o evento CANCELADO.
-    - **`401 Unauthorized`**: Token de sesión ausente, inválido, expirado o no emitido por Auth (`NO_AUTENTICADO`).
-    - **`403 Forbidden`**: El usuario no tiene el rol necesario para comprar.
-    - **`404 Not Found`**: El evento no existe.
-    - **`503 Service Unavailable`**: `AUTH_NO_DISPONIBLE` (Auth no respondió al validar la sesión; basta con reintentar).
     """
-    # Priorizar header Authorization si vienen ambos (Regla 2.5 Contrato Pagos v2.2)
-    token_bruto = authorization or compra.token_sesion or jwt
-    token_jwt = AuthService.extraer_jwt(token_bruto or "")
-    if not token_jwt:
-        raise HTTPException(status_code=401, detail="NO_AUTENTICADO: Falta el token de sesión emitido por Auth.")
+    # Contrato Pagos v2.3: Reenviar el header Cookie que llegó del navegador tal cual (con fallback si Catálogo envía jwt/token_sesion)
+    origen_cookie = cookie or (f"jwt={jwt}" if jwt else None) or compra.token_sesion
+    cookie_reenvio = AuthService.formatear_cookie_header(origen_cookie or "")
+    token_jwt = AuthService.extraer_jwt(cookie_reenvio)
+    if not cookie_reenvio or not token_jwt:
+        raise HTTPException(status_code=401, detail="NO_AUTENTICADO: Falta la cookie 'jwt' de sesión emitida por Auth.")
         
-    usuario_auth = await AuthService.validar_sesion(token_jwt)
+    usuario_auth = await AuthService.validar_sesion(cookie_reenvio)
         
     id_usuario = usuario_auth.get("id_usuario")
     rol_usuario = usuario_auth.get("rol", "").upper()
-    # En v2.2 Auth entrega directamente nombre, RUT y correo en la validación de sesión
+    # Auth entrega directamente nombre, RUT y correo en la validación de sesión
     nombre_usuario = usuario_auth.get("nombre") or usuario_auth.get("nombre_completo") or "Usuario Desconocido"
     rut_usuario = usuario_auth.get("rut")
     correo_usuario = usuario_auth.get("correo") or usuario_auth.get("correo_electronico") or "correo@ejemplo.com"
 
-    # En v2.2 Auth maneja usuario, organizador y staff (dejando de existir SERVICIO y ADMIN; se mantiene CLIENTE por compatibilidad)
+    # Auth maneja usuario, organizador y staff (dejando de existir SERVICIO y ADMIN; se mantiene CLIENTE por compatibilidad)
     if rol_usuario not in ["CLIENTE", "USUARIO", "STAFF"]:
         raise HTTPException(status_code=403, detail="El rol del usuario no tiene permisos para comprar entradas.")
 
@@ -152,13 +145,11 @@ async def procesar_compra(
             "fecha_emision": datetime.utcnow()
         })
         
-        # Estructura de QR para Check-in (Regla de negocio Contrato v2.1: Objeto JSON con id_evento e id_entrada)
         qr_checkin = {
             "id_evento": compra.id_evento,
             "id_entrada": id_entrada
         }
         
-        # Ejecutar en paralelo (Regla 2): Notificaciones (v3), Catálogo y Check-in (v2.1)
         asyncio.create_task(NotificacionesService.enviar_ticket_correo(
             correo_comprador=correo_usuario,
             nombre_comprador=nombre_usuario,
@@ -176,7 +167,6 @@ async def procesar_compra(
             nombre_usuario=nombre_usuario,
             qr_data=qr_checkin
         ))
-        # Publicar evento entrada.emitida al Event Broker compartido
         asyncio.create_task(BrokerService.publish_event("entrada.emitida", {
             "id_entrada": id_entrada,
             "id_reserva": id_reserva,
@@ -209,7 +199,7 @@ async def procesar_compra(
         )
         
         expira_en = datetime.utcnow() + timedelta(minutes=15)
-        # Persistencia de datos de comprador obtenidos de Auth y token_sesion para polling/anulación con Pagos v2.2
+        # Persistencia de datos de comprador obtenidos de Auth y cookie_header para reenvío en polling/anulación con Pagos v2.3
         await db.reserva_entrada.insert_one({
             "id_reserva": id_reserva,
             "id_evento": compra.id_evento,
@@ -223,18 +213,18 @@ async def procesar_compra(
             "porcentaje_descuento": 0,
             "monto_total": precio_base,
             "id_pago": None,
-            "token_sesion": token_jwt,
+            "cookie_header": cookie_reenvio,
             "estado_reserva": "RESERVADO",
             "fecha_creacion": datetime.utcnow(),
             "fecha_expiracion": expira_en
         })
         
-        # Ejecutar inicio de cobro (Contrato Pagos v2.2: necesitamos id_pago y url_checkout)
+        # Ejecutar inicio de cobro (Contrato Pagos v2.3: reenviar header Cookie tal cual)
         pago = await PagosService.iniciar_cobro(
             id_reserva=id_reserva, 
             total=int(precio_base), 
             cantidad_entradas=compra.cantidad,
-            token_sesion=token_jwt,
+            cookie_header=cookie_reenvio,
             id_evento=compra.id_evento,
             metodo=compra.metodo
         )
@@ -253,7 +243,7 @@ async def procesar_compra(
                 status_code=401,
                 detail={
                     "error": "NO_AUTENTICADO",
-                    "mensaje": pago.get("mensaje", "El token fue rechazado por Auth en Pagos (inválido, vencido o no emitido por Auth)."),
+                    "mensaje": pago.get("mensaje", "La cookie 'jwt' fue rechazada por Auth en Pagos (inválida, vencida o no emitida por Auth)."),
                     "detalles": pago.get("detalles", [])
                 }
             )
@@ -314,20 +304,6 @@ async def consultar_entrada_checkin(id_ticket: str):
     """
     ###  Propósito
     Permite al microservicio de Check-in consultar la validez y los datos de una entrada física o digital mediante su ID o QR (Soporte a Contrato Check-in v1.1).
-
-    ###  Parámetros
-    - **`id_ticket`** *(str) (Path)*: Identificador único de la entrada (ej. tk-998877).
-
-    ###  Flujo de Funcionamiento
-    1. Se valida el formato de entrada del `id_ticket`.
-    2. Se busca la entrada en la colección `entrada` de la base de datos.
-    3. Se estructura y formatea la respuesta anidada según los requerimientos estrictos de lectura que necesita el personal de puerta.
-
-    ###  Códigos HTTP Posibles
-    - **`200 OK`**: Entrada válida. Retorna ID, nombre y rol del usuario asociado.
-    - **`400 Bad Request`**: No se proporcionó el parámetro obligatorio.
-    - **`404 Not Found`**: El ticket no existe o no fue emitido legalmente.
-    - **`503 Service Unavailable`**: La base de datos no se encuentra operativa.
     """
     if not id_ticket:
         raise HTTPException(status_code=400, detail="El id_ticket es obligatorio.")
@@ -361,20 +337,7 @@ async def consultar_entrada_checkin(id_ticket: str):
 async def consultar_stock_panel(id_evento: str):
     """
     ###  Propósito
-    Expone la disponibilidad exacta y real de un evento para que el Panel Organizador pueda auditar o validar lógicas de negocio, como por ejemplo, si puede eliminar físicamente un evento que aún no tiene ventas (Soporte a Contrato Panel v3.0).
-
-    ###  Parámetros
-    - **`id_evento`** *(str) (Path)*: Identificador único del evento que el Panel desea auditar.
-
-    ###  Flujo de Funcionamiento
-    1. Se recibe el ID por path parameter.
-    2. Se consulta la base de datos de inventarios.
-    3. Se devuelve inmediatamente la cantidad de `stock_actual` (fuente de verdad absoluta).
-
-    ###  Códigos HTTP Posibles
-    - **`200 OK`**: El stock fue consultado exitosamente.
-    - **`404 Not Found`**: El evento consultado no fue encontrado.
-    - **`500 Internal Server Error`**: Ocurrió un error general de conexión con la base de datos.
+    Expone la disponibilidad exacta y real de un evento para que el Panel Organizador pueda auditar o validar lógicas de negocio (Soporte a Contrato Panel v3.0).
     """
     db = get_database()
     if db is None:
@@ -406,17 +369,6 @@ async def obtener_historial_entradas_usuario(id_usuario: str):
     """
     ### 🎟️ Propósito (HU-04)
     Permite al cliente visualizar el historial completo de entradas adquiridas vinculadas a su cuenta.
-    
-    ### 📋 Criterios de Aceptación (HU-04):
-    1. **Detalle Completo e Inmutable**: Incluye el código alfanumérico único (`id_entrada`), precio final pagado (`precio_final_pagado`), tipo de acceso general (`tipo_acceso: GENERAL`), nombre del evento (`nombre_evento`), lugar físico de ingreso (`lugar_ingreso`), fecha de emisión y código QR.
-    2. **Omisión de Asiento Numerado**: Dado que el tipo de evento es de entrada general, no se incluye ni se exige selección de asiento en mapa numerado.
-    
-    ### 📥 Parámetros
-    - **`id_usuario`** *(str) (Path)*: Identificador único del usuario o cliente autenticado.
-    
-    ### 📤 Códigos HTTP
-    - **`200 OK`**: Retorna el listado de entradas emitidas para el usuario (array vacío si aún no posee compras).
-    - **`500 Internal Server Error`**: Falla en la persistencia o servicio de base de datos.
     """
     db = get_database()
     if db is None:
@@ -471,10 +423,6 @@ async def obtener_detalle_entrada(id_ticket: str):
     """
     ### 🎟️ Propósito (HU-04)
     Permite al cliente o al sistema visualizar en detalle los datos inmutables de una entrada adquirida específica.
-    
-    ### 📋 Criterios de Aceptación (HU-04):
-    - Presenta el identificador único (`id_entrada`), monto final pagado auditado, nombre del evento, y condiciones físicas de acceso (`lugar_ingreso`).
-    - Omite selección de asientos numerados, indicando `tipo_acceso: GENERAL`.
     """
     db = get_database()
     if db is None:
@@ -525,17 +473,7 @@ async def obtener_detalle_entrada(id_ticket: str):
 async def obtener_qr_acceso(id_ticket: str):
     """
     ### 📱 Propósito (HU-05)
-    Proporciona al cliente su código QR de acceso inmediatamente después de la emisión de la entrada
-    (inmediato en flujo gratuito o tras confirmación de pago en flujo pagado) y valida su habilitación
-    para el control de acceso físico en Check-in.
-    
-    ### 📋 Criterios de Aceptación (HU-05):
-    1. **Generación Inmediata / Post-Pago**: La entrada debe estar en estado `EMITIDA`.
-    2. **Estructura del Código QR**: Contiene un payload JSON con `id_evento` e `id_entrada`, vinculado al nombre del asistente.
-    3. **Habilitación en Check-in**: Se confirma que el ticket está listo y habilitado para lectura en torniquetes o escáneres de acceso.
-    
-    ### 📥 Parámetros
-    - **`id_ticket`** *(str) (Path)*: Identificador único de la entrada (ej. `tk-998877`).
+    Proporciona al cliente su código QR de acceso inmediatamente después de la emisión de la entrada.
     """
     db = get_database()
     if db is None:

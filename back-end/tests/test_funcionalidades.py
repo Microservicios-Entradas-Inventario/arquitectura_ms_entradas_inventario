@@ -23,12 +23,11 @@ def test_consulta_inventario():
 
 # --- HU-02: Selección y compra ---
 def test_procesar_compra_sin_autenticacion():
-    """Valida que la seguridad bloquee compras sin token válido"""
+    """Valida que la seguridad bloquee compras sin cookie 'jwt' válida"""
 
     payload_compra = {
         "id_evento": "evt-77889",
-        "id_usuario": "user_123",
-        "zona": "VIP",
+        "tipo_entrada": "PAGADA",
         "cantidad": 2
     }
     
@@ -49,19 +48,18 @@ def test_historial_usuario():
             data = response.json()
             assert isinstance(data, list), "El historial debe retornar un array"
 
-# --- Contrato Pagos <-> Entradas v2.2 ---
-def test_extraer_jwt_auth_service():
-    """Valida normalización del JWT emitido por Auth desde Bearer, Cookie o raw"""
-    token_raw = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig"
-    assert AuthService.extraer_jwt(f"Bearer {token_raw}") == token_raw
-    assert AuthService.extraer_jwt(f"jwt={token_raw}; Path=/; HttpOnly") == token_raw
-    assert AuthService.extraer_jwt(token_raw) == token_raw
+# --- Contrato Pagos <-> Entradas v2.3 (Cookie jwt) ---
+def test_formatear_cookie_header_auth_service():
+    """Valida que el header Cookie recibido del navegador se reenvíe tal cual"""
+    cookie_navegador = "jwt=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig; theme=dark"
+    assert AuthService.formatear_cookie_header(cookie_navegador) == cookie_navegador
+    assert AuthService.extraer_jwt(cookie_navegador) == "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig"
 
 @pytest.mark.anyio
-async def test_pagos_v22_ignora_client_secret_y_envia_bearer():
+async def test_pagos_v23_reenvia_cookie_tal_cual_sin_bearer_ni_token_sesion():
     """
-    Valida que PagosService.iniciar_cobro (v2.2):
-    1. Envíe Authorization: Bearer <jwt> y token_sesion.
+    Valida que PagosService.iniciar_cobro (v2.3):
+    1. Reenvíe el header Cookie tal cual llegó del navegador (sin Authorization: Bearer ni token_sesion en el body).
     2. Ignore y elimine client_secret de la respuesta.
     3. Conserve id_pago y url_checkout.
     """
@@ -77,24 +75,26 @@ async def test_pagos_v22_ignora_client_secret_y_envia_bearer():
             "client_secret": "pi_secret_no_guardar"
         }
     )
+    cookie_navegador = "jwt=eyJ_token_auth_real; session_flag=1"
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=respuesta_mock) as mock_post:
         resultado = await PagosService.iniciar_cobro(
             id_reserva="res-98765",
             total=15000,
             cantidad_entradas=2,
-            token_sesion="jwt=eyJ_token_auth_real"
+            cookie_header=cookie_navegador
         )
         assert resultado["id_pago"] == "3f2b8c1e-6a4d-4e2f-9b1a-7c5d8e9f0a12"
         assert resultado["url_checkout"].startswith("http://localhost:5173/")
         assert "client_secret" not in resultado
         _, kwargs = mock_post.call_args
-        assert kwargs["headers"]["Authorization"] == "Bearer eyJ_token_auth_real"
-        assert kwargs["json"]["token_sesion"] == "eyJ_token_auth_real"
+        assert kwargs["headers"]["Cookie"] == cookie_navegador
+        assert "Authorization" not in kwargs["headers"]
+        assert "token_sesion" not in kwargs["json"]
 
 @pytest.mark.anyio
-async def test_pagos_v22_reintento_503_auth_no_disponible():
+async def test_pagos_v23_reintento_503_auth_no_disponible():
     """
-    Valida que ante 503 AUTH_NO_DISPONIBLE PagosService reintente idempotentemente con el mismo id_reserva.
+    Valida que ante 503 AUTH_NO_DISPONIBLE PagosService reintente idempotentemente con el mismo id_reserva y header Cookie.
     """
     resp_503 = httpx.Response(
         503,
@@ -120,7 +120,7 @@ async def test_pagos_v22_reintento_503_auth_no_disponible():
             id_reserva="res-98765",
             total=15000,
             cantidad_entradas=2,
-            token_sesion="eyJ_token_auth_real",
+            cookie_header="jwt=eyJ_token_auth_real",
             max_reintentos=2
         )
         assert mock_post.call_count == 2

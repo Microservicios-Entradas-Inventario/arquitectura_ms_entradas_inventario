@@ -9,10 +9,7 @@ class AuthService:
     @staticmethod
     def extraer_jwt(token_o_cookie: str) -> str:
         """
-        Extrae el JWT limpio emitido por Auth, ya sea que venga como:
-        - 'Bearer <jwt>'
-        - 'jwt=<jwt>' (o cookie header con múltiples pares)
-        - '<jwt>' directo
+        Extrae el valor del JWT desde una cabecera Cookie ('jwt=<token>; ...') o un token raw.
         """
         if not token_o_cookie:
             return ""
@@ -24,23 +21,38 @@ class AuthService:
             valor = partes.split(";", 1)[0].strip()
         return valor
 
+    @staticmethod
+    def formatear_cookie_header(cookie_o_token: str) -> str:
+        """
+        Contrato Pagos/Auth v2.3:
+        Auth y Pagos solo validan la sesión desde el header Cookie (cookie 'jwt').
+        - Si ya viene el header Cookie del navegador (conteniendo 'jwt='), se reenvía tal cual.
+        - Si viene el JWT suelto (por retrocompatibilidad interna), lo formatea como 'jwt=<token>'.
+        """
+        if not cookie_o_token:
+            return ""
+        valor = cookie_o_token.strip()
+        if "jwt=" in valor:
+            return valor
+        if valor.lower().startswith("bearer "):
+            valor = valor[7:].strip()
+        return f"jwt={valor}" if valor else ""
+
     @classmethod
     async def validar_sesion(cls, cookie_header: str) -> Dict:
         """
-        Contrato: Entradas/Inventario <-> Autenticación (Auth) v3.0 / Pagos v2.2
-        Verifica la identidad del cliente mediante Introspección Centralizada (GET /internal/validar-sesion).
+        Contrato: Entradas/Inventario <-> Autenticación (Auth) v3.0 / Pagos v2.3
+        Verifica la identidad del cliente mediante Introspección Centralizada (GET /internal/validar-sesion),
+        reenviando el header Cookie con la cookie 'jwt' tal cual llegó del navegador.
         Además recupera los datos del usuario (id_usuario, rol, nombre, RUT y correo) directamente desde Auth.
         """
         url = f"{cls.BASE_URL}/internal/validar-sesion"
-        jwt_limpio = cls.extraer_jwt(cookie_header)
-        if not jwt_limpio:
-            raise HTTPException(status_code=401, detail="Falta el token de sesión emitido por Auth.")
+        cookie_reenvio = cls.formatear_cookie_header(cookie_header)
+        if not cookie_reenvio or not cls.extraer_jwt(cookie_reenvio):
+            raise HTTPException(status_code=401, detail="NO_AUTENTICADO: Falta la cookie 'jwt' de sesión emitida por Auth.")
 
-        # Enviar tanto Cookie como Authorization Bearer para compatibilidad total con Auth
-        headers = {
-            "Cookie": f"jwt={jwt_limpio}",
-            "Authorization": f"Bearer {jwt_limpio}"
-        }
+        # Regla v2.3: Auth solo valida el token desde el header Cookie (cookie jwt), no acepta Bearer ni token_sesion
+        headers = {"Cookie": cookie_reenvio}
         
         async with httpx.AsyncClient() as client:
             try:
@@ -77,10 +89,11 @@ class AuthService:
                         "rut": rut,
                         "correo": correo,
                         "correo_electronico": correo,
-                        "token_jwt": jwt_limpio
+                        "cookie_header": cookie_reenvio,
+                        "token_jwt": cls.extraer_jwt(cookie_reenvio)
                     }
                 elif response.status_code == 401:
-                    raise HTTPException(status_code=401, detail="NO_AUTENTICADO: Token inválido, vencido, revocado o no emitido por Auth.")
+                    raise HTTPException(status_code=401, detail="NO_AUTENTICADO: Cookie 'jwt' ausente, inválida, vencida o revocada por Auth.")
                 elif response.status_code == 403:
                     raise HTTPException(status_code=403, detail="Prohibido: No autorizado a consultar la red interna.")
                 else:
