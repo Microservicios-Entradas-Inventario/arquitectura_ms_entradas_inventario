@@ -2,7 +2,7 @@ import os
 import httpx
 
 class CatalogoService:
-    BASE_URL = os.getenv("CATALOGO_SERVICE_URL", "http://catalogo-service:8000")
+    BASE_URL = os.getenv("CATALOGO_SERVICE_URL", "http://catalogo-service:4000")
 
     @classmethod
     async def actualizar_stock_catalogo(cls, id_evento: str, nuevo_stock: int, token_sesion: str) -> bool:
