@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+httpx
+motor
+aio-pika
+pytest
+pytest-asyncio
+pytest-html

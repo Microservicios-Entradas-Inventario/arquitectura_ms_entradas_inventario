@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  entradas-service:
+    build:
+      context: ./back-end
+      dockerfile: Dockerfile
+    container_name: entradas-service
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      MONGO_URI: "mongodb://mongodb:27017"
+      MONGO_DB: "ticketu_entradas_db"
+      BROKER_URL: "amqp://ticketu:ticketu_dev@ticketu-rabbitmq:5672/ticketu"
+      EVENT_EXCHANGE: "ticketu.events"
+      QUEUE_NAME: "entradas.pagos"
+      PANEL_SERVICE_URL: "http://organizador-service:3000"
+      AUTH_SERVICE_URL: "http://auth-service:10000"
+      INTERNAL_API_KEY: "CAMBIAR_CLAVE_COMPARTIDA_SEGURA"
+      PAGOS_SERVICE_URL: "http://pagos-service:3000"
+    depends_on:
+      - mongodb
+    networks:
+      - plataforma-eventos-net
+      - entradas-internal-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  mongodb:
+    image: mongo:7.0
+    container_name: ticketu_entradas_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ticketu_entradas_db
+    volumes:
+      - ./database/init_db.js:/docker-entrypoint-initdb.d/init_db.js:ro
+      - mongo_entradas_data:/data/db
+    networks:
+      - entradas-internal-net
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    container_name: ticketu_entradas_gui
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://mongodb:27017/"
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongodb
+    networks:
+      - entradas-internal-net
+
+volumes:
+  mongo_entradas_data:
+
+networks:
+  plataforma-eventos-net:
+    external: true
+  entradas-internal-net:
+    driver: bridge
