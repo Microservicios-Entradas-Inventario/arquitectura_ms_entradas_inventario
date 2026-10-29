@@ -4,7 +4,8 @@ from typing import Dict
 from fastapi import HTTPException
 
 class AuthService:
-    BASE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8000")
+    BASE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:10000")
+    INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "CAMBIAR_CLAVE_COMPARTIDA_SEGURA")
 
     @staticmethod
     def extraer_jwt(token_o_cookie: str) -> str:
@@ -51,8 +52,11 @@ class AuthService:
         if not cookie_reenvio or not cls.extraer_jwt(cookie_reenvio):
             raise HTTPException(status_code=401, detail="NO_AUTENTICADO: Falta la cookie 'jwt' de sesión emitida por Auth.")
 
-        # Regla v2.3: Auth solo valida el token desde el header Cookie (cookie jwt), no acepta Bearer ni token_sesion
-        headers = {"Cookie": cookie_reenvio}
+        # Regla v2.3: Auth solo valida el token desde el header Cookie (cookie jwt), más x-api-key para red interna
+        headers = {
+            "Cookie": cookie_reenvio,
+            "x-api-key": cls.INTERNAL_API_KEY
+        }
         
         async with httpx.AsyncClient() as client:
             try:

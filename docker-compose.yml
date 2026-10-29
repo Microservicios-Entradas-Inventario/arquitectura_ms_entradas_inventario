@@ -17,8 +17,9 @@ services:
       EVENT_EXCHANGE: "ticketu.events"
       QUEUE_NAME: "entradas.pagos"
       PANEL_SERVICE_URL: "http://organizador-service:3000"
-      AUTH_SERVICE_URL: "http://auth-service:8000"
-      PAGOS_SERVICE_URL: "http://pagos-service:8000"
+      AUTH_SERVICE_URL: "http://auth-service:10000"
+      INTERNAL_API_KEY: "CAMBIAR_CLAVE_COMPARTIDA_SEGURA"
+      PAGOS_SERVICE_URL: "http://pagos-service:3000"
     depends_on:
       - mongodb
     networks:
@@ -49,7 +50,7 @@ services:
     container_name: ticketu_entradas_gui
     restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "8082:8081"
     environment:
       ME_CONFIG_MONGODB_URL: "mongodb://mongodb:27017/"
       ME_CONFIG_MONGODB_SERVER: mongodb

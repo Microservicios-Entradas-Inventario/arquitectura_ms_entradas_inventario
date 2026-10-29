@@ -20,7 +20,7 @@ class PagosService:
     7. Entradas ignora 'client_secret' y solo persiste 'id_pago' como referencia.
     """
 
-    BASE_URL = os.getenv("PAGOS_SERVICE_URL", "http://pagos-service:8000")
+    BASE_URL = os.getenv("PAGOS_SERVICE_URL", "http://pagos-service:3000")
     STAFF_COOKIE = os.getenv("PAGOS_STAFF_COOKIE", os.getenv("PAGOS_STAFF_TOKEN", ""))
 
     @classmethod
