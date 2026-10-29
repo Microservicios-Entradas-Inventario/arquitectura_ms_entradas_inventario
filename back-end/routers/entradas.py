@@ -145,10 +145,7 @@ async def procesar_compra(
             "fecha_emision": datetime.utcnow()
         })
         
-        qr_checkin = {
-            "id_evento": compra.id_evento,
-            "id_entrada": id_entrada
-        }
+        qr_checkin = id_entrada
         
         asyncio.create_task(NotificacionesService.enviar_ticket_correo(
             correo_comprador=correo_usuario,
@@ -164,6 +161,7 @@ async def procesar_compra(
         asyncio.create_task(CheckinService.registrar_ticket_puerta(
             id_entrada=id_entrada,
             id_evento=compra.id_evento,
+            id_usuario=id_usuario,
             nombre_usuario=nombre_usuario,
             qr_data=qr_checkin
         ))

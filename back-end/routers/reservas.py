@@ -69,10 +69,7 @@ async def consolidar_y_emitir_entradas(
     for _ in range(cantidad):
         id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
         qr_data_url = f"https://storage.midominio.com/qr/{id_entrada}.png"
-        qr_checkin = {
-            "id_evento": id_evento,
-            "id_entrada": id_entrada
-        }
+        qr_checkin = id_entrada
         qr_obj = {
             "url": qr_data_url,
             "hash": uuid.uuid4().hex[:7]
@@ -100,6 +97,7 @@ async def consolidar_y_emitir_entradas(
         asyncio.create_task(CheckinService.registrar_ticket_puerta(
             id_entrada=id_entrada,
             id_evento=id_evento,
+            id_usuario=id_usuario,
             nombre_usuario=nombre_usuario,
             qr_data=qr_checkin
         ))

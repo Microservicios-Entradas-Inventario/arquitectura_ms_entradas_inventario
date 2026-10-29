@@ -18,6 +18,7 @@ services:
       QUEUE_NAME: "entradas.pagos"
       PANEL_SERVICE_URL: "http://organizador-service:3000"
       CATALOGO_SERVICE_URL: "http://catalogo-service:4000"
+      CHECKIN_SERVICE_URL: "http://checkin-service:3001"
       AUTH_SERVICE_URL: "http://auth-service:10000"
       INTERNAL_API_KEY: "CAMBIAR_CLAVE_COMPARTIDA_SEGURA"
       PAGOS_SERVICE_URL: "http://pagos-service:3000"
