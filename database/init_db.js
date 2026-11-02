@@ -85,7 +85,11 @@ dbRef.createCollection("reserva_entrada", {
         id_pago: { bsonType: ["string", "null"] },
         estado_reserva: {
           bsonType: "string",
-          enum: ["RESERVADO", "CONSOLIDADO", "EXPIRADO", "RECHAZADO"]
+          enum: ["RESERVADO", "CONSOLIDADO", "EXPIRADO", "RECHAZADO", "CANCELADO"]
+        },
+        fecha_cancelacion: {
+          bsonType: ["date", "null"],
+          description: "Fecha de cancelación manual de la reserva"
         },
         fecha_creacion: { bsonType: "date" },
         fecha_expiracion: { bsonType: ["date", "null"] }

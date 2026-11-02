@@ -32,6 +32,7 @@ Table reserva_entrada {
   monto_total int [note: "NOT NULL"]
   id_pago string [note: "FK Ext NULLABLE"]
   estado_reserva string [note: "NOT NULL"]
+  fecha_cancelacion date [note: "NULLABLE"]
   fecha_creacion date [note: "NOT NULL"]
   fecha_expiracion date [note: "NULLABLE"]
 }
