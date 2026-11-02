@@ -1,0 +1,172 @@
+{
+  "info": {
+    "_postman_id": "5b28009e-e3cf-411f-910d-04b6b1bde9ea",
+    "name": "TicketU - QA Integracion",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "37240432"
+  },
+  "item": [
+    {
+      "name": "Integración como proveedor (Check-in)",
+      "item": [
+        {
+          "name": "Consultar Entrada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"El ticket pertenece al usuario\", function () {\r\n    var jsonData = pm.response.json();\r\n    // Validamos usando la llave id_ticket confirmada en el body\r\n    pm.expect(jsonData.id_ticket).to.eql(\"tk-998877\");\r\n});\r\n\r\npm.test(\"Cumple SLA de Check-in menor a 500ms\", function () {\r\n    // validamos el SLA estricto definido en la arquitectura\r\n    pm.expect(pm.response.responseTime).to.be.below(500);\r\n})\r\n\r\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/entradas/tk-998877",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "v1",
+                "entradas",
+                "tk-998877"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Esta carpeta validará el endpoint expuesto para el microservicio de Check-in."
+    },
+    {
+      "name": "Integración con Pagos (Consulta y Webhook)",
+      "item": [
+        {
+          "name": "Consultar Estado de Reserva",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"La reserva existe y está en estado RESERVADO\", function () {\r\n    var jsonData = pm.response.json();\r\n    pm.expect(jsonData.id_reserva).to.eql(\"res-98766\");\r\n    pm.expect(jsonData.estado_reserva).to.be.oneOf([\"RESERVADO\", \"CONSOLIDADO\"]);\r\n})\r\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/reservas/res-98766",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "res-98766"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Simular Aprobación de Pago (Webhook)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"El pago se procesa exitosamente o ya fue procesado previamente\", function () {\r\n    // 400 es la respuesta esperada si la reserva ya pasó a CONSOLIDADA\r\n    pm.expect(pm.response.code).to.be.oneOf([200, 201, 400]);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"estado_pago\": \"APROBADO\",\r\n    \"id_transaccion\": \"txn-abc-123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8000/api/v1/reservas/res-98766/webhook-pago",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "res-98766",
+                "webhook-pago"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Esta carpeta simula el flujo completo de una reserva que espera ser pagada y la posterior confirmación simulando RabbitMQ."
+    },
+    {
+      "name": "Integración Panel Organizador (Métricas)",
+      "item": [
+        {
+          "name": "Consultar Stock del Evento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code es 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"Retorna métricas de stock integras\", function () {\r\n    var jsonData = pm.response.json();\r\n    // Validación usando las llaves exactas que retorna la API\r\n    pm.expect(jsonData).to.have.property(\"id_evento\", \"evt-77889\");\r\n    pm.expect(jsonData).to.have.property(\"stock\", 148);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8000/api/v1/entradas/eventos/evt-77889/stock",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "api",
+                "v1",
+                "entradas",
+                "eventos",
+                "evt-77889",
+                "stock"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Esta carpeta asegura que el Panel del Organizador reciba los datos de inventario correctamente."
+    }
+  ]
+}
