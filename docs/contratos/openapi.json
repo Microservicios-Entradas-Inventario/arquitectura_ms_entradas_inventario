@@ -1,0 +1,3146 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TicketU - API de Entradas e Inventario",
+    "description": "Microservicio central de Entradas e Inventario. Soporta HU-01 (Inventario), HU-02 (Compra), HU-03 (Reserva Temporal Hold), HU-04 (Detalle de Entrada) y HU-05 (Recepción de QR). Integrado con Contrato Pagos <-> Entradas v2.3 (Cookie jwt), Auth, API Gateway y Event Broker (RabbitMQ).",
+    "version": "2.3.0"
+  },
+  "paths": {
+    "/api/entradas/health": {
+      "get": {
+        "tags": [
+          "Salud del Servicio"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check_api_entradas_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Salud del Servicio"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/inventario/{id_evento}": {
+      "get": {
+        "tags": [
+          "Inventario (BE1)"
+        ],
+        "summary": "Obtener Disponibilidad",
+        "description": "###  Propósito\nPermite consultar la disponibilidad de stock actual y detalles comerciales de un evento en específico. Es el servicio propio fundamental (Soporte a HU-01) para que los usuarios puedan ver si hay entradas disponibles antes de intentar comprarlas.\n\n###  Parámetros\n- **`id_evento`** *(str) (Path)*: Identificador único del evento que se desea consultar.\n\n###  Flujo de Funcionamiento\n1. Se recibe el `id_evento` por la ruta.\n2. Se abre una conexión asíncrona con la base de datos MongoDB.\n3. Se busca el documento del evento en la colección `inventario_evento`.\n4. Se retorna la información estructurada mediante el esquema `InventarioResponse`.\n\n###  Códigos HTTP Posibles\n- **`200 OK`**: La disponibilidad fue obtenida y retornada exitosamente.\n- **`404 Not Found`**: El `id_evento` especificado no existe en la colección de inventario.\n- **`500 Internal Server Error`**: Ocurrió un problema de conexión con la base de datos MongoDB.",
+        "operationId": "obtener_disponibilidad_api_entradas_inventario__id_evento__get",
+        "parameters": [
+          {
+            "name": "id_evento",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Evento"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disponibilidad obtenida exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento no encontrado"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/reservas/hold": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)"
+        ],
+        "summary": "Crear Reserva Hold",
+        "description": "### 🎟️ HU-03: Reserva Temporal de Cupo\n**Propósito:** Descuenta temporalmente los cupos solicitados del stock disponible y genera\nun identificador único de reserva (`holdId` / `id_reserva`) con un tiempo límite de vigencia.\n\n### 🔐 Integración con Auth (Contrato Pagos v2.3):\nSi se recibe el header `Cookie` del navegador con la cookie `jwt`, se valida la sesión con Auth\nreenviando el header `Cookie` tal cual, y se obtienen de ahí los datos del comprador (**nombre, RUT y correo**).",
+        "operationId": "crear_reserva_hold_api_entradas_reservas_hold_post",
+        "parameters": [
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearReservaHoldRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cupo reservado temporalmente con holdId generado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrearReservaHoldResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Stock insuficiente, cantidad inválida o evento cancelado"
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Cookie 'jwt' inválida o rechazada por Auth"
+          },
+          "404": {
+            "description": "El evento especificado no existe"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE: Servicio de Auth no disponible"
+          },
+          "500": {
+            "description": "Error interno del servidor o BD"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/reservas/{id_reserva}/iniciar-pago": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)",
+          "Integración Pagos v2.3"
+        ],
+        "summary": "Iniciar Pago Reserva",
+        "description": "### 💳 Operación 2 (Contrato Pagos ↔ Entradas v2.3): Crear intención de pago para una reserva\nInvoca `POST /api/v1/pagos/transacciones` reenviando el header `Cookie` (`jwt`) que llegó del navegador tal cual.\n- Almacena únicamente `id_pago` como referencia en la reserva (ignora `client_secret`).\n- Retorna `url_checkout` para redirigir al comprador a la pantalla de pago.\n- Si Pagos responde `503 AUTH_NO_DISPONIBLE`, no se crea ni modifica ningún pago y basta con reintentar.",
+        "operationId": "iniciar_pago_reserva_api_entradas_reservas__id_reserva__iniciar_pago_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/IniciarPagoReservaRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Solicitud"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Intención de pago creada en Pagos (devuelve id_pago y url_checkout)",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "La reserva no está en estado RESERVADO o ya expiró"
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Falta la cookie 'jwt' o Auth la rechazó"
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "409": {
+            "description": "CONFLICTO_IDEMPOTENCIA: La reserva ya tiene un pago con datos distintos"
+          },
+          "422": {
+            "description": "ORDEN_INCONSISTENTE: Total o cantidad no coinciden"
+          },
+          "502": {
+            "description": "ERROR_PASARELA: Stripe rechazó la operación o no respondió"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE o ENTRADAS_NO_DISPONIBLE (no se creó el pago; basta con reintentar)"
+          }
+        }
+      }
+    },
+    "/api/entradas/reservas/{id_reserva}/estado-pago": {
+      "get": {
+        "tags": [
+          "Reservas (HU-03)",
+          "Integración Pagos v2.3"
+        ],
+        "summary": "Consultar Estado Pago Reserva",
+        "description": "### 🔍 Operación 3 (Contrato Pagos ↔ Entradas v2.3): Consultar estado del pago (Polling)\nConsulta `GET /api/v1/pagos/{id_pago}` reenviando el header `Cookie` (`jwt`) tal cual.\n- Si `estado_pago == \"APROBADO\"`, consolida la reserva y emite las entradas con QR automáticamente.\n- Si `estado_pago` es `\"RECHAZADO\"`, `\"ANULADO\"` o `\"REEMBOLSADO\"`, libera el stock reservado.\n- Si Pagos responde `503 AUTH_NO_DISPONIBLE`, informa que es reintentable sin alterar la reserva.",
+        "operationId": "consultar_estado_pago_reserva_api_entradas_reservas__id_reserva__estado_pago_get",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado actual del pago consultado en Pagos (consolidando o liberando reserva si es final)",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Falta la cookie 'jwt' o Auth la rechazó"
+          },
+          "404": {
+            "description": "Reserva o pago no encontrado"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE: Auth no respondió; reintentar más tarde"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/reservas/{id_reserva}/cancelar": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)"
+        ],
+        "summary": "Cancelar Reserva Hold",
+        "description": "### 🛑 HU-03 y Operación 4 (Pagos v2.3): Liberación de Cupo y Anulación/Reembolso de Pago\nPermite liberar voluntariamente los cupos reservados antes o al expirar el tiempo límite,\ndevolviendo el stock al pool disponible. Si la reserva ya tenía un `id_pago` creado en Pagos,\ninvoca `POST /api/v1/pagos/{id_pago}/reembolso` reenviando el header `Cookie` (`jwt`) tal cual.",
+        "operationId": "cancelar_reserva_hold_api_entradas_reservas__id_reserva__cancelar_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AnularPagoReservaRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Solicitud"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reserva cancelada, cupos liberados y pago anulado/reembolsado si existía",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "La reserva no está en estado RESERVADO"
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/reservas/{id_reserva}/webhook-pago": {
+      "post": {
+        "tags": [
+          "Simulación RabbitMQ - Pago Aprobado"
+        ],
+        "summary": "Procesar Pago Aprobado",
+        "description": "###  Propósito\nSimula la recepción asíncrona de un evento RabbitMQ (\"PagoAprobado\") o confirmación desde Pagos. Consolida la reserva, emite las entradas definitivas y despacha operaciones en paralelo a otros microservicios.",
+        "operationId": "procesar_pago_aprobado_api_entradas_reservas__id_reserva__webhook_pago_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proceso de emisión completado",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Pago rechazado o inválido"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/reservas/{id_reserva}": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Pagos",
+          "Reservas (HU-03)"
+        ],
+        "summary": "Consultar Reserva Pagos",
+        "description": "###  Propósito\nProporciona al microservicio de Pagos (`GET /api/v1/entradas/reservas/{id_reserva}`, INT-01 #29) y al Checkout del Frontend\nla información esencial de una reserva (monto total, cantidad, estado y tiempo restante en pantalla).\n\n### ⏱️ Control Automático de Expiración y Anulación en Pagos (HU-03 + Contrato Pagos v2.3):\nSi el tiempo límite de la reserva transcurrió sin confirmación de pago, el cupo se libera\ninmediatamente al pool de stock disponible, se retorna el estado `EXPIRADO` y, si existía un `id_pago`,\nse solicita la anulación/reembolso a Pagos (`POST /api/v1/pagos/{id_pago}/reembolso`) reenviando el header `Cookie` (`jwt`).",
+        "operationId": "consultar_reserva_pagos_api_entradas_reservas__id_reserva__get",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de la reserva retornados exitosamente con tiempo restante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleReservaResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/procesar-compra": {
+      "post": {
+        "tags": [
+          "Servicios Provistos (BE3) - Catálogo"
+        ],
+        "summary": "Procesar Compra",
+        "description": "###  Propósito\nPunto de entrada principal para procesar una intención de compra iniciada desde el Catálogo. Descuenta el stock, valida la identidad en Auth reenviando el header `Cookie` (`jwt`), inicializa reservas y delega el cobro (si aplica) a Pagos (Soporte a Contrato Catálogo v2.0 y Contrato Pagos ↔ Entradas v2.3).\n\n###  Parámetros\n- **`Cookie`** *(Header)*: Header `Cookie` recibido del navegador con la cookie `jwt` emitida por Auth (reenviado tal cual a Auth y a Pagos según Contrato Pagos v2.3).\n- **`compra`** *(ProcesarCompraRequest) (Body)*: Objeto JSON con `id_evento`, `tipo_entrada`, `cantidad` y opcionalmente `metodo`.\n\n###  Flujo de Funcionamiento\n1. Se valida la sesión del usuario contra el microservicio de Autenticación (`GET /internal/validar-sesion`) enviando el header `Cookie` (`jwt`). De esa respuesta se obtienen los datos del comprador (**nombre, RUT y correo**) sin pedirlos a mano en pantalla. Se verifica que el rol sea válido (`USUARIO`, `CLIENTE` o `STAFF`).\n2. Se comprueba que el evento exista, no esté cancelado y cuente con stock suficiente (1 a 100 entradas según Contrato Pagos v2.3).\n3. Se descuenta el stock absoluto (`stock_actual`) de inmediato para evitar concurrencia.\n4. **(Si es Gratuita)**: Se consolida, se emite directamente el QR y se notifica en paralelo a Check-in y Catálogo.\n5. **(Si es Pagada)**: Se genera una reserva con TTL temporal y se invoca síncronamente a Pagos (**Contrato Pagos v2.3**) reenviando el header `Cookie` tal cual llegó del navegador (sin `Authorization: Bearer` ni `token_sesion` en el body). Se almacena únicamente `id_pago` como referencia (ignorando `client_secret`) y se devuelve `url_checkout` para redirigir al comprador.\n6. Si Pagos responde `503 AUTH_NO_DISPONIBLE` o `401 NO_AUTENTICADO`, no se crea ningún pago, se revierte la reserva local y se propaga el código para que el cliente pueda reintentar limpiamente.",
+        "operationId": "procesar_compra_api_entradas_procesar_compra_post",
+        "parameters": [
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcesarCompraRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Compra procesada, stock actualizado e intención de pago iniciada (incluye url_checkout)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcesarCompraResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetro ausente o inválido (ej. cantidad <= 0 o > 100)"
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Cookie 'jwt' ausente, inválida, expirada o rechazada por Auth"
+          },
+          "404": {
+            "description": "El evento o el tipo de entrada solicitado no existe"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE o servicio externo temporalmente no disponible (reintentar)"
+          },
+          "500": {
+            "description": "Error interno del servicio de Entradas / Inventario"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/{id_ticket}": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Check-in"
+        ],
+        "summary": "Consultar Entrada Checkin",
+        "description": "###  Propósito\nPermite al microservicio de Check-in consultar la validez y los datos de una entrada física o digital mediante su ID o QR (Soporte a Contrato Check-in v1.1).",
+        "operationId": "consultar_entrada_checkin_api_entradas__id_ticket__get",
+        "parameters": [
+          {
+            "name": "id_ticket",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de la entrada retornados exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Datos de solicitud incompletos o id_ticket con formato inválido"
+          },
+          "404": {
+            "description": "La entrada asociada al id_ticket no existe"
+          },
+          "500": {
+            "description": "Error interno del servicio de Entradas / Inventario"
+          },
+          "503": {
+            "description": "Servicio temporalmente no disponible"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/eventos/{id_evento}/stock": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Panel Organizador"
+        ],
+        "summary": "Consultar Stock Panel",
+        "description": "###  Propósito\nExpone la disponibilidad exacta y real de un evento para que el Panel Organizador pueda auditar o validar lógicas de negocio (Soporte a Contrato Panel v3.0).",
+        "operationId": "consultar_stock_panel_api_entradas_eventos__id_evento__stock_get",
+        "parameters": [
+          {
+            "name": "id_evento",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Evento"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stock retornado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Evento no encontrado"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/usuario/{id_usuario}": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Clientes / Entradas"
+        ],
+        "summary": "Obtener Historial Entradas Usuario",
+        "description": "### 🎟️ Propósito (HU-04)\nPermite al cliente visualizar el historial completo de entradas adquiridas vinculadas a su cuenta.",
+        "operationId": "obtener_historial_entradas_usuario_api_entradas_usuario__id_usuario__get",
+        "parameters": [
+          {
+            "name": "id_usuario",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Usuario"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historial de entradas adquiridas por el cliente retornado con éxito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DetalleEntradaAdquirida"
+                  },
+                  "title": "Response Obtener Historial Entradas Usuario Api Entradas Usuario  Id Usuario  Get"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error al conectar con la base de datos."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/{id_ticket}/detalle": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Clientes / Entradas"
+        ],
+        "summary": "Obtener Detalle Entrada",
+        "description": "### 🎟️ Propósito (HU-04)\nPermite al cliente o al sistema visualizar en detalle los datos inmutables de una entrada adquirida específica.",
+        "operationId": "obtener_detalle_entrada_api_entradas__id_ticket__detalle_get",
+        "parameters": [
+          {
+            "name": "id_ticket",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle inmutable de la entrada obtenido correctamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleEntradaAdquirida"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Entrada no encontrada."
+          },
+          "500": {
+            "description": "Error al conectar con la base de datos."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entradas/{id_ticket}/qr": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Clientes / Entradas"
+        ],
+        "summary": "Obtener Qr Acceso",
+        "description": "### 📱 Propósito (HU-05)\nProporciona al cliente su código QR de acceso inmediatamente después de la emisión de la entrada.",
+        "operationId": "obtener_qr_acceso_api_entradas__id_ticket__qr_get",
+        "parameters": [
+          {
+            "name": "id_ticket",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Código QR de acceso y habilitación en Check-in retornados con éxito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodigoQRAccesoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "La entrada está anulada o no válida para acceso."
+          },
+          "404": {
+            "description": "Entrada no encontrada."
+          },
+          "500": {
+            "description": "Error al conectar con la base de datos."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inventario/{id_evento}": {
+      "get": {
+        "tags": [
+          "Inventario (BE1)"
+        ],
+        "summary": "Obtener Disponibilidad",
+        "description": "###  Propósito\nPermite consultar la disponibilidad de stock actual y detalles comerciales de un evento en específico. Es el servicio propio fundamental (Soporte a HU-01) para que los usuarios puedan ver si hay entradas disponibles antes de intentar comprarlas.\n\n###  Parámetros\n- **`id_evento`** *(str) (Path)*: Identificador único del evento que se desea consultar.\n\n###  Flujo de Funcionamiento\n1. Se recibe el `id_evento` por la ruta.\n2. Se abre una conexión asíncrona con la base de datos MongoDB.\n3. Se busca el documento del evento en la colección `inventario_evento`.\n4. Se retorna la información estructurada mediante el esquema `InventarioResponse`.\n\n###  Códigos HTTP Posibles\n- **`200 OK`**: La disponibilidad fue obtenida y retornada exitosamente.\n- **`404 Not Found`**: El `id_evento` especificado no existe en la colección de inventario.\n- **`500 Internal Server Error`**: Ocurrió un problema de conexión con la base de datos MongoDB.",
+        "operationId": "obtener_disponibilidad_api_v1_inventario__id_evento__get",
+        "parameters": [
+          {
+            "name": "id_evento",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Evento"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disponibilidad obtenida exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento no encontrado"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/inventario/{id_evento}": {
+      "get": {
+        "tags": [
+          "Inventario (BE1)"
+        ],
+        "summary": "Obtener Disponibilidad",
+        "description": "###  Propósito\nPermite consultar la disponibilidad de stock actual y detalles comerciales de un evento en específico. Es el servicio propio fundamental (Soporte a HU-01) para que los usuarios puedan ver si hay entradas disponibles antes de intentar comprarlas.\n\n###  Parámetros\n- **`id_evento`** *(str) (Path)*: Identificador único del evento que se desea consultar.\n\n###  Flujo de Funcionamiento\n1. Se recibe el `id_evento` por la ruta.\n2. Se abre una conexión asíncrona con la base de datos MongoDB.\n3. Se busca el documento del evento en la colección `inventario_evento`.\n4. Se retorna la información estructurada mediante el esquema `InventarioResponse`.\n\n###  Códigos HTTP Posibles\n- **`200 OK`**: La disponibilidad fue obtenida y retornada exitosamente.\n- **`404 Not Found`**: El `id_evento` especificado no existe en la colección de inventario.\n- **`500 Internal Server Error`**: Ocurrió un problema de conexión con la base de datos MongoDB.",
+        "operationId": "obtener_disponibilidad_api_v1_entradas_inventario__id_evento__get",
+        "parameters": [
+          {
+            "name": "id_evento",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Evento"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disponibilidad obtenida exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evento no encontrado"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reservas/hold": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)"
+        ],
+        "summary": "Crear Reserva Hold",
+        "description": "### 🎟️ HU-03: Reserva Temporal de Cupo\n**Propósito:** Descuenta temporalmente los cupos solicitados del stock disponible y genera\nun identificador único de reserva (`holdId` / `id_reserva`) con un tiempo límite de vigencia.\n\n### 🔐 Integración con Auth (Contrato Pagos v2.3):\nSi se recibe el header `Cookie` del navegador con la cookie `jwt`, se valida la sesión con Auth\nreenviando el header `Cookie` tal cual, y se obtienen de ahí los datos del comprador (**nombre, RUT y correo**).",
+        "operationId": "crear_reserva_hold_api_v1_reservas_hold_post",
+        "parameters": [
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearReservaHoldRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cupo reservado temporalmente con holdId generado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrearReservaHoldResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Stock insuficiente, cantidad inválida o evento cancelado"
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Cookie 'jwt' inválida o rechazada por Auth"
+          },
+          "404": {
+            "description": "El evento especificado no existe"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE: Servicio de Auth no disponible"
+          },
+          "500": {
+            "description": "Error interno del servidor o BD"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reservas/{id_reserva}/iniciar-pago": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)",
+          "Integración Pagos v2.3"
+        ],
+        "summary": "Iniciar Pago Reserva",
+        "description": "### 💳 Operación 2 (Contrato Pagos ↔ Entradas v2.3): Crear intención de pago para una reserva\nInvoca `POST /api/v1/pagos/transacciones` reenviando el header `Cookie` (`jwt`) que llegó del navegador tal cual.\n- Almacena únicamente `id_pago` como referencia en la reserva (ignora `client_secret`).\n- Retorna `url_checkout` para redirigir al comprador a la pantalla de pago.\n- Si Pagos responde `503 AUTH_NO_DISPONIBLE`, no se crea ni modifica ningún pago y basta con reintentar.",
+        "operationId": "iniciar_pago_reserva_api_v1_reservas__id_reserva__iniciar_pago_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/IniciarPagoReservaRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Solicitud"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Intención de pago creada en Pagos (devuelve id_pago y url_checkout)",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "La reserva no está en estado RESERVADO o ya expiró"
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Falta la cookie 'jwt' o Auth la rechazó"
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "409": {
+            "description": "CONFLICTO_IDEMPOTENCIA: La reserva ya tiene un pago con datos distintos"
+          },
+          "422": {
+            "description": "ORDEN_INCONSISTENTE: Total o cantidad no coinciden"
+          },
+          "502": {
+            "description": "ERROR_PASARELA: Stripe rechazó la operación o no respondió"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE o ENTRADAS_NO_DISPONIBLE (no se creó el pago; basta con reintentar)"
+          }
+        }
+      }
+    },
+    "/api/v1/reservas/{id_reserva}/estado-pago": {
+      "get": {
+        "tags": [
+          "Reservas (HU-03)",
+          "Integración Pagos v2.3"
+        ],
+        "summary": "Consultar Estado Pago Reserva",
+        "description": "### 🔍 Operación 3 (Contrato Pagos ↔ Entradas v2.3): Consultar estado del pago (Polling)\nConsulta `GET /api/v1/pagos/{id_pago}` reenviando el header `Cookie` (`jwt`) tal cual.\n- Si `estado_pago == \"APROBADO\"`, consolida la reserva y emite las entradas con QR automáticamente.\n- Si `estado_pago` es `\"RECHAZADO\"`, `\"ANULADO\"` o `\"REEMBOLSADO\"`, libera el stock reservado.\n- Si Pagos responde `503 AUTH_NO_DISPONIBLE`, informa que es reintentable sin alterar la reserva.",
+        "operationId": "consultar_estado_pago_reserva_api_v1_reservas__id_reserva__estado_pago_get",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado actual del pago consultado en Pagos (consolidando o liberando reserva si es final)",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Falta la cookie 'jwt' o Auth la rechazó"
+          },
+          "404": {
+            "description": "Reserva o pago no encontrado"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE: Auth no respondió; reintentar más tarde"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reservas/{id_reserva}/cancelar": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)"
+        ],
+        "summary": "Cancelar Reserva Hold",
+        "description": "### 🛑 HU-03 y Operación 4 (Pagos v2.3): Liberación de Cupo y Anulación/Reembolso de Pago\nPermite liberar voluntariamente los cupos reservados antes o al expirar el tiempo límite,\ndevolviendo el stock al pool disponible. Si la reserva ya tenía un `id_pago` creado en Pagos,\ninvoca `POST /api/v1/pagos/{id_pago}/reembolso` reenviando el header `Cookie` (`jwt`) tal cual.",
+        "operationId": "cancelar_reserva_hold_api_v1_reservas__id_reserva__cancelar_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AnularPagoReservaRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Solicitud"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reserva cancelada, cupos liberados y pago anulado/reembolsado si existía",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "La reserva no está en estado RESERVADO"
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reservas/{id_reserva}/webhook-pago": {
+      "post": {
+        "tags": [
+          "Simulación RabbitMQ - Pago Aprobado"
+        ],
+        "summary": "Procesar Pago Aprobado",
+        "description": "###  Propósito\nSimula la recepción asíncrona de un evento RabbitMQ (\"PagoAprobado\") o confirmación desde Pagos. Consolida la reserva, emite las entradas definitivas y despacha operaciones en paralelo a otros microservicios.",
+        "operationId": "procesar_pago_aprobado_api_v1_reservas__id_reserva__webhook_pago_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proceso de emisión completado",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Pago rechazado o inválido"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reservas/{id_reserva}": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Pagos",
+          "Reservas (HU-03)"
+        ],
+        "summary": "Consultar Reserva Pagos",
+        "description": "###  Propósito\nProporciona al microservicio de Pagos (`GET /api/v1/entradas/reservas/{id_reserva}`, INT-01 #29) y al Checkout del Frontend\nla información esencial de una reserva (monto total, cantidad, estado y tiempo restante en pantalla).\n\n### ⏱️ Control Automático de Expiración y Anulación en Pagos (HU-03 + Contrato Pagos v2.3):\nSi el tiempo límite de la reserva transcurrió sin confirmación de pago, el cupo se libera\ninmediatamente al pool de stock disponible, se retorna el estado `EXPIRADO` y, si existía un `id_pago`,\nse solicita la anulación/reembolso a Pagos (`POST /api/v1/pagos/{id_pago}/reembolso`) reenviando el header `Cookie` (`jwt`).",
+        "operationId": "consultar_reserva_pagos_api_v1_reservas__id_reserva__get",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de la reserva retornados exitosamente con tiempo restante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleReservaResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/reservas/hold": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)"
+        ],
+        "summary": "Crear Reserva Hold",
+        "description": "### 🎟️ HU-03: Reserva Temporal de Cupo\n**Propósito:** Descuenta temporalmente los cupos solicitados del stock disponible y genera\nun identificador único de reserva (`holdId` / `id_reserva`) con un tiempo límite de vigencia.\n\n### 🔐 Integración con Auth (Contrato Pagos v2.3):\nSi se recibe el header `Cookie` del navegador con la cookie `jwt`, se valida la sesión con Auth\nreenviando el header `Cookie` tal cual, y se obtienen de ahí los datos del comprador (**nombre, RUT y correo**).",
+        "operationId": "crear_reserva_hold_api_v1_entradas_reservas_hold_post",
+        "parameters": [
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearReservaHoldRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cupo reservado temporalmente con holdId generado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrearReservaHoldResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Stock insuficiente, cantidad inválida o evento cancelado"
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Cookie 'jwt' inválida o rechazada por Auth"
+          },
+          "404": {
+            "description": "El evento especificado no existe"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE: Servicio de Auth no disponible"
+          },
+          "500": {
+            "description": "Error interno del servidor o BD"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/reservas/{id_reserva}/iniciar-pago": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)",
+          "Integración Pagos v2.3"
+        ],
+        "summary": "Iniciar Pago Reserva",
+        "description": "### 💳 Operación 2 (Contrato Pagos ↔ Entradas v2.3): Crear intención de pago para una reserva\nInvoca `POST /api/v1/pagos/transacciones` reenviando el header `Cookie` (`jwt`) que llegó del navegador tal cual.\n- Almacena únicamente `id_pago` como referencia en la reserva (ignora `client_secret`).\n- Retorna `url_checkout` para redirigir al comprador a la pantalla de pago.\n- Si Pagos responde `503 AUTH_NO_DISPONIBLE`, no se crea ni modifica ningún pago y basta con reintentar.",
+        "operationId": "iniciar_pago_reserva_api_v1_entradas_reservas__id_reserva__iniciar_pago_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/IniciarPagoReservaRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Solicitud"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Intención de pago creada en Pagos (devuelve id_pago y url_checkout)",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "La reserva no está en estado RESERVADO o ya expiró"
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Falta la cookie 'jwt' o Auth la rechazó"
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "409": {
+            "description": "CONFLICTO_IDEMPOTENCIA: La reserva ya tiene un pago con datos distintos"
+          },
+          "422": {
+            "description": "ORDEN_INCONSISTENTE: Total o cantidad no coinciden"
+          },
+          "502": {
+            "description": "ERROR_PASARELA: Stripe rechazó la operación o no respondió"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE o ENTRADAS_NO_DISPONIBLE (no se creó el pago; basta con reintentar)"
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/reservas/{id_reserva}/estado-pago": {
+      "get": {
+        "tags": [
+          "Reservas (HU-03)",
+          "Integración Pagos v2.3"
+        ],
+        "summary": "Consultar Estado Pago Reserva",
+        "description": "### 🔍 Operación 3 (Contrato Pagos ↔ Entradas v2.3): Consultar estado del pago (Polling)\nConsulta `GET /api/v1/pagos/{id_pago}` reenviando el header `Cookie` (`jwt`) tal cual.\n- Si `estado_pago == \"APROBADO\"`, consolida la reserva y emite las entradas con QR automáticamente.\n- Si `estado_pago` es `\"RECHAZADO\"`, `\"ANULADO\"` o `\"REEMBOLSADO\"`, libera el stock reservado.\n- Si Pagos responde `503 AUTH_NO_DISPONIBLE`, informa que es reintentable sin alterar la reserva.",
+        "operationId": "consultar_estado_pago_reserva_api_v1_entradas_reservas__id_reserva__estado_pago_get",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado actual del pago consultado en Pagos (consolidando o liberando reserva si es final)",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Falta la cookie 'jwt' o Auth la rechazó"
+          },
+          "404": {
+            "description": "Reserva o pago no encontrado"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE: Auth no respondió; reintentar más tarde"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/reservas/{id_reserva}/cancelar": {
+      "post": {
+        "tags": [
+          "Reservas (HU-03)"
+        ],
+        "summary": "Cancelar Reserva Hold",
+        "description": "### 🛑 HU-03 y Operación 4 (Pagos v2.3): Liberación de Cupo y Anulación/Reembolso de Pago\nPermite liberar voluntariamente los cupos reservados antes o al expirar el tiempo límite,\ndevolviendo el stock al pool disponible. Si la reserva ya tenía un `id_pago` creado en Pagos,\ninvoca `POST /api/v1/pagos/{id_pago}/reembolso` reenviando el header `Cookie` (`jwt`) tal cual.",
+        "operationId": "cancelar_reserva_hold_api_v1_entradas_reservas__id_reserva__cancelar_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AnularPagoReservaRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Solicitud"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reserva cancelada, cupos liberados y pago anulado/reembolsado si existía",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "La reserva no está en estado RESERVADO"
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/reservas/{id_reserva}/webhook-pago": {
+      "post": {
+        "tags": [
+          "Simulación RabbitMQ - Pago Aprobado"
+        ],
+        "summary": "Procesar Pago Aprobado",
+        "description": "###  Propósito\nSimula la recepción asíncrona de un evento RabbitMQ (\"PagoAprobado\") o confirmación desde Pagos. Consolida la reserva, emite las entradas definitivas y despacha operaciones en paralelo a otros microservicios.",
+        "operationId": "procesar_pago_aprobado_api_v1_entradas_reservas__id_reserva__webhook_pago_post",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proceso de emisión completado",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Pago rechazado o inválido"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/reservas/{id_reserva}": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Pagos",
+          "Reservas (HU-03)"
+        ],
+        "summary": "Consultar Reserva Pagos",
+        "description": "###  Propósito\nProporciona al microservicio de Pagos (`GET /api/v1/entradas/reservas/{id_reserva}`, INT-01 #29) y al Checkout del Frontend\nla información esencial de una reserva (monto total, cantidad, estado y tiempo restante en pantalla).\n\n### ⏱️ Control Automático de Expiración y Anulación en Pagos (HU-03 + Contrato Pagos v2.3):\nSi el tiempo límite de la reserva transcurrió sin confirmación de pago, el cupo se libera\ninmediatamente al pool de stock disponible, se retorna el estado `EXPIRADO` y, si existía un `id_pago`,\nse solicita la anulación/reembolso a Pagos (`POST /api/v1/pagos/{id_pago}/reembolso`) reenviando el header `Cookie` (`jwt`).",
+        "operationId": "consultar_reserva_pagos_api_v1_entradas_reservas__id_reserva__get",
+        "parameters": [
+          {
+            "name": "id_reserva",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Reserva"
+            }
+          },
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de la reserva retornados exitosamente con tiempo restante",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleReservaResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Reserva no encontrada"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/procesar-compra": {
+      "post": {
+        "tags": [
+          "Servicios Provistos (BE3) - Catálogo"
+        ],
+        "summary": "Procesar Compra",
+        "description": "###  Propósito\nPunto de entrada principal para procesar una intención de compra iniciada desde el Catálogo. Descuenta el stock, valida la identidad en Auth reenviando el header `Cookie` (`jwt`), inicializa reservas y delega el cobro (si aplica) a Pagos (Soporte a Contrato Catálogo v2.0 y Contrato Pagos ↔ Entradas v2.3).\n\n###  Parámetros\n- **`Cookie`** *(Header)*: Header `Cookie` recibido del navegador con la cookie `jwt` emitida por Auth (reenviado tal cual a Auth y a Pagos según Contrato Pagos v2.3).\n- **`compra`** *(ProcesarCompraRequest) (Body)*: Objeto JSON con `id_evento`, `tipo_entrada`, `cantidad` y opcionalmente `metodo`.\n\n###  Flujo de Funcionamiento\n1. Se valida la sesión del usuario contra el microservicio de Autenticación (`GET /internal/validar-sesion`) enviando el header `Cookie` (`jwt`). De esa respuesta se obtienen los datos del comprador (**nombre, RUT y correo**) sin pedirlos a mano en pantalla. Se verifica que el rol sea válido (`USUARIO`, `CLIENTE` o `STAFF`).\n2. Se comprueba que el evento exista, no esté cancelado y cuente con stock suficiente (1 a 100 entradas según Contrato Pagos v2.3).\n3. Se descuenta el stock absoluto (`stock_actual`) de inmediato para evitar concurrencia.\n4. **(Si es Gratuita)**: Se consolida, se emite directamente el QR y se notifica en paralelo a Check-in y Catálogo.\n5. **(Si es Pagada)**: Se genera una reserva con TTL temporal y se invoca síncronamente a Pagos (**Contrato Pagos v2.3**) reenviando el header `Cookie` tal cual llegó del navegador (sin `Authorization: Bearer` ni `token_sesion` en el body). Se almacena únicamente `id_pago` como referencia (ignorando `client_secret`) y se devuelve `url_checkout` para redirigir al comprador.\n6. Si Pagos responde `503 AUTH_NO_DISPONIBLE` o `401 NO_AUTENTICADO`, no se crea ningún pago, se revierte la reserva local y se propaga el código para que el cliente pueda reintentar limpiamente.",
+        "operationId": "procesar_compra_api_v1_entradas_procesar_compra_post",
+        "parameters": [
+          {
+            "name": "cookie",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cookie"
+            }
+          },
+          {
+            "name": "jwt",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Jwt"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcesarCompraRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Compra procesada, stock actualizado e intención de pago iniciada (incluye url_checkout)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcesarCompraResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parámetro ausente o inválido (ej. cantidad <= 0 o > 100)"
+          },
+          "401": {
+            "description": "NO_AUTENTICADO: Cookie 'jwt' ausente, inválida, expirada o rechazada por Auth"
+          },
+          "404": {
+            "description": "El evento o el tipo de entrada solicitado no existe"
+          },
+          "503": {
+            "description": "AUTH_NO_DISPONIBLE o servicio externo temporalmente no disponible (reintentar)"
+          },
+          "500": {
+            "description": "Error interno del servicio de Entradas / Inventario"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/{id_ticket}": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Check-in"
+        ],
+        "summary": "Consultar Entrada Checkin",
+        "description": "###  Propósito\nPermite al microservicio de Check-in consultar la validez y los datos de una entrada física o digital mediante su ID o QR (Soporte a Contrato Check-in v1.1).",
+        "operationId": "consultar_entrada_checkin_api_v1_entradas__id_ticket__get",
+        "parameters": [
+          {
+            "name": "id_ticket",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de la entrada retornados exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Datos de solicitud incompletos o id_ticket con formato inválido"
+          },
+          "404": {
+            "description": "La entrada asociada al id_ticket no existe"
+          },
+          "500": {
+            "description": "Error interno del servicio de Entradas / Inventario"
+          },
+          "503": {
+            "description": "Servicio temporalmente no disponible"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/eventos/{id_evento}/stock": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Panel Organizador"
+        ],
+        "summary": "Consultar Stock Panel",
+        "description": "###  Propósito\nExpone la disponibilidad exacta y real de un evento para que el Panel Organizador pueda auditar o validar lógicas de negocio (Soporte a Contrato Panel v3.0).",
+        "operationId": "consultar_stock_panel_api_v1_entradas_eventos__id_evento__stock_get",
+        "parameters": [
+          {
+            "name": "id_evento",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Evento"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stock retornado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "Evento no encontrado"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/usuario/{id_usuario}": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Clientes / Entradas"
+        ],
+        "summary": "Obtener Historial Entradas Usuario",
+        "description": "### 🎟️ Propósito (HU-04)\nPermite al cliente visualizar el historial completo de entradas adquiridas vinculadas a su cuenta.",
+        "operationId": "obtener_historial_entradas_usuario_api_v1_entradas_usuario__id_usuario__get",
+        "parameters": [
+          {
+            "name": "id_usuario",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Usuario"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historial de entradas adquiridas por el cliente retornado con éxito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DetalleEntradaAdquirida"
+                  },
+                  "title": "Response Obtener Historial Entradas Usuario Api V1 Entradas Usuario  Id Usuario  Get"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error al conectar con la base de datos."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/{id_ticket}/detalle": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Clientes / Entradas"
+        ],
+        "summary": "Obtener Detalle Entrada",
+        "description": "### 🎟️ Propósito (HU-04)\nPermite al cliente o al sistema visualizar en detalle los datos inmutables de una entrada adquirida específica.",
+        "operationId": "obtener_detalle_entrada_api_v1_entradas__id_ticket__detalle_get",
+        "parameters": [
+          {
+            "name": "id_ticket",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle inmutable de la entrada obtenido correctamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleEntradaAdquirida"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Entrada no encontrada."
+          },
+          "500": {
+            "description": "Error al conectar con la base de datos."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/entradas/{id_ticket}/qr": {
+      "get": {
+        "tags": [
+          "Servicios Provistos (BE3) - Clientes / Entradas"
+        ],
+        "summary": "Obtener Qr Acceso",
+        "description": "### 📱 Propósito (HU-05)\nProporciona al cliente su código QR de acceso inmediatamente después de la emisión de la entrada.",
+        "operationId": "obtener_qr_acceso_api_v1_entradas__id_ticket__qr_get",
+        "parameters": [
+          {
+            "name": "id_ticket",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Ticket"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Código QR de acceso y habilitación en Check-in retornados con éxito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodigoQRAccesoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "La entrada está anulada o no válida para acceso."
+          },
+          "404": {
+            "description": "Entrada no encontrada."
+          },
+          "500": {
+            "description": "Error al conectar con la base de datos."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnularPagoReservaRequest": {
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Motivo",
+            "description": "Razón de la anulación o reembolso en Pagos (3 a 255 caracteres).",
+            "default": "Hold de la reserva vencido: el usuario pagó fuera de plazo"
+          },
+          "token_sesion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Sesion",
+            "description": "Opcional; en Contrato Pagos v2.3 se reenvía el header Cookie (jwt=<token>)."
+          }
+        },
+        "type": "object",
+        "title": "AnularPagoReservaRequest"
+      },
+      "CodigoQRAccesoResponse": {
+        "properties": {
+          "id_entrada": {
+            "type": "string",
+            "title": "Id Entrada"
+          },
+          "id_evento": {
+            "type": "string",
+            "title": "Id Evento"
+          },
+          "nombre_asistente": {
+            "type": "string",
+            "title": "Nombre Asistente"
+          },
+          "nombre_evento": {
+            "type": "string",
+            "title": "Nombre Evento"
+          },
+          "lugar_ingreso": {
+            "type": "string",
+            "title": "Lugar Ingreso"
+          },
+          "tipo_acceso": {
+            "type": "string",
+            "title": "Tipo Acceso"
+          },
+          "qr_data": {
+            "title": "Qr Data",
+            "description": "Objeto o URL directa del código QR."
+          },
+          "qr_payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Qr Payload",
+            "description": "Contenido estructurado del QR con id_evento e id_entrada."
+          },
+          "habilitado_checkin": {
+            "type": "boolean",
+            "title": "Habilitado Checkin",
+            "description": "Indica si la entrada ya fue notificada y habilitada en el control de acceso.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_entrada",
+          "id_evento",
+          "nombre_asistente",
+          "nombre_evento",
+          "lugar_ingreso",
+          "tipo_acceso",
+          "qr_data",
+          "qr_payload"
+        ],
+        "title": "CodigoQRAccesoResponse"
+      },
+      "CrearReservaHoldRequest": {
+        "properties": {
+          "id_evento": {
+            "type": "string",
+            "title": "Id Evento",
+            "description": "Identificador único del evento para reservar."
+          },
+          "id_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Usuario",
+            "description": "Identificador del usuario (si viene la cookie 'jwt', se obtiene automáticamente desde Auth)."
+          },
+          "cantidad": {
+            "type": "integer",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cantidad",
+            "description": "Cantidad de cupos a reservar temporalmente (1 a 100).",
+            "default": 1
+          },
+          "nombre_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre Usuario",
+            "description": "Nombre del cliente (obtenido automáticamente de Auth desde la cookie 'jwt')."
+          },
+          "rut_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rut Usuario",
+            "description": "RUT del cliente (obtenido automáticamente de Auth desde la cookie 'jwt')."
+          },
+          "correo_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correo Usuario",
+            "description": "Correo electrónico del comprador (obtenido automáticamente de Auth desde la cookie 'jwt')."
+          },
+          "token_sesion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Sesion",
+            "description": "Opcional; en v2.3 se usa el header Cookie (jwt=<token>)."
+          },
+          "tiempo_limite_minutos": {
+            "type": "integer",
+            "maximum": 60.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Tiempo Limite Minutos",
+            "description": "Tiempo límite de vigencia de la reserva en minutos.",
+            "default": 15
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_evento"
+        ],
+        "title": "CrearReservaHoldRequest"
+      },
+      "CrearReservaHoldResponse": {
+        "properties": {
+          "hold_id": {
+            "type": "string",
+            "title": "Hold Id",
+            "description": "Identificador único de la reserva temporal (holdId)."
+          },
+          "id_reserva": {
+            "type": "string",
+            "title": "Id Reserva",
+            "description": "ID de la reserva en el sistema de entradas."
+          },
+          "id_evento": {
+            "type": "string",
+            "title": "Id Evento"
+          },
+          "id_usuario": {
+            "type": "string",
+            "title": "Id Usuario"
+          },
+          "nombre_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre Usuario"
+          },
+          "rut_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rut Usuario"
+          },
+          "correo_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correo Usuario"
+          },
+          "cantidad_entrada": {
+            "type": "integer",
+            "title": "Cantidad Entrada"
+          },
+          "monto_total": {
+            "type": "integer",
+            "title": "Monto Total"
+          },
+          "estado_reserva": {
+            "type": "string",
+            "title": "Estado Reserva"
+          },
+          "fecha_creacion": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Creacion"
+          },
+          "fecha_expiracion": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Expiracion"
+          },
+          "tiempo_restante_segundos": {
+            "type": "integer",
+            "title": "Tiempo Restante Segundos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hold_id",
+          "id_reserva",
+          "id_evento",
+          "id_usuario",
+          "cantidad_entrada",
+          "monto_total",
+          "estado_reserva",
+          "fecha_creacion",
+          "fecha_expiracion",
+          "tiempo_restante_segundos"
+        ],
+        "title": "CrearReservaHoldResponse"
+      },
+      "DetalleEntradaAdquirida": {
+        "properties": {
+          "id_entrada": {
+            "type": "string",
+            "title": "Id Entrada",
+            "description": "Código alfanumérico único e inmutable de la entrada."
+          },
+          "id_reserva": {
+            "type": "string",
+            "title": "Id Reserva"
+          },
+          "id_evento": {
+            "type": "string",
+            "title": "Id Evento"
+          },
+          "nombre_evento": {
+            "type": "string",
+            "title": "Nombre Evento",
+            "description": "Nombre comercial del evento."
+          },
+          "id_usuario": {
+            "type": "string",
+            "title": "Id Usuario"
+          },
+          "nombre_usuario": {
+            "type": "string",
+            "title": "Nombre Usuario",
+            "description": "Nombre del asistente acreditado."
+          },
+          "rut_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rut Usuario"
+          },
+          "correo_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correo Usuario"
+          },
+          "tipo_acceso": {
+            "type": "string",
+            "title": "Tipo Acceso",
+            "description": "Tipo de acceso físico general (sin asignación de mapa numérico).",
+            "default": "GENERAL"
+          },
+          "lugar_ingreso": {
+            "type": "string",
+            "title": "Lugar Ingreso",
+            "description": "Condición física de ingreso al recinto.",
+            "default": "Puerta Principal - Acceso General"
+          },
+          "precio_final_pagado": {
+            "type": "integer",
+            "title": "Precio Final Pagado",
+            "description": "Precio final pagado inmutable en la base de datos."
+          },
+          "estado_entrada": {
+            "type": "string",
+            "title": "Estado Entrada",
+            "description": "Estado de la entrada (EMITIDA, ANULADA).",
+            "default": "EMITIDA"
+          },
+          "nombre_archivo_qr": {
+            "type": "string",
+            "title": "Nombre Archivo Qr"
+          },
+          "qr_data": {
+            "title": "Qr Data",
+            "description": "Objeto o URL de validación del código QR."
+          },
+          "fecha_emision": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Emision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_entrada",
+          "id_reserva",
+          "id_evento",
+          "nombre_evento",
+          "id_usuario",
+          "nombre_usuario",
+          "precio_final_pagado",
+          "nombre_archivo_qr",
+          "qr_data",
+          "fecha_emision"
+        ],
+        "title": "DetalleEntradaAdquirida"
+      },
+      "DetalleReservaResponse": {
+        "properties": {
+          "id_reserva": {
+            "type": "string",
+            "title": "Id Reserva"
+          },
+          "hold_id": {
+            "type": "string",
+            "title": "Hold Id"
+          },
+          "id_evento": {
+            "type": "string",
+            "title": "Id Evento"
+          },
+          "id_usuario": {
+            "type": "string",
+            "title": "Id Usuario"
+          },
+          "nombre_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre Usuario"
+          },
+          "rut_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rut Usuario"
+          },
+          "correo_usuario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correo Usuario"
+          },
+          "cantidad_entrada": {
+            "type": "integer",
+            "title": "Cantidad Entrada"
+          },
+          "cantidad_entradas": {
+            "type": "integer",
+            "title": "Cantidad Entradas",
+            "description": "Alias compatible con Contrato Pagos v2.3 (INT-01).",
+            "default": 0
+          },
+          "monto_total": {
+            "type": "integer",
+            "title": "Monto Total"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Alias compatible con Contrato Pagos v2.3 (INT-01).",
+            "default": 0
+          },
+          "id_pago": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Pago"
+          },
+          "estado_reserva": {
+            "type": "string",
+            "title": "Estado Reserva"
+          },
+          "fecha_expiracion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Expiracion"
+          },
+          "tiempo_restante_segundos": {
+            "type": "integer",
+            "title": "Tiempo Restante Segundos",
+            "default": 0
+          },
+          "expirada": {
+            "type": "boolean",
+            "title": "Expirada",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_reserva",
+          "hold_id",
+          "id_evento",
+          "id_usuario",
+          "cantidad_entrada",
+          "monto_total",
+          "estado_reserva"
+        ],
+        "title": "DetalleReservaResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IniciarPagoReservaRequest": {
+        "properties": {
+          "metodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metodo",
+            "description": "'formulario' (por defecto) o 'checkout'.",
+            "default": "formulario"
+          },
+          "token_sesion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Sesion",
+            "description": "Opcional; en Contrato Pagos v2.3 se reenvía el header Cookie (jwt=<token>) tal cual."
+          }
+        },
+        "type": "object",
+        "title": "IniciarPagoReservaRequest"
+      },
+      "InventarioResponse": {
+        "properties": {
+          "id_evento": {
+            "type": "string",
+            "title": "Id Evento"
+          },
+          "stock_actual": {
+            "type": "integer",
+            "title": "Stock Actual"
+          },
+          "tipo_entrada": {
+            "type": "string",
+            "title": "Tipo Entrada"
+          },
+          "precio_unitario": {
+            "type": "integer",
+            "title": "Precio Unitario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_evento",
+          "stock_actual",
+          "tipo_entrada",
+          "precio_unitario"
+        ],
+        "title": "InventarioResponse"
+      },
+      "ProcesarCompraRequest": {
+        "properties": {
+          "id_evento": {
+            "type": "string",
+            "title": "Id Evento",
+            "description": "Identificador único del evento seleccionado."
+          },
+          "tipo_entrada": {
+            "type": "string",
+            "title": "Tipo Entrada",
+            "description": "Tipo de entrada seleccionada (ej. General, VIP, Gratuita, Pagada)."
+          },
+          "cantidad": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Cantidad",
+            "description": "Cantidad de entradas a comprar (1 a 100 según contrato Pagos v2.3)."
+          },
+          "token_sesion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Sesion",
+            "description": "Opcional por retrocompatibilidad con Catálogo; en v2.3 se prioriza el header Cookie (jwt=<token>)."
+          },
+          "metodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metodo",
+            "description": "Método de cobro en Pagos v2.3: 'formulario' o 'checkout'.",
+            "default": "formulario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_evento",
+          "tipo_entrada",
+          "cantidad"
+        ],
+        "title": "ProcesarCompraRequest"
+      },
+      "ProcesarCompraResponse": {
+        "properties": {
+          "nuevo_stock": {
+            "type": "integer",
+            "title": "Nuevo Stock"
+          },
+          "id_reserva": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Reserva"
+          },
+          "id_pago": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Pago"
+          },
+          "estado_pago": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado Pago"
+          },
+          "url_checkout": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url Checkout"
+          },
+          "metodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metodo"
+          },
+          "fecha_creacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Creacion"
+          },
+          "fecha_expiracion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Expiracion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nuevo_stock"
+        ],
+        "title": "ProcesarCompraResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "CookieJwtAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "jwt",
+        "description": "Cookie de sesión JWT emitida por auth-service y validada mediante GET /internal/validar-sesion"
+      },
+      "InternalApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Clave compartida interna (INTERNAL_API_KEY) para comunicación con auth-service"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "API Gateway centralizado (TicketU)"
+    },
+    {
+      "url": "http://entradas-service:3000",
+      "description": "Red Docker interna (plataforma-eventos-net)"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Servidor local directo"
+    }
+  ],
+  "security": [
+    {
+      "CookieJwtAuth": []
+    }
+  ]
+}
