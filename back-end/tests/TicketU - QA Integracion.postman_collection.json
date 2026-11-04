@@ -167,6 +167,235 @@
         }
       ],
       "description": "Esta carpeta asegura que el Panel del Organizador reciba los datos de inventario correctamente."
+    },
+    {
+      "name": "HU-01 y HU-02 (Disponibilidad y Seguridad)",
+      "item": [
+        {
+          "name": "Consulta de Inventario HU-01 (Happy Path)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => { pm.response.to.have.status(200); });\r\npm.test(\"Contiene stock y tipo de entrada\", () => {\r\n    const data = pm.response.json();\r\n    pm.expect(data).to.have.property(\"stock_actual\");\r\n    pm.expect(data).to.have.property(\"tipo_entrada\");\r\n    pm.expect(data.id_evento).to.eql(\"evt-77889\");\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/v1/inventario/evt-77889",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "v1",
+                "inventario",
+                "evt-77889"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bloqueo de compra sin autenticación HU-02 (Negative Test)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Debe ser rechazado (401, 403 o 422)\", () => {\r\n    pm.expect(pm.response.code).to.be.oneOf([401, 403, 422]);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"id_evento\": \"evt-77889\",\r\n    \"tipo_entrada\": \"PAGADA\",\r\n    \"cantidad\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/v1/entradas/procesar-compra",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "v1",
+                "entradas",
+                "procesar-compra"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Historial de usuario y detalle inmutable (HU-02 y HU-04)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 y retorna un array\", () => {\r\n    pm.response.to.have.status(200);\r\n    pm.expect(pm.response.json()).to.be.an(\"array\");\r\n});\r\npm.test(\"Reglas de negocio HU-04 (Inmutabilidad)\", () => {\r\n    const data = pm.response.json();\r\n    if(data.length > 0) {\r\n        pm.expect(data[0].tipo_acceso).to.eql(\"GENERAL\");\r\n        pm.expect(data[0]).to.have.property(\"precio_final_pagado\");\r\n        pm.expect(data[0]).to.have.property(\"lugar_ingreso\");\r\n    }\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/v1/entradas/usuario/usr-12345",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "v1",
+                "entradas",
+                "usuario",
+                "usr-12345"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "HU-03 a HU-05 (Reservas y Contratos)",
+      "item": [
+        {
+          "name": "Crear reserva Hold (HU-03)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => { pm.response.to.have.status(200); });\r\npm.test(\"Guarda id_reserva en variable de entorno\", () => {\r\n    if(pm.response.code === 200){\r\n        pm.environment.set(\"id_reserva\", pm.response.json().id_reserva);\r\n    }\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"id_evento\": \"evt-77889\",\r\n    \"id_usuario\": \"usr-12345\",\r\n    \"cantidad\": 1,\r\n    \"tiempo_limite_minutos\": 15\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/v1/reservas/hold",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "hold"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar Reserva Hold (HU-03)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => { pm.response.to.have.status(200); });\r\npm.test(\"Libera exactamente 1 cupo\", () => {\r\n    pm.expect(pm.response.json().cupos_liberados).to.eql(1);\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/v1/reservas/{{id_reserva}}/cancelar",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "v1",
+                "reservas",
+                "{{id_reserva}}",
+                "cancelar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Payload QR Check-in (HU-05)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => { pm.response.to.have.status(200); });\r\npm.test(\"Contrato estricto v2.1 para QR\", () => {\r\n    const payload = pm.response.json().qr_payload;\r\n    pm.expect(payload).to.have.property(\"id_evento\");\r\n    pm.expect(payload).to.have.property(\"id_entrada\");\r\n    pm.expect(pm.response.json().habilitado_checkin).to.be.true;\r\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/v1/entradas/tk-998877/qr",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "v1",
+                "entradas",
+                "tk-998877",
+                "qr"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }
