@@ -1,205 +1,201 @@
-# 🎟️ TicketU - Backend API (Entradas e Inventario)
+# 🎟️ TicketU - Microservicio de Entradas e Inventario
 
-Bienvenido a la rama `backend` del microservicio de **Entradas e Inventario** del proyecto TicketU. Esta rama contiene exclusivamente el código fuente, base de datos e integraciones de API de nuestro módulo, desarrollado con **FastAPI** y **MongoDB**.
+Repositorio oficial del microservicio de **Entradas e Inventario** (`entradas-service`) de la plataforma de gestión de eventos **TicketU** (TITEC 2026-2), desarrollado con **FastAPI (Python 3.12)**, **MongoDB (Motor)** y **RabbitMQ (aio-pika)**, e integrado en la red Docker compartida `plataforma-eventos-net`.
 
-## 👥 Responsable del Rol Backend
-* **Esteban Quinteros** - Desarrollador Backend
-
-## 🛠️ Stack Tecnológico
-* **Framework Web:** FastAPI (Python 3.12+)
-* **Servidor ASGI:** Uvicorn con recarga en caliente (`--reload`)
-* **Base de Datos NoSQL:** MongoDB con driver asíncrono `motor`
-* **Validación & Serialización:** Pydantic v2
-* **Cliente HTTP Asíncrono:** HTTPX (con SLAs y timeouts estrictos para comunicación inter-servicios)
-* **Contenedores:** Docker & Docker Compose (para despliegue local de MongoDB y Mongo Express)
+📄 **Evidencias de integración en vivo en Docker:** [docs/EVIDENCIAS_INTEGRACION.md](docs/EVIDENCIAS_INTEGRACION.md)
 
 ---
 
-## 🏛️ Estructura del Proyecto
+## 🛠️ Stack Tecnológico
 
-El backend sigue una arquitectura modular en capas para mantener separación de responsabilidades y alta cohesión:
+* **Framework Web:** FastAPI (Python 3.12)
+* **Servidor ASGI:** Uvicorn (`PORT=3000` en contenedor Docker)
+* **Base de Datos Propia (Database per Service):** MongoDB 7.0 con driver asíncrono `motor` (`ticketu_entradas_db`)
+* **Mensajería Asíncrona:** RabbitMQ (`aio-pika`) sobre el exchange `ticketu.events`
+* **Cliente HTTP Asíncrono:** HTTPX (con timeouts y manejo de resiliencia entre microservicios)
+* **Validación y Serialización:** Pydantic v2
+* **Infraestructura:** Docker & Docker Compose (`plataforma-eventos-net` + red interna `entradas-internal-net`)
+
+---
+
+## 🏛️ Estructura del Repositorio
 
 ```text
 ├── back-end/
-│   ├── database.py              # Gestión del ciclo de vida y conexión asíncrona a MongoDB (Motor)
-│   ├── main.py                  # Punto de entrada de la aplicación FastAPI y registro de routers
-│   ├── requirements.txt         # Dependencias del proyecto
-│   ├── routers/                 # Controladores y endpoints organizados por dominio
-│   │   ├── entradas.py          # Emisión, compra (flujo libre/pago), reportes y consulta por usuario
-│   │   ├── inventario.py        # Consulta de disponibilidad en tiempo real para Catálogo
-│   │   └── reservas.py          # Webhook de confirmación transaccional desde Pagos
-│   ├── schemas/                 # Esquemas de validación y DTOs (Pydantic)
-│   │   └── entradas.py          # Modelos de solicitud y respuesta
-│   ├── services/                # Capa de integración desacoplada con otros microservicios (HTTPX)
-│   │   ├── auth_service.py          # Validación de sesiones, JWT y roles con Autenticación
-│   │   ├── catalogo_service.py      # Actualización de stock en Catálogo de Eventos
-│   │   ├── checkin_service.py       # Emisión de tickets y códigos QR en Check-in
-│   │   ├── notificaciones_service.py# Envío asíncrono de tickets por correo
-│   │   ├── pagos_service.py         # Creación e inicio de órdenes de pago con Pasarela
-│   │   └── panel_service.py         # Notificación de métricas y ventas al Panel Organizador
-│   └── tests/                   # Pruebas automatizadas (Pytest) y colección Postman
-├── database/                    # Capa desacoplada de persistencia y base de datos
-│   ├── init_db.js               # Script de inicialización y datos semilla (Seed) de colecciones
-│   └── schema.dbml              # Modelado relacional/documental de base de datos
-├── docker-compose.yml           # Orquestación de contenedores para MongoDB y Mongo Express
+│   ├── Dockerfile                   # Imagen Docker de entradas-service (Python 3.12-slim, puerto 3000)
+│   ├── .env.example                 # Variables de entorno de ejemplo para ejecución local
+│   ├── database.py                  # Conexión asíncrona a MongoDB (Motor)
+│   ├── main.py                      # App FastAPI, workers en segundo plano (expiración Hold + polling Pagos) y rutas
+│   ├── requirements.txt             # Dependencias Python (FastAPI, Uvicorn, Motor, HTTPX, aio-pika, Pytest)
+│   ├── routers/                     # Controladores HTTP por dominio
+│   │   ├── entradas.py              # Compra de entradas (gratuita/pagada), detalle, historial, QR y consultas
+│   │   ├── inventario.py            # Consulta, creación y actualización de inventario y stock por evento
+│   │   └── reservas.py              # Reserva temporal (Hold), inicio/consulta/anulación de pago y webhook
+│   ├── schemas/                     # Modelos y DTOs Pydantic v2
+│   │   └── entradas.py              # Esquemas de entrada/salida (Inventario, Compra, Reserva Hold, QR)
+│   ├── services/                    # Clientes de integración con microservicios externos
+│   │   ├── auth_service.py          # Validación de sesión con Auth (GET /internal/validar-sesion + Cookie jwt + x-api-key)
+│   │   ├── broker_service.py        # Publicación y consumo de eventos en RabbitMQ (ticketu.events)
+│   │   ├── catalogo_service.py      # Sincronización de stock hacia Catálogo de Eventos (puerto 4000)
+│   │   ├── checkin_service.py       # Registro de tickets emitidos en Check-in (puerto 3001)
+│   │   ├── notificaciones_service.py# Publicación de eventos para envío de tickets por correo
+│   │   ├── pagos_service.py         # Integración Contrato Pagos <-> Entradas v2.3 (transacciones, estado y reembolso)
+│   │   └── panel_service.py         # Notificación de métricas al Panel Organizador (puerto 3000)
+│   └── tests/                       # Pruebas automatizadas (Pytest) y colección Postman
+├── database/
+│   ├── init_db.js                   # Inicialización de colecciones ($jsonSchema), índices TTL y datos semilla
+│   └── schema.dbml                  # Modelo documental de base de datos en DBML
+├── docs/
+│   └── EVIDENCIAS_INTEGRACION.md    # Informe detallado de pruebas de integración en la red Docker
+├── Contratos (endpoints que consumimos)/ # Especificación de contratos consumidos (Auth, Pagos, Catálogo, Check-in, Notificaciones)
+├── Contratos (endpoints que damos)/      # Especificación de contratos provistos al resto de equipos
+├── .env.example                     # Plantilla de variables de entorno para Docker / local
+├── docker-compose.yml               # Orquestación de entradas-service, MongoDB y Mongo Express
+└── README.md
 ```
-* **Backend:** FastAPI
-* **Base de Datos:** MongoDB
-* **Mensajería Asíncrona:** RabbitMQ (Broker de eventos)
-* **Infraestructura:** Docker & Docker Compose (Despliegue On-Premise)
 
 ---
 
-## 📦 Cumplimiento de la Rúbrica (Evaluación 1)
+## 🔗 Integraciones del Microservicio en `plataforma-eventos-net`
 
-Esta rama ha sido adaptada y refactorizada estrictamente para cumplir al 100% con la Rúbrica de la Evaluación 1, cubriendo los ítems **BE1**, **BE2** y **BE3**:
+El servicio `entradas-service` se comunica dentro de la red Docker `plataforma-eventos-net` con los siguientes módulos y componentes:
 
-### 1. BE1: Servicios Propios
-Se implementaron los endpoints principales para soportar las historias de usuario del módulo:
-* **HU-01 (Visualización de disponibilidad):** Consulta en tiempo real de capacidad por zona, límites por compra y disponibilidad actual.
-* **HU-02 (Selección y compra/reserva):** Validación de autenticación JWT y roles (`CLIENTE`/`USUARIO`), control de cupos, límites máximos de compra por usuario y derivación inteligente:
-  * **Eventos gratuitos:** Emisión inmediata de tickets y respuesta directa al cliente.
-  * **Eventos de pago:** Creación de reserva con estado `PENDIENTE` e inicio de pasarela en Pagos.
-* **Historial de tickets:** Endpoint para que los clientes consulten sus entradas adquiridas (`GET /api/v1/entradas/usuario/{id_usuario}`).
+### 1. Autenticación (`auth-service:10000` - Contrato Auth / Pagos v2.3)
+* **Método:** [`AuthService.validar_sesion`](back-end/services/auth_service.py)
+* **Endpoint consumido:** `GET http://auth-service:10000/internal/validar-sesion`
+* **Cabeceras enviadas:**
+  * `Cookie: jwt=<token>` (reenviada tal cual llega del navegador)
+  * `x-api-key: <INTERNAL_API_KEY>`
+* **Comportamiento:** Obtiene `id_usuario`, `rol` (`USUARIO`, `ORGANIZADOR`, `STAFF`, `CLIENTE`), `nombre`, `rut` y `correo`. Si Auth rechaza la cookie devuelve `401 NO_AUTENTICADO`; si Auth no está disponible o falla la red devuelve `503 AUTH_NO_DISPONIBLE`.
 
-### 2. BE2: Invocación a Servicios Externos (Integraciones como Consumidor)
-Implementación mediante la capa `services/` con clientes asíncronos `httpx.AsyncClient` y control estricto de SLAs:
-* **Autenticación (`AuthService`):**
-  * Invoca `POST /api/v1/auth/verify` enviando el token en formato cookie (`Cookie: jwt=<token>`).
-  * Valida que el usuario tenga rol `CLIENTE` o `USUARIO` y estado activo antes de permitir compras.
-* **Catálogo (`CatalogoService`):**
-  * Invoca `PUT /api/v1/eventos/{id_evento}/entradas` para sincronizar la reducción de cupos (SLA < 200 ms).
-* **Pasarela de Pagos (`PagosService`):**
-  * Invoca `POST /api/v1/pagos` para iniciar la orden de compra con `id_usuario`, `id_reserva` y `monto_total`.
-* **Check-in (`CheckinService`):**
-  * Invoca `POST /api/v1/checkin/tickets` para registrar en puerta el ticket consolidado (Contrato v2.1, SLA < 300 ms).
-  * Envía el objeto estructurado `qr_data` (`id_evento`, `id_entrada`) y el `nombre_usuario` persistido directamente en nuestra base de datos para agilizar el control de acceso sin consultas adicionales a Auth.
-* **Notificaciones (`NotificacionesService`):**
-  * Publica el evento `entradas_emitidas` en el Exchange RabbitMQ `entradas.events` (Contrato v3, SLA < 200 ms).
-  * Despacha el payload completo de compra (`correo_comprador`, `nombre_comprador`, `id_usuario`, `nombre_evento`, `id_evento`, `fecha_evento`, `hora_evento`, `qr_data`) y procesa confirmaciones asíncronas desde el Exchange `notificaciones.confirmacion_envio`.
-* **Procesamiento Asíncrono no bloqueante (`asyncio.create_task`):**
-  * Las llamadas post-compra hacia Check-in, Catálogo y Notificaciones se ejecutan concurrentemente en segundo plano para garantizar tiempos de respuesta ultrarrápidos al cliente final.
-* *Nota sobre Promociones:* Conforme al Contrato de Integración oficial v1.0, el consumidor de Promociones es directamente el Frontend (Web/Mobile), por lo cual el cálculo y aplicación de cupones se procesa en el Checkout previo y no añade acoplamiento innecesario a este microservicio.
+### 2. Pasarela de Pagos (`pagos-service:3000` - Contrato Pagos ↔ Entradas v2.3)
+* **Método:** [`PagosService`](back-end/services/pagos_service.py) y [`routers/reservas.py`](back-end/routers/reservas.py)
+* **Operación 1 (Provista a Pagos - INT-01):** `GET /api/v1/entradas/reservas/{id_reserva}` y `GET /api/entradas/reservas/{id_reserva}`. Responde `200 OK` con `id_reserva`, `id_evento`, `total` (y `monto_total`), `cantidad_entradas` (y `cantidad_entrada`), `estado_reserva` y `tiempo_restante_segundos`.
+* **Operación 2 (Consumida - Crear intención de cobro):** `POST http://pagos-service:3000/api/v1/pagos/transacciones` reenviando el header `Cookie` (`jwt`) del comprador. Guarda únicamente `id_pago` como referencia en la reserva (ignorando `client_secret`) y retorna `url_checkout`.
+* **Operación 3 (Consumida - Polling de estado cada 5s):** Worker en segundo plano (`tarea_polling_pagos_pendientes` en [`main.py`](back-end/main.py)) y endpoint `GET /api/entradas/reservas/{id_reserva}/estado-pago` que consultan `GET http://pagos-service:3000/api/v1/pagos/{id_pago}`. Si pasa a `APROBADO`, consolida la reserva y emite las entradas con QR; si pasa a `RECHAZADO`/`ANULADO`/`REEMBOLSADO`, libera los cupos.
+* **Operación 4 (Consumida - Anulación / Reembolso por expiración o cancelación):** `POST http://pagos-service:3000/api/v1/pagos/{id_pago}/reembolso` reenviando el header `Cookie` (`jwt`) cuando vence el TTL de 15 minutos del Hold (`tarea_liberacion_reservas_expiradas`) o el usuario cancela su reserva.
 
-### 3. BE3: Servicios Requeridos por Otros (Integraciones como Proveedor)
-Se expusieron endpoints documentados para la interoperabilidad con los demás módulos:
-* **Para Catálogo:** `POST /api/v1/entradas/procesar-compra` (y `/api/entradas/procesar-compra`) para procesar y registrar compras.
-* **Para Check-in:** `GET /api/v1/entradas/{id_ticket}` para validación individual de una entrada emitida.
-* **Para Panel Organizador:** `GET /api/v1/entradas/eventos/{id_evento}/stock` con métricas de stock y disponibilidad actualizadas.
-* **Para Pagos:** `GET /api/v1/reservas/{id_reserva}` para consultar estado de reservas previo a pago.
-* **Simulación / Webhook Pagos:** `POST /api/v1/reservas/{id_reserva}/webhook-pago` para recepción transaccional directa.
+### 3. Catálogo de Eventos (`catalogo-service:4000` / `ms-catalogo-eventos:4000`)
+* **Método:** [`CatalogoService.actualizar_stock_catalogo`](back-end/services/catalogo_service.py)
+* **Endpoint consumido:** `PUT http://catalogo-service:4000/api/v1/catalogo/eventos/{id_evento}/stock` enviando `{"nuevo_stock": int, "token_sesion": str}`.
+* **Endpoint provisto a Catálogo:** `POST /api/entradas/procesar-compra` (y `/api/v1/entradas/procesar-compra`).
 
----
+### 4. Check-in (`checkin-service:3001`)
+* **Método:** [`CheckinService.registrar_ticket_puerta`](back-end/services/checkin_service.py)
+* **Endpoint consumido:** `POST http://checkin-service:3001/api/checkin/tickets` enviando `id_entrada`, `id_evento`, `id_usuario`, `nombre_usuario` y `qr_data` (string idéntico a `id_entrada`).
+* **Endpoint provisto a Check-in:** `GET /api/entradas/{id_ticket}` (y `/api/v1/entradas/{id_ticket}`).
 
-## 🌐 Integración con API Gateway y Event Broker (Platform Team)
+### 5. Panel Organizador (`organizador-service:3000`)
+* **Endpoints provistos al Panel Organizador:**
+  * `POST /api/entradas/inventario` (y `/api/v1/inventario`): Inicialización de stock y precio de un evento.
+  * `PUT /api/entradas/inventario/{id_evento}`: Actualización de stock/estado del evento.
+  * `GET /api/entradas/eventos/{id_evento}/stock`: Consulta de disponibilidad en tiempo real.
 
-Este microservicio se encuentra adaptado al ecosistema común de TicketU ([`FWizav/backendticketU`](https://github.com/FWizav/backendticketU)):
-
-### 1. API Gateway Centralizado
-* **Prefijo oficial asignado:** `/api/entradas/*`
-* **Variable de entorno en Gateway:** `ENTRADAS_SERVICE_URL=http://entradas-service:3000` (o `http://localhost:8000`).
-* **Preservación de rutas:** El backend expone rutas nativas tanto bajo `/api/entradas/*` (para el Gateway y el Frontend) como bajo `/api/v1/*` (retrocompatibilidad directa).
-* **Diagnóstico de salud:** Endpoint `GET /health` disponible para el Gateway y healthchecks de Docker.
-
-### 2. Event Broker Compartido (RabbitMQ)
-* **Exchange oficial:** `ticketu.events` (tipo `topic`, durable).
-* **Conexión:** `amqp://ticketu:ticketu_dev@ticketu-rabbitmq:5672/ticketu` (en Docker) o `localhost:5672` (en local).
-* **Cola propia del consumidor:** `entradas.pagos` (vinculada a `pago.*` y `evento.*`).
-* **Eventos Publicados:**
-  * `entrada.reservada`: Notifica la reserva temporal (Hold) con tiempo límite (HU-03).
-  * `entrada.emitida`: Notifica la emisión de una entrada para que Check-in la habilite y Notificaciones envíe correo (HU-05).
-  * `stock.agotado`: Notifica que el stock de un evento llegó a 0 para el Panel Organizador.
-* **Eventos Consumidos:**
-  * `pago.realizado`: Consolida automáticamente la reserva y emite el ticket sin acoplamiento HTTP síncrono.
-  * `pago.rechazado`: Libera inmediatamente el cupo reservado al stock disponible de inventario.
-
-### 3. Red Docker Compartida
-* Todos los contenedores se integran a la red común externa:
-  ```bash
-  docker network create plataforma-eventos-net
-  ```
-* Contenedor del microservicio: `entradas-service` en el puerto `3000`.
+### 6. Event Broker Compartido (`ticketu-rabbitmq:5672`) y API Gateway (`ticketu-api-gateway:8080`)
+* **API Gateway:** Enruta todo el tráfico bajo `/api/entradas/*` hacia `http://entradas-service:3000`.
+* **RabbitMQ (`BrokerService`):**
+  * **Exchange:** `ticketu.events` (`topic`, durable), cola propia `entradas.pagos`.
+  * **Eventos publicados:** `entrada.reservada`, `entrada.emitida`, `stock.agotado`, `entradas.evento.stock.v1`, `entradas_emitidas`.
+  * **Eventos escuchados:** `pago.realizado`, `pago.rechazado`, `evento.publicado`, `evento.actualizado`, `evento.cancelado`.
 
 ---
 
-## 📋 Catálogo de Endpoints de la API
+## 📋 Catálogo Completo de Endpoints
 
-| Método | Ruta Gateway | Ruta Directa (v1) | Descripción / Propósito | Sección / Consumidor |
+Todas las rutas están expuestas tanto con el prefijo del API Gateway (`/api/entradas/...`) como con los prefijos directos `/api/v1/...`:
+
+| Método | Ruta API Gateway | Ruta Directa v1 | Descripción | Consumidor Principal |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/health` | `/health` | Chequeo de Salud del Contenedor | Plataforma / Gateway |
-| **GET** | `/api/entradas/inventario/{id_evento}` | `/api/v1/inventario/{id_evento}` | Obtener Disponibilidad | Inventario (BE1 / HU-01) |
-| **POST** | `/api/entradas/procesar-compra` | `/api/v1/entradas/procesar-compra` | Procesar Compra | Catálogo (BE3 / HU-02) |
-| **GET** | `/api/entradas/{id_ticket}` | `/api/v1/entradas/{id_ticket}` | Consultar Entrada Check-in | Check-in (BE3) |
-| **GET** | `/api/entradas/usuario/{id_usuario}` | `/api/v1/entradas/usuario/{id_usuario}` | Historial de Entradas Adquiridas | Clientes (BE3 / HU-04) |
-| **GET** | `/api/entradas/{id_ticket}/detalle` | `/api/v1/entradas/{id_ticket}/detalle` | Visualizar Detalle Inmutable de Entrada | Clientes (BE3 / HU-04) |
-| **GET** | `/api/entradas/{id_ticket}/qr` | `/api/v1/entradas/{id_ticket}/qr` | Recepción de Código QR de Acceso | Clientes (BE3 / HU-05) |
-| **POST** | `/api/entradas/reservas/hold` | `/api/v1/reservas/hold` | Reserva Temporal de Cupos (Hold) con TTL | Reservas (BE3 / HU-03) |
-| **POST** | `/api/entradas/reservas/{id_reserva}/cancelar` | `/api/v1/reservas/{id_reserva}/cancelar` | Cancelar Reserva Temporal y Liberar Cupos | Reservas (BE3 / HU-03) |
-| **GET** | `/api/entradas/reservas/{id_reserva}` | `/api/v1/reservas/{id_reserva}` | Consultar Reserva, Estado y Tiempo Restante | Pagos (BE3 / HU-03) |
-| **POST** | `/api/entradas/reservas/{id_reserva}/webhook-pago` | `/api/v1/reservas/{id_reserva}/webhook-pago` | Procesar Pago Aprobado (Emisión + QR) | Simulación Webhook Pagos |
-| **GET** | `/api/entradas/eventos/{id_evento}/stock` | `/api/v1/entradas/eventos/{id_evento}/stock` | Consultar Stock Panel | Panel Organizador (BE3) |
-
-### 🚀 Roadmap de Sprints
-* **Sprint 1 (Avance 1 - 01/10):** Base de Datos, Stock y Selección (HU-01, HU-02).
-* **Sprint 2 (Avance 2 - 22/10):** Ciclo de Reserva y Emisión de Entradas (HU-03, HU-04, HU-05), Integración con API Gateway y Event Broker (RabbitMQ):
-  * **HU-03 (Reserva temporal de cupo):** Descuento atómico de stock, generación de `holdId` / `id_reserva`, cronómetro regresivo (15 min) y worker asíncrono / on-read de liberación automática al expirar. Evento publicado: `entrada.reservada`.
-  * **HU-04 (Detalles de entrada adquirida):** Código alfanumérico único, monto final pagado auditado inmutable en BD, omisión de asientos numerados (`tipo_acceso: GENERAL`), condiciones físicas de ingreso (`lugar_ingreso`) y nombre del evento.
-  * **HU-05 (Recepción de código QR de acceso):** Entrega inmediata (flujo gratuito) o post-confirmación (flujo pagado) de QR con payload `{id_evento, id_entrada}`, asociado al nombre del asistente y habilitación confirmada para escaneo en Check-in. Evento publicado: `entrada.emitida`.
-  * **Integración API Gateway:** Configuración de prefijos `/api/entradas/*`, contenedor `entradas-service` en red `plataforma-eventos-net` y endpoint `/health`.
-  * **Integración RabbitMQ:** Publicador y consumidor asíncrono sobre `ticketu.events` con cola `entradas.pagos` para reaccionar a `pago.realizado` y `pago.rechazado`.
-* **Sprint 3 (Avance 3 - 05/11):** Asincronía Avanzada (RabbitMQ) y Reglas de Negocio (HU-07, HU-09, HU-08).
-* **Sprint 4 (Entrega Final - 25/11):** Integración E2E a través del API Gateway, Estabilización y Despliegue On-Premise.
+| **GET** | `/health` y `/api/entradas/health` | `/health` | Estado de salud del contenedor (`UP`) | Docker / API Gateway |
+| **GET** | `/api/entradas/inventario/{id_evento}` | `/api/v1/inventario/{id_evento}` | Consultar stock actual, tipo y precio unitario (HU-01) | Frontend / Catálogo |
+| **POST** | `/api/entradas/inventario` | `/api/v1/inventario` | Crear/inicializar inventario para un evento | Panel Organizador |
+| **PUT** | `/api/entradas/inventario/{id_evento}` | `/api/v1/inventario/{id_evento}` | Actualizar stock o estado de gestión de un evento | Panel Organizador |
+| **POST** | `/api/entradas/procesar-compra` | `/api/v1/entradas/procesar-compra` | Procesar compra gratuita o pagada con validación en Auth (HU-02) | Catálogo / Checkout |
+| **POST** | `/api/entradas/reservas/hold` | `/api/v1/entradas/reservas/hold` | Crear reserva temporal (Hold) con TTL de 15 min (HU-03) | Frontend Checkout |
+| **GET** | `/api/entradas/reservas/{id_reserva}` | `/api/v1/entradas/reservas/{id_reserva}` | Consultar reserva (`total`, `cantidad_entradas`, TTL) (INT-01) | Pagos / Frontend |
+| **POST** | `/api/entradas/reservas/{id_reserva}/iniciar-pago` | `/api/v1/entradas/reservas/{id_reserva}/iniciar-pago` | Iniciar transacción en Pagos v2.3 para una reserva existente | Frontend Checkout |
+| **GET** | `/api/entradas/reservas/{id_reserva}/estado-pago` | `/api/v1/entradas/reservas/{id_reserva}/estado-pago` | Consultar estado en Pagos v2.3 y consolidar/liberar reserva | Frontend Checkout |
+| **POST** | `/api/entradas/reservas/{id_reserva}/cancelar` | `/api/v1/entradas/reservas/{id_reserva}/cancelar` | Cancelar reserva temporal, devolver stock y reembolsar en Pagos | Frontend / Pagos |
+| **POST** | `/api/entradas/reservas/{id_reserva}/webhook-pago` | `/api/v1/reservas/{id_reserva}/webhook-pago` | Consolidar reserva y emitir entradas con QR tras pago aprobado | Pagos / Simulación |
+| **GET** | `/api/entradas/usuario/{id_usuario}` | `/api/v1/entradas/usuario/{id_usuario}` | Historial de entradas adquiridas por un usuario (HU-04) | Clientes / Frontend |
+| **GET** | `/api/entradas/{id_ticket}/detalle` | `/api/v1/entradas/{id_ticket}/detalle` | Detalle inmutable de una entrada adquirida (HU-04) | Clientes / Frontend |
+| **GET** | `/api/entradas/{id_ticket}/qr` | `/api/v1/entradas/{id_ticket}/qr` | Obtener código QR de acceso y payload de validación (HU-05) | Clientes / Frontend |
+| **GET** | `/api/entradas/{id_ticket}` | `/api/v1/entradas/{id_ticket}` | Validar existencia y titular de una entrada emitida | Check-in |
+| **GET** | `/api/entradas/eventos/{id_evento}/stock` | `/api/v1/entradas/eventos/{id_evento}/stock` | Consultar stock disponible de un evento | Panel Organizador |
 
 ---
 
-## ⚙️ Ejecución Local (Entorno de Desarrollo)
+## 🗄️ Base de Datos y Datos Semilla (`database/init_db.js`)
 
-Para levantar el microservicio de manera local y visualizar la documentación interactiva OpenAPI/Swagger, sigue estos pasos:
+Al levantar el contenedor `ticketu_entradas_mongo`, el script [`database/init_db.js`](database/init_db.js) crea la base de datos `ticketu_entradas_db` con validación `$jsonSchema` en tres colecciones (`inventario_evento`, `reserva_entrada`, `entrada`) y carga los siguientes datos de prueba:
 
-### 1. Clonar el repositorio y situarse en la rama backend
+* **Eventos en `inventario_evento`:**
+  * `evt-77889`: Evento **`PAGADA`**, `precio_unitario: 10000`, `stock_actual: 148`, `estado_gestion: "PUBLICADO"`.
+  * `evt-002`: Evento **`GRATUITA`**, `precio_unitario: 0`, `stock_actual: 99`, `estado_gestion: "PUBLICADO"`.
+* **Reservas en `reserva_entrada`:**
+  * `res-98765`: Reserva en estado `CONSOLIDADO` para `evt-77889` (`monto_total: 8500`, `id_pago: "pay-112233"`).
+  * `res-98766`: Reserva en estado `RESERVADO` para `evt-77889` (`monto_total: 10000`, `id_pago: "pay-112234"`).
+* **Entradas en `entrada`:**
+  * `tk-998877`: Entrada `EMITIDA` asociada a `res-98765` y al usuario `usr-12345` (`Sebastián Fuentes`).
+
+---
+
+## ⚙️ Variables de Entorno (`.env.example`)
+
+Puedes copiar [`.env.example`](.env.example) a `.env` en la raíz o en `back-end/.env`:
+
+| Variable | Valor en Docker (`docker-compose.yml`) | Descripción |
+| :--- | :--- | :--- |
+| `PORT` | `3000` | Puerto interno donde escucha `entradas-service` |
+| `MONGO_URI` | `mongodb://mongodb:27017` | URI de conexión a MongoDB en `entradas-internal-net` |
+| `MONGO_DB` | `ticketu_entradas_db` | Nombre de la base de datos MongoDB |
+| `BROKER_URL` | `amqp://ticketu:ticketu_dev@ticketu-rabbitmq:5672/ticketu` | URI de conexión al broker RabbitMQ |
+| `EVENT_EXCHANGE` | `ticketu.events` | Exchange compartido de eventos |
+| `QUEUE_NAME` | `entradas.pagos` | Cola de consumo del microservicio de Entradas |
+| `AUTH_SERVICE_URL` | `http://auth-service:10000` | URL interna del microservicio de Autenticación |
+| `INTERNAL_API_KEY` | `CAMBIAR_CLAVE_COMPARTIDA_SEGURA` | API Key compartida para `GET /internal/validar-sesion` en Auth |
+| `PAGOS_SERVICE_URL` | `http://pagos-service:3000` | URL interna del microservicio de Pagos |
+| `CATALOGO_SERVICE_URL` | `http://catalogo-service:4000` | URL interna del microservicio de Catálogo de Eventos |
+| `CHECKIN_SERVICE_URL` | `http://checkin-service:3001` | URL interna del microservicio de Check-in |
+| `PANEL_SERVICE_URL` | `http://organizador-service:3000` | URL interna del microservicio de Panel Organizador |
+
+---
+
+## 🚀 Cómo Levantar el Proyecto con Docker (Recomendado para Integración)
+
+### 1. Clonar el repositorio
 ```bash
-git clone https://github.com/Microservicios-Entradas-Inventario/arquitectura_ms_entradas_inventario.git
-cd arquitectura_ms_entradas_inventario/Backend
-git checkout backend
+git clone -b backend https://github.com/Microservicios-Entradas-Inventario/arquitectura_ms_entradas_inventario.git
+cd arquitectura_ms_entradas_inventario
 ```
 
-### 2. Crear y activar el entorno virtual
-Es altamente recomendado utilizar un entorno virtual para aislar las dependencias:
+### 2. Crear la red compartida del ecosistema (si no existe)
+```bash
+docker network create plataforma-eventos-net 2>/dev/null || true
+```
 
-**En Windows (PowerShell):**
+### 3. Construir y levantar los contenedores
+```bash
+docker compose up -d --build
+```
+Esto levantará:
+* **`entradas-service`:** `http://localhost:3000` (y `http://entradas-service:3000` dentro de `plataforma-eventos-net`)
+* **Swagger UI (OpenAPI 3.0):** [http://localhost:3000/docs](http://localhost:3000/docs)
+* **Healthcheck:** [http://localhost:3000/health](http://localhost:3000/health)
+* **`ticketu_entradas_mongo` (MongoDB):** `localhost:27017`
+* **`ticketu_entradas_gui` (Mongo Express):** [http://localhost:8082](http://localhost:8082)
+
+---
+
+## 💻 Ejecución Local (Sin contenedor para FastAPI)
+
+Si deseas correr FastAPI directamente en tu máquina conectándose al contenedor de MongoDB:
+
 ```powershell
+cd back-end
 python -m venv venv
 .\venv\Scripts\Activate.ps1
-```
-**En Linux / macOS / Git Bash:**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Instalar dependencias
-```bash
 pip install -r requirements.txt
+uvicorn main:app --reload --port 3000
 ```
-
-### 4. Levantar la Base de Datos (MongoDB)
-El microservicio requiere MongoDB con los datos semilla inicializados. Para levantar el contenedor de base de datos junto con Mongo Express (GUI web), ejecuta:
-```bash
-docker compose up -d
-```
-* **MongoDB:** `localhost:27017`
-* **Mongo Express (Panel Web):** [http://localhost:8081](http://localhost:8081)
-*(Para detener los contenedores al finalizar, ejecuta `docker compose down`)*
-
-### 5. Iniciar el servidor FastAPI
-Inicia el servidor en modo desarrollo con recarga automática:
-```bash
-uvicorn main:app --reload
-```
-
-### 6. Explorar la Documentación Swagger UI
-Abre tu navegador web y accede a:
-
-👉 **[http://localhost:8000/docs](http://localhost:8000/docs)**
-
-Dentro de la interfaz de Swagger UI podrás examinar la especificación detallada de cada endpoint (descripciones en formato Markdown, modelos Pydantic, parámetros requeridos, códigos de respuesta HTTP `200`, `400`, `401`, `404`, `500`) y realizar pruebas interactivas con el botón **"Try it out"**.
+*(La documentación interactiva estará disponible en [http://localhost:3000/docs](http://localhost:3000/docs)).*
