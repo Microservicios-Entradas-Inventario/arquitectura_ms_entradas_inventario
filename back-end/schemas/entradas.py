@@ -84,6 +84,15 @@ class AnularPagoReservaRequest(BaseModel):
     )
     token_sesion: Optional[str] = Field(default=None, description="Opcional; en Contrato Pagos v2.3 se reenvía el header Cookie (jwt=<token>).")
 
+class EmisionDirectaRequest(BaseModel):
+    id_evento: str = Field(..., description="ID del evento.")
+    id_usuario: str = Field(default="usr-12345", description="ID del comprador.")
+    nombre_comprador: str = Field(default="Sebastian Fuentes", description="Nombre completo del comprador.")
+    correo_comprador: str = Field(default="sebastian.fuentes@ticketu.cl", description="Correo del comprador.")
+    cantidad_entradas: int = Field(default=1, gt=0, le=100, description="Cantidad de entradas a emitir.")
+    precio_final: int = Field(default=0, ge=0, description="Monto total pagado.")
+    id_reserva: Optional[str] = Field(default=None, description="ID de reserva opcional si proviene de un Hold previo.")
+
 # ==========================================
 # HU-04: Visualización de Detalles de Entrada Adquirida
 # ==========================================

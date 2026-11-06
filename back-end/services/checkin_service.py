@@ -3,7 +3,7 @@ import httpx
 from typing import Any, Optional, Union
 
 class CheckinService:
-    BASE_URL = os.getenv("CHECKIN_SERVICE_URL", "http://checkin-service:3001")
+    BASE_URL = os.getenv("CHECKIN_SERVICE_URL", "http://checkin-service:3005")
 
     @classmethod
     async def registrar_ticket_puerta(

@@ -29,6 +29,7 @@ dbRef.createCollection("inventario_evento", {
         _id: { bsonType: "objectId" },
         id_evento: { bsonType: "string" },
         nombre_evento: { bsonType: ["string", "null"] },
+        descripcion: { bsonType: ["string", "null"] },
         fecha_evento: { bsonType: ["string", "null"] },
         hora_evento: { bsonType: ["string", "null"] },
         lugar_ingreso: { bsonType: ["string", "null"] },
@@ -166,17 +167,94 @@ dbRef.createCollection("entrada", {
 dbRef.entrada.createIndex({ id_entrada: 1 }, { unique: true, name: "pk_entrada_id_entrada" });
 dbRef.entrada.createIndex({ id_reserva: 1 }, { name: "fk_entrada_reserva" });
 
-// 4. DATOS SEMILLA PARA DEMOSTRACIÓN E INTEGRACIÓN E2E
+// 4. DATOS SEMILLA PARA DEMOSTRACIÓN E INTEGRACIÓN E2E (FRONTEND + ENTRADAS + CHECKIN)
 const ahora = new Date();
-// Vigencia de 7 días para las reservas semilla para evitar que el índice TTL de MongoDB las elimine antes de las pruebas
 const expiraEn7Dias = new Date(ahora.getTime() + 7 * 24 * 60 * 60 * 1000);
 
 dbRef.inventario_evento.insertMany([
   {
+    id_evento: "evt-001",
+    nombre_evento: "Gala Aniversario Civil Informatica UV 2026",
+    descripcion: "Cena de camaraderia, balance del ano y fiesta de clausura para la comunidad de informatica.",
+    fecha_evento: "18 de Noviembre, 2026",
+    hora_evento: "20:00 hrs",
+    lugar_ingreso: "Salon de Honor, Sede Central UV",
+    id_usuario: "usr-org-001",
+    rol_usuario: "ORGANIZADOR",
+    tipo_entrada: "PAGADA",
+    precio_unitario: NumberInt(6000),
+    stock_inicial: NumberInt(200),
+    stock_actual: NumberInt(74),
+    cantidad_entrada_reservada: NumberInt(0),
+    cantidad_entrada_comprada: NumberInt(126),
+    maximo_ticket: NumberInt(6),
+    estado_gestion: "PUBLICADO",
+    fecha_actualizacion: ahora
+  },
+  {
+    id_evento: "evt-002",
+    nombre_evento: "Torneo eSports Inter-Carreras UV 2026",
+    descripcion: "Competencia oficial de videojuegos universitarios. Acceso gratuito para toda la comunidad.",
+    fecha_evento: "25 de Noviembre, 2026",
+    hora_evento: "14:00 hrs",
+    lugar_ingreso: "Laboratorio Central de Computacion, Facultad de Ingenieria",
+    id_usuario: "usr-org-002",
+    rol_usuario: "ORGANIZADOR",
+    tipo_entrada: "GRATUITA",
+    precio_unitario: NumberInt(0),
+    stock_inicial: NumberInt(100),
+    stock_actual: NumberInt(25),
+    cantidad_entrada_reservada: NumberInt(0),
+    cantidad_entrada_comprada: NumberInt(75),
+    maximo_ticket: NumberInt(2),
+    estado_gestion: "PUBLICADO",
+    fecha_actualizacion: ahora
+  },
+  {
+    id_evento: "evt-003",
+    nombre_evento: "Workshop: Inteligencia Artificial en Microservicios",
+    descripcion: "Taller practico intensivo con despliegue de modelos en contenedores Docker.",
+    fecha_evento: "05 de Diciembre, 2026",
+    hora_evento: "10:30 hrs",
+    lugar_ingreso: "Auditorio de Postgrado, Campus Playa Ancha",
+    id_usuario: "usr-org-001",
+    rol_usuario: "ORGANIZADOR",
+    tipo_entrada: "GRATUITA",
+    precio_unitario: NumberInt(0),
+    stock_inicial: NumberInt(50),
+    stock_actual: NumberInt(0),
+    cantidad_entrada_reservada: NumberInt(0),
+    cantidad_entrada_comprada: NumberInt(50),
+    maximo_ticket: NumberInt(1),
+    estado_gestion: "PUBLICADO",
+    fecha_actualizacion: ahora
+  },
+  {
+    id_evento: "evt-004",
+    nombre_evento: "Fiesta Mechona Info 2026",
+    descripcion: "Bienvenida oficial a la nueva generacion de estudiantes de ingenieria.",
+    fecha_evento: "20 de Noviembre, 2026",
+    hora_evento: "22:00 hrs",
+    lugar_ingreso: "Centro de Eventos El Canelo",
+    id_usuario: "usr-org-001",
+    rol_usuario: "ORGANIZADOR",
+    tipo_entrada: "PAGADA",
+    precio_unitario: NumberInt(4500),
+    stock_inicial: NumberInt(300),
+    stock_actual: NumberInt(148),
+    cantidad_entrada_reservada: NumberInt(0),
+    cantidad_entrada_comprada: NumberInt(152),
+    maximo_ticket: NumberInt(6),
+    estado_gestion: "PUBLICADO",
+    fecha_actualizacion: ahora
+  },
+  {
     id_evento: "evt-77889",
     nombre_evento: "Concierto Sinfonico TicketU",
-    fecha_evento: "2026-11-20",
-    hora_evento: "20:00",
+    descripcion: "Presentacion sinfonica anual en el Teatro Municipal.",
+    fecha_evento: "20 de Noviembre, 2026",
+    hora_evento: "20:00 hrs",
+    lugar_ingreso: "Puerta Principal - Acceso General",
     id_usuario: "usr-org-001",
     rol_usuario: "ORGANIZADOR",
     tipo_entrada: "PAGADA",
@@ -190,27 +268,12 @@ dbRef.inventario_evento.insertMany([
     fecha_actualizacion: ahora
   },
   {
-    id_evento: "evt-002",
-    nombre_evento: "Charla Abierta de Innovacion",
-    fecha_evento: "2026-11-25",
-    hora_evento: "18:30",
-    id_usuario: "usr-org-002",
-    rol_usuario: "ORGANIZADOR",
-    tipo_entrada: "GRATUITA",
-    precio_unitario: NumberInt(0),
-    stock_inicial: NumberInt(100),
-    stock_actual: NumberInt(99),
-    cantidad_entrada_reservada: NumberInt(0),
-    cantidad_entrada_comprada: NumberInt(1),
-    maximo_ticket: NumberInt(2),
-    estado_gestion: "PUBLICADO",
-    fecha_actualizacion: ahora
-  },
-  {
     id_evento: "evt-101",
     nombre_evento: "Festival Universitario TITEC",
-    fecha_evento: "2026-12-05",
-    hora_evento: "19:00",
+    descripcion: "Festival de bandas universitarias y tecnologia.",
+    fecha_evento: "05 de Diciembre, 2026",
+    hora_evento: "19:00 hrs",
+    lugar_ingreso: "Explanada Central UV",
     id_usuario: "usr-org-001",
     rol_usuario: "ORGANIZADOR",
     tipo_entrada: "PAGADA",
@@ -226,8 +289,10 @@ dbRef.inventario_evento.insertMany([
   {
     id_evento: "66f1a0000000000000000002",
     nombre_evento: "Feria de Innovacion TITEC",
-    fecha_evento: "2026-12-10",
-    hora_evento: "10:00",
+    descripcion: "Exposicion de proyectos de ingenieria de software y arquitectura de microservicios.",
+    fecha_evento: "10 de Diciembre, 2026",
+    hora_evento: "10:00 hrs",
+    lugar_ingreso: "Hall Central Facultad de Ingenieria",
     id_usuario: "usr-org-panel",
     rol_usuario: "ORGANIZADOR",
     tipo_entrada: "PAGADA",
@@ -347,7 +412,7 @@ dbRef.entrada.insertMany([
     estado_entrada: "EMITIDA",
     nombre_archivo_qr: "tk-998877.png",
     qr_data: {
-      url: "https://storage.midominio.com/qr/tk-998877.png",
+      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=tk-998877",
       hash: "abc1234"
     },
     fecha_emision: ahora
@@ -356,20 +421,41 @@ dbRef.entrada.insertMany([
     id_entrada: "tk-demo-001",
     id_reserva: "res-98765",
     id_evento: "evt-002",
-    nombre_evento: "Charla Abierta de Innovacion",
+    nombre_evento: "Torneo eSports Inter-Carreras UV 2026",
     id_usuario: "usr-12345",
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
     rol_usuario: "CLIENTE",
     tipo_acceso: "GENERAL",
-    lugar_ingreso: "Auditorio Central - Puerta A",
+    lugar_ingreso: "Laboratorio Central de Computacion, Facultad de Ingenieria",
     precio_final_pagado: NumberInt(0),
     estado_entrada: "EMITIDA",
     nombre_archivo_qr: "tk-demo-001.png",
     qr_data: {
-      url: "https://storage.midominio.com/qr/tk-demo-001.png",
+      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=tk-demo-001",
       hash: "def5678"
+    },
+    fecha_emision: ahora
+  },
+  {
+    id_entrada: "tk-DEMO-2026",
+    id_reserva: "res-98765",
+    id_evento: "evt-001",
+    nombre_evento: "Gala Aniversario Civil Informatica UV 2026",
+    id_usuario: "usr-12345",
+    nombre_usuario: "Sebastian Fuentes",
+    rut_usuario: "20.123.456-7",
+    correo_usuario: "sebastian.fuentes@ticketu.cl",
+    rol_usuario: "CLIENTE",
+    tipo_acceso: "GENERAL",
+    lugar_ingreso: "Salon de Honor, Sede Central UV",
+    precio_final_pagado: NumberInt(6000),
+    estado_entrada: "EMITIDA",
+    nombre_archivo_qr: "tk-DEMO-2026.png",
+    qr_data: {
+      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=tk-DEMO-2026",
+      hash: "ghi9012"
     },
     fecha_emision: ahora
   }

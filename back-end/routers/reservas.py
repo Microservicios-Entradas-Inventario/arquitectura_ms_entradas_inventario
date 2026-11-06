@@ -63,12 +63,13 @@ async def consolidar_y_emitir_entradas(
     nombre_evento = evento.get("nombre_evento", f"Evento {id_evento}") if evento else f"Evento {id_evento}"
     fecha_evento = evento.get("fecha_evento", "2026-11-20") if evento else "2026-11-20"
     hora_evento = evento.get("hora_evento", "20:00") if evento else "20:00"
+    lugar_ingreso = evento.get("lugar_ingreso", "Puerta Principal - Acceso General") if evento else "Puerta Principal - Acceso General"
 
     entradas_generadas: List[str] = []
 
     for _ in range(cantidad):
         id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
-        qr_data_url = f"https://storage.midominio.com/qr/{id_entrada}.png"
+        qr_data_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={id_entrada}"
         qr_checkin = id_entrada
         qr_obj = {
             "url": qr_data_url,
@@ -79,6 +80,8 @@ async def consolidar_y_emitir_entradas(
             "id_entrada": id_entrada,
             "id_reserva": id_reserva,
             "id_evento": id_evento,
+            "nombre_evento": nombre_evento,
+            "lugar_ingreso": lugar_ingreso,
             "id_usuario": id_usuario,
             "nombre_usuario": nombre_usuario,
             "rut_usuario": rut_usuario,
@@ -94,13 +97,13 @@ async def consolidar_y_emitir_entradas(
         await db.entrada.insert_one(doc_entrada)
         entradas_generadas.append(id_entrada)
 
-        asyncio.create_task(CheckinService.registrar_ticket_puerta(
+        await CheckinService.registrar_ticket_puerta(
             id_entrada=id_entrada,
             id_evento=id_evento,
             id_usuario=id_usuario,
             nombre_usuario=nombre_usuario,
             qr_data=qr_checkin
-        ))
+        )
         asyncio.create_task(NotificacionesService.enviar_ticket_correo(
             correo_comprador=correo_usuario,
             nombre_comprador=nombre_usuario,

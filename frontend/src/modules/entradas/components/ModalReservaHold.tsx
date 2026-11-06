@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------------
 // Microservicio de Entradas e Inventario (Grupo 3) - HU-03
 // Modal de Reserva Temporal de Cupos (Hold) con temporizador regresivo de 10 min.
+// Conectado en vivo con entradas-service (MongoDB) y checkin-service (MySQL).
 // ============================================================================
 
 "use client";
@@ -10,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReservaTemporal } from "../types";
-import { liberarReservaTemporal } from "../api";
+import { liberarReservaTemporal, consolidarReservaYEmitirTicket } from "../api";
 import styles from "../styles/entradas.module.css";
 import { THEME } from "../styles/theme";
 
@@ -27,13 +28,13 @@ export default function ModalReservaHold({
   nombreEvento = "Evento Seleccionado",
   onClose,
   onExpirada,
+  onPagoCompletado,
 }: ModalReservaHoldProps) {
   const router = useRouter();
   const [segundosRestantes, setSegundosRestantes] = useState<number>(600);
   const [procesando, setProcesando] = useState(false);
   const [mensajeExpirado, setMensajeExpirado] = useState<string | null>(null);
 
-  // Inicializar tiempo según respuesta del backend o por defecto 10 minutos (600s)
   useEffect(() => {
     if (reserva) {
       setSegundosRestantes(reserva.segundosRestantes ?? (reserva.expiraEnMinutos ? reserva.expiraEnMinutos * 60 : 600));
@@ -41,14 +42,12 @@ export default function ModalReservaHold({
     }
   }, [reserva]);
 
-  // Temporizador regresivo en tiempo real con liberación automática al llegar a 0
   useEffect(() => {
     if (!reserva || segundosRestantes <= 0 || mensajeExpirado) return;
 
     const timer = setInterval(() => {
       setSegundosRestantes((prev) => {
         if (prev <= 1) {
-          // El tiempo expiró: liberar en el backend y notificar
           liberarReservaTemporal(reserva.idEvento, reserva.cantidadEntradas, reserva.idReserva);
           setMensajeExpirado("El tiempo límite de 10 minutos ha expirado. Tu cupo ha sido liberado automáticamente.");
           if (onExpirada) onExpirada();
@@ -73,6 +72,7 @@ export default function ModalReservaHold({
     setProcesando(true);
     try {
       await liberarReservaTemporal(reserva.idEvento, reserva.cantidadEntradas, reserva.idReserva);
+      if (onExpirada) onExpirada();
       onClose();
     } finally {
       setProcesando(false);
@@ -86,17 +86,12 @@ export default function ModalReservaHold({
   const handleSimularPagoDemo = async () => {
     setProcesando(true);
     try {
-      // Simular notificación webhook al backend si está disponible
-      try {
-        await fetch(`/api/entradas/reservas/${reserva.idReserva}/webhook-pago`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch {
-        // Fallback local
+      // Consolidar reserva en entradas-service (MongoDB) y registrar en checkin-service (MySQL)
+      const ticketEmitidoBackend = await consolidarReservaYEmitirTicket(reserva.idReserva);
+      const ticketId = ticketEmitidoBackend || "tk-DEMO-2026";
+      if (onPagoCompletado) {
+        onPagoCompletado(ticketId);
       }
-
-      const ticketId = `tk-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       if (typeof window !== "undefined") {
         window.open(`/entradas/confirmacion?idEntrada=${ticketId}`, "_blank");
       }
@@ -109,9 +104,8 @@ export default function ModalReservaHold({
   return (
     <div className={styles.modalOverlay}>
       <div className={styles.modalContent}>
-        {/* Cabecera del Modal con Temporizador */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <span className={`${styles.badge} ${styles.badgeInfo}`}>Hold Activo · HU-03</span>
+          <span className={`${styles.badge} ${styles.badgeInfo}`}>Hold Activo en MongoDB · HU-03</span>
           <span
             style={{
               fontSize: "18px",
@@ -128,7 +122,7 @@ export default function ModalReservaHold({
           Cupo Reservado Temporalmente
         </h2>
         <p className={styles.textMuted} style={{ fontSize: "14px", marginBottom: "16px" }}>
-          Hemos congelado temporalmente {reserva.cantidadEntradas} entrada(s) en el inventario para que puedas completar el pago sin riesgo de que se agoten.
+          Hemos descontado temporalmente {reserva.cantidadEntradas} entrada(s) en MongoDB (<code>ticketu_entradas_db</code>) mientras completas el pago.
         </p>
 
         {mensajeExpirado ? (
@@ -136,7 +130,6 @@ export default function ModalReservaHold({
             <span>⚠️ {mensajeExpirado}</span>
           </div>
         ) : (
-          /* Ficha de Detalles de la Reserva */
           <div
             style={{
               backgroundColor: THEME.colors.bgPanel,
@@ -153,7 +146,7 @@ export default function ModalReservaHold({
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
               <span style={{ color: THEME.colors.secondary }}>Evento:</span>
-              <strong>{nombreEvento}</strong>
+              <strong>{nombreEvento} ({reserva.idEvento})</strong>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
               <span style={{ color: THEME.colors.secondary }}>Cantidad:</span>
@@ -172,38 +165,36 @@ export default function ModalReservaHold({
               </strong>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: THEME.colors.secondary }}>Estado:</span>
-              <span className={`${styles.badge} ${styles.badgeMuted}`}>Reservado Temporalmente</span>
+              <span style={{ color: THEME.colors.secondary }}>Estado en BD:</span>
+              <span className={`${styles.badge} ${styles.badgeMuted}`}>{reserva.estado}</span>
             </div>
           </div>
         )}
 
-        {/* Acciones del Modal */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {!mensajeExpirado ? (
             <>
-              {/* Botón hacia Pagos (Grupo 4) */}
-              <button
-                type="button"
-                onClick={handleIrAPagos}
-                className={styles.buttonPrimary}
-                style={{ width: "100%", height: "44px" }}
-              >
-                💳 Continuar a Pasarela de Pagos (Grupo 4) ➔
-              </button>
-
-              {/* Botón de Simulación para Demo de Sprint 2 */}
               <button
                 type="button"
                 disabled={procesando}
                 onClick={handleSimularPagoDemo}
-                className={styles.buttonSecondary}
-                style={{ width: "100%", height: "40px" }}
+                className={styles.buttonPrimary}
+                style={{ width: "100%", height: "46px" }}
               >
-                {procesando ? "Emitiendo ticket..." : "🎟️ Simular Pago Aprobado y Abrir Entrada con QR"}
+                {procesando
+                  ? "Emitiendo en Entradas y registrando en Check-in..."
+                  : "🎟️ Confirmar Pago, Emitir QR y Sincronizar con Check-in ➔"}
               </button>
 
-              {/* Botón de Cancelación y Liberación */}
+              <button
+                type="button"
+                onClick={handleIrAPagos}
+                className={styles.buttonSecondary}
+                style={{ width: "100%", height: "42px" }}
+              >
+                💳 Ir a Pasarela de Pagos (Grupo 4) ➔
+              </button>
+
               <button
                 type="button"
                 disabled={procesando}
@@ -218,7 +209,7 @@ export default function ModalReservaHold({
                   textDecoration: "underline",
                 }}
               >
-                Liberar cupo y cancelar reserva
+                Liberar cupo en MongoDB y cancelar reserva
               </button>
             </>
           ) : (
@@ -236,4 +227,3 @@ export default function ModalReservaHold({
     </div>
   );
 }
-

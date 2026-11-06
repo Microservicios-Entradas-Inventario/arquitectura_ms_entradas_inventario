@@ -3,7 +3,8 @@ from schemas.entradas import (
     ProcesarCompraRequest, 
     ProcesarCompraResponse,
     DetalleEntradaAdquirida,
-    CodigoQRAccesoResponse
+    CodigoQRAccesoResponse,
+    EmisionDirectaRequest
 )
 from database import get_database
 from services.auth_service import AuthService
@@ -287,6 +288,226 @@ async def procesar_compra(
             "fecha_expiracion": pago.get("fecha_expiracion") if isinstance(pago, dict) else expira_en.isoformat()
         }
 
+def _formatear_evento_frontend(ev: dict) -> dict:
+    tipo_entrada = ev.get("tipo_entrada", "PAGADA")
+    max_tickets = ev.get("maximo_ticket", 4)
+    return {
+        "id": ev["id_evento"],
+        "titulo": ev.get("nombre_evento") or f"Evento {ev['id_evento']}",
+        "fecha": ev.get("fecha_evento") or "20 de Noviembre, 2026",
+        "hora": ev.get("hora_evento") or "20:00 hrs",
+        "lugar": ev.get("lugar_ingreso") or "Salon de Honor, Sede Central UV",
+        "descripcion": ev.get("descripcion") or "Evento oficial gestionado en el inventario de TicketU.",
+        "tipoEntrada": tipo_entrada,
+        "precio": ev.get("precio_unitario", 0),
+        "stockTotal": ev.get("stock_inicial", 100),
+        "stockDisponible": ev.get("stock_actual", 0),
+        "maxTickets": max_tickets,
+        "limiteGratuitoUsuario": max_tickets if tipo_entrada == "GRATUITA" else None,
+        "estadoGestion": ev.get("estado_gestion", "PUBLICADO")
+    }
+
+
+@router.get(
+    "/eventos",
+    tags=["Servicios Provistos (BE3) - Frontend Entradas"],
+    responses={200: {"description": "Lista de eventos del inventario en formato Frontend"}}
+)
+async def listar_eventos_frontend():
+    """
+    Retorna todos los eventos almacenados en MongoDB (`inventario_evento`) para el Frontend oficial (`FrontendTitec-main`).
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
+
+    cursor = db.inventario_evento.find({})
+    eventos = await cursor.to_list(length=100)
+    return [_formatear_evento_frontend(ev) for ev in eventos]
+
+
+@router.get(
+    "/eventos/{id_evento}",
+    tags=["Servicios Provistos (BE3) - Frontend Entradas"],
+    responses={200: {"description": "Detalle de evento en formato Frontend"}, 404: {"description": "Evento no encontrado"}}
+)
+async def obtener_evento_frontend(id_evento: str):
+    """
+    Retorna el detalle de un evento específico desde MongoDB (`inventario_evento`) para el Frontend oficial.
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
+
+    evento = await db.inventario_evento.find_one({"id_evento": id_evento})
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado.")
+
+    return _formatear_evento_frontend(evento)
+
+
+@router.get(
+    "/eventos/{id_evento}/disponibilidad",
+    tags=["Servicios Provistos (BE3) - Frontend Entradas / Catálogo"],
+    responses={200: {"description": "Disponibilidad resumida para widget de Catálogo"}, 404: {"description": "Evento no encontrado"}}
+)
+async def consultar_disponibilidad_frontend(id_evento: str):
+    """
+    Usado por `DisponibilidadPlaceholder.tsx` en el Frontend para mostrar stock real desde MongoDB.
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
+
+    evento = await db.inventario_evento.find_one({"id_evento": id_evento})
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado.")
+
+    return {
+        "idEvento": evento["id_evento"],
+        "stockDisponible": evento.get("stock_actual", 0),
+        "stockTotal": evento.get("stock_inicial", 100),
+        "tipoEntrada": evento.get("tipo_entrada", "PAGADA"),
+        "precio": evento.get("precio_unitario", 0)
+    }
+
+
+@router.get(
+    "/eventos/{id_evento}/stock", 
+    tags=["Servicios Provistos (BE3) - Panel Organizador"],
+    responses={
+        200: {"description": "Stock retornado exitosamente"},
+        404: {"description": "Evento no encontrado"},
+        500: {"description": "Error interno del servidor"}
+    }
+)
+async def consultar_stock_panel(id_evento: str):
+    """
+    ###  Propósito
+    Expone la disponibilidad exacta y real de un evento para que el Panel Organizador pueda auditar o validar lógicas de negocio (Soporte a Contrato Panel v3.0).
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
+        
+    evento = await db.inventario_evento.find_one({"id_evento": id_evento})
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado.")
+        
+    return {
+        "id_evento": evento["id_evento"],
+        "stock": evento["stock_actual"]
+    }
+
+
+@router.post(
+    "/emision-directa",
+    tags=["Servicios Provistos (BE3) - Frontend Entradas y Check-in"],
+    responses={200: {"description": "Entrada emitida en MongoDB y registrada en Check-in MySQL"}}
+)
+async def emitir_entrada_directa_frontend(solicitud: EmisionDirectaRequest):
+    """
+    Emite una entrada directamente (para eventos gratuitos o consolidación desde el Frontend),
+    la persiste en MongoDB (`ticketu_entradas_db.entrada`) y la registra síncronamente en el
+    microservicio de Check-in (`POST /api/checkin/tickets` en MySQL).
+    """
+    db = get_database()
+    if db is None:
+        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
+
+    evento = await db.inventario_evento.find_one({"id_evento": solicitud.id_evento})
+    if not evento:
+        raise HTTPException(status_code=404, detail="El evento solicitado no existe.")
+
+    stock_actual = evento.get("stock_actual", 0)
+    id_reserva = solicitud.id_reserva
+
+    # Si no viene de una reserva previa (ej. evento gratuito), descontar stock y crear reserva consolidada
+    if not id_reserva:
+        if solicitud.cantidad_entradas > stock_actual:
+            raise HTTPException(status_code=400, detail="Stock insuficiente para emitir la entrada.")
+        id_reserva = f"res-{uuid.uuid4().hex[:8]}"
+        await db.inventario_evento.update_one(
+            {"id_evento": solicitud.id_evento},
+            {
+                "$inc": {
+                    "stock_actual": -solicitud.cantidad_entradas,
+                    "cantidad_entrada_comprada": solicitud.cantidad_entradas
+                }
+            }
+        )
+        await db.reserva_entrada.insert_one({
+            "id_reserva": id_reserva,
+            "id_evento": solicitud.id_evento,
+            "id_usuario": solicitud.id_usuario,
+            "nombre_usuario": solicitud.nombre_comprador,
+            "correo_usuario": solicitud.correo_comprador,
+            "rol_usuario": "CLIENTE",
+            "cantidad_entrada": solicitud.cantidad_entradas,
+            "id_promocion": None,
+            "porcentaje_descuento": 0,
+            "monto_total": solicitud.precio_final,
+            "id_pago": None,
+            "estado_reserva": "CONSOLIDADO",
+            "fecha_creacion": datetime.utcnow(),
+            "fecha_expiracion": None
+        })
+
+    id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={id_entrada}"
+    nombre_evento = evento.get("nombre_evento") or f"Evento {solicitud.id_evento}"
+    fecha_evento = evento.get("fecha_evento") or "20 de Noviembre, 2026"
+    hora_evento = evento.get("hora_evento") or "20:00 hrs"
+    lugar_evento = evento.get("lugar_ingreso") or "Salon de Honor, Sede Central UV"
+
+    await db.entrada.insert_one({
+        "id_entrada": id_entrada,
+        "id_reserva": id_reserva,
+        "id_evento": solicitud.id_evento,
+        "nombre_evento": nombre_evento,
+        "lugar_ingreso": lugar_evento,
+        "id_usuario": solicitud.id_usuario,
+        "nombre_usuario": solicitud.nombre_comprador,
+        "correo_usuario": solicitud.correo_comprador,
+        "rol_usuario": "CLIENTE",
+        "tipo_acceso": "GENERAL",
+        "precio_final_pagado": solicitud.precio_final,
+        "estado_entrada": "EMITIDA",
+        "nombre_archivo_qr": f"{id_entrada}.png",
+        "qr_data": {
+            "url": qr_url,
+            "hash": uuid.uuid4().hex[:7]
+        },
+        "fecha_emision": datetime.utcnow()
+    })
+
+    # Registrar síncronamente en el microservicio de Check-in (MySQL)
+    registrado_checkin = await CheckinService.registrar_ticket_puerta(
+        id_entrada=id_entrada,
+        id_evento=solicitud.id_evento,
+        id_usuario=solicitud.id_usuario,
+        nombre_usuario=solicitud.nombre_comprador,
+        qr_data=id_entrada
+    )
+
+    return {
+        "idEntrada": id_entrada,
+        "idEvento": solicitud.id_evento,
+        "nombreEvento": nombre_evento,
+        "nombreComprador": solicitud.nombre_comprador,
+        "correoComprador": solicitud.correo_comprador,
+        "tipoAcceso": "Entrada Gratuita" if solicitud.precio_final == 0 else "Entrada General Oficial",
+        "precioFinal": solicitud.precio_final,
+        "cantidadEntradas": solicitud.cantidad_entradas,
+        "qrData": qr_url,
+        "fechaEvento": fecha_evento,
+        "horaEvento": hora_evento,
+        "lugarEvento": lugar_evento,
+        "fechaEmision": datetime.utcnow().strftime("%d-%m-%Y"),
+        "registradoEnCheckin": registrado_checkin
+    }
+
+
 @router.get(
     "/{id_ticket}", 
     tags=["Servicios Provistos (BE3) - Check-in"],
@@ -321,33 +542,6 @@ async def consultar_entrada_checkin(id_ticket: str):
             "id_usuario": entrada["id_usuario"],
             "rol_usuario": entrada.get("rol_usuario", "usuario").lower()
         }
-    }
-
-@router.get(
-    "/eventos/{id_evento}/stock", 
-    tags=["Servicios Provistos (BE3) - Panel Organizador"],
-    responses={
-        200: {"description": "Stock retornado exitosamente"},
-        404: {"description": "Evento no encontrado"},
-        500: {"description": "Error interno del servidor"}
-    }
-)
-async def consultar_stock_panel(id_evento: str):
-    """
-    ###  Propósito
-    Expone la disponibilidad exacta y real de un evento para que el Panel Organizador pueda auditar o validar lógicas de negocio (Soporte a Contrato Panel v3.0).
-    """
-    db = get_database()
-    if db is None:
-        raise HTTPException(status_code=500, detail="Servicio de base de datos no disponible.")
-        
-    evento = await db.inventario_evento.find_one({"id_evento": id_evento})
-    if not evento:
-        raise HTTPException(status_code=404, detail="Evento no encontrado.")
-        
-    return {
-        "id_evento": evento["id_evento"],
-        "stock": evento["stock_actual"]
     }
 
 # ==========================================
@@ -433,7 +627,9 @@ async def obtener_detalle_entrada(id_ticket: str):
     reserva = await db.reserva_entrada.find_one({"id_reserva": entrada.get("id_reserva")})
     id_evento = entrada.get("id_evento") or (reserva.get("id_evento", "") if reserva else "")
     qr_field = entrada.get("qr_data")
-    qr_val = qr_field.get("url") if isinstance(qr_field, dict) else (qr_field or f"https://storage.midominio.com/qr/{entrada.get('id_entrada')}.png")
+    qr_val = qr_field.get("url") if isinstance(qr_field, dict) else (qr_field or f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={entrada.get('id_entrada')}")
+    if isinstance(qr_val, str) and "storage.midominio.com" in qr_val:
+        qr_val = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={entrada.get('id_entrada')}"
 
     return {
         "id_entrada": entrada.get("id_entrada"),
@@ -487,7 +683,9 @@ async def obtener_qr_acceso(id_ticket: str):
     reserva = await db.reserva_entrada.find_one({"id_reserva": entrada.get("id_reserva")})
     id_evento = entrada.get("id_evento") or (reserva.get("id_evento", "") if reserva else "")
     qr_field = entrada.get("qr_data")
-    qr_val = qr_field.get("url") if isinstance(qr_field, dict) else (qr_field or f"https://storage.midominio.com/qr/{entrada['id_entrada']}.png")
+    qr_val = qr_field.get("url") if isinstance(qr_field, dict) else (qr_field or f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={entrada['id_entrada']}")
+    if isinstance(qr_val, str) and "storage.midominio.com" in qr_val:
+        qr_val = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={entrada['id_entrada']}"
 
     return {
         "id_entrada": entrada["id_entrada"],
