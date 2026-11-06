@@ -1,0 +1,31 @@
+# ============================================================================
+# docker-compose.yml — TicketU Front-end
+# ----------------------------------------------------------------------------
+# Este archivo levanta SOLO el front.
+#
+# El Gateway, RabbitMQ y los microservicios se levantan por separado.
+# Todos comparten la red externa "plataforma-eventos-net".
+#
+# NEXT_PUBLIC_GATEWAY_URL se pasa como build argument porque Next.js necesita
+# conocer su valor cuando ejecuta "npm run build".
+# ============================================================================
+
+services:
+  front:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8080}
+        # Módulo Pagos (Grupo 4)
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+        NEXT_PUBLIC_LOGIN_URL: ${NEXT_PUBLIC_LOGIN_URL:-}
+
+    ports:
+      - "3000:3000"
+
+    networks:
+      - plataforma-eventos-net
+
+networks:
+  plataforma-eventos-net:
+    external: true

@@ -1,0 +1,78 @@
+/*
+ * Estilos del módulo de Pagos (Grupo 4).
+ *
+ * Usa Tailwind SOLO para este módulo:
+ *  - sin "preflight" (el reseteo global de Tailwind), así no cambia los estilos del layout común
+ *    ni los de otros grupos;
+ *  - genera clases solo a partir de los archivos de src/modules/pagos (source(none) + @source).
+ * Las utilidades van sin capa (@layer) para que no las tapen las reglas globales de globals.css.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" source(none);
+@source "./";
+
+/* Tokens del estándar visual Ticket-U (documento "Checklist de Consistencia Visual"). */
+@theme {
+  --color-ticket-primary: #2F4374;
+  --color-ticket-secondary: #6B7A9A;
+  --color-ticket-bg: #FFFFFF;
+  --color-ticket-card: #F8F9FA;
+  --color-ticket-border: #D8DFF0;
+  --color-ticket-banner: #EEF1F8;
+  --color-ticket-hover: #2A3C68;
+
+  --color-ticket-exito: #1A6640;
+  --color-ticket-exito-bg: #E2F4EA;
+  --color-ticket-peligro: #B3261E;
+  --color-ticket-peligro-bg: #FDF0F2;
+  --color-ticket-info: #2F4374;
+  --color-ticket-info-bg: #EEF1F8;
+  --color-ticket-inactivo-bg: #F0F0F5;
+
+  --shadow-tarjeta: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 8px 24px rgba(0, 0, 0, 0.15);
+
+  /* Mismas familias que usa el Header común (Inter y Poppins) */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-heading: "Poppins", "Inter", system-ui, sans-serif;
+}
+
+/* Base del módulo (equivale al body/h1-h3 del front propio de Pagos, pero acotado a .modulo-pagos) */
+.modulo-pagos {
+  font-family: var(--font-sans);
+  color: var(--color-ticket-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.modulo-pagos h1,
+.modulo-pagos h2,
+.modulo-pagos h3 {
+  line-height: 1.2;
+  margin: 0;
+}
+
+.modulo-pagos p {
+  margin: 0;
+}
+
+.modulo-pagos button,
+.modulo-pagos input {
+  font: inherit;
+}
+
+/* Foco visible al navegar con teclado */
+.modulo-pagos :focus-visible {
+  outline: 2px solid var(--color-ticket-primary);
+  outline-offset: 2px;
+}
+
+/* Campos de tarjeta de Stripe Elements con el mismo estilo que los inputs */
+.modulo-pagos .StripeElement--focus {
+  border-color: var(--color-ticket-primary);
+  box-shadow: 0 0 0 2px var(--color-ticket-primary);
+}
+
+.modulo-pagos .StripeElement--invalid {
+  border-color: var(--color-ticket-peligro);
+}

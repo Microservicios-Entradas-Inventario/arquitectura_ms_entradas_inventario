@@ -1,0 +1,1151 @@
+.catalogo {
+    /* Variables de Color */
+    --color-primario: #2F4374;
+    --color-primario-hover: #26365d;
+    --color-secundario: #6B7A9A;
+    --color-borde: #D8DFF0;
+    --color-fondo: #FFFFFF;
+    --color-fondo-panel: #F8F9FA;
+    --color-info: #EEF1F8;
+    --color-info-hover: #dce3f0;
+    --color-exito-texto: #1A6640;
+    --color-exito-fondo: #E2F4EA;
+    --color-peligro-texto: #B3261E;
+    --color-peligro-fondo: #FDF0F2;
+    --color-inactivo-texto: #6B7A9A;
+    --color-inactivo-fondo: #F0F0F5;
+    --color-fondo-pill-calificacion: rgba(255, 255, 255, 0.9);
+
+    /* Radios */
+    --radio-boton: 8px;
+    --radio-input: 8px;
+    --radio-tarjeta: 12px;
+    --radio-pill: 999px;
+
+    /* Bordes y Sombras */
+    --borde-estandar: 1px solid var(--color-borde);
+    --sombra-tarjeta: 0 2px 8px rgba(47, 67, 116, 0.08);
+    --sombra-tarjeta-hover: 0 4px 12px rgba(47, 67, 116, 0.14);
+    --sombra-menu: 0 4px 16px rgba(47, 67, 116, 0.12);
+
+    /* Familias Tipográficas */
+    --font-familia-titulos: var(--font-poppins), sans-serif;
+    --font-familia-cuerpo: var(--font-inter), sans-serif;
+
+    font-family: var(--font-familia-cuerpo);
+    color: var(--color-primario);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 16px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+/* Título */
+.titulo {
+    font-family: var(--font-familia-titulos);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-primario);
+    margin: 0 0 24px 0;
+}
+
+/* Barra Superior */
+.barraSuperior {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 720px;
+    margin: 0 auto 24px auto;
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    .barraSuperior {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* Buscador */
+.buscadorContenedor {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.buscadorIcono {
+    position: absolute;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-secundario);
+    pointer-events: none;
+}
+
+.buscadorInput {
+    width: 100%;
+    height: 40px;
+    min-height: 44px;
+    padding: 0 16px 0 40px;
+    border: var(--borde-estandar);
+    border-radius: var(--radio-input);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    color: var(--color-primario);
+    background-color: var(--color-fondo);
+    box-sizing: border-box;
+}
+
+.buscadorInput:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+/* Filtros Menú */
+.filtrosContenedor {
+    position: relative;
+    display: inline-block;
+}
+
+.botonFiltros {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 16px;
+    background-color: var(--color-info);
+    color: var(--color-primario);
+    border: var(--borde-estandar);
+    border-radius: var(--radio-boton);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: background-color 150ms ease;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.botonFiltros:hover {
+    background-color: var(--color-info-hover);
+}
+
+.botonFiltros:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+.menuDesplegable {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background-color: var(--color-fondo);
+    border: var(--borde-estandar);
+    border-radius: var(--radio-boton);
+    box-shadow: var(--sombra-menu);
+    padding: 16px;
+    z-index: 100;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-sizing: border-box;
+}
+
+.opcionFiltro {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-primario);
+    cursor: pointer;
+    user-select: none;
+}
+
+.opcionDeshabilitada {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.checkbox {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    min-height: 18px;
+    cursor: pointer;
+    accent-color: var(--color-primario);
+}
+
+.opcionDeshabilitada .checkbox {
+    cursor: not-allowed;
+}
+
+.textoProximamente {
+    color: var(--color-secundario);
+    font-size: 12px;
+    margin-left: auto;
+}
+
+.rangoPrecioInputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 26px;
+    padding-bottom: 8px;
+}
+
+.inputPrecio {
+    height: 40px;
+    width: 90px;
+    padding: 0 8px;
+    border: var(--borde-estandar);
+    border-radius: var(--radio-input);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    color: var(--color-primario);
+    background-color: var(--color-fondo);
+    box-sizing: border-box;
+}
+
+.inputPrecio:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+.separadorPrecio {
+    color: var(--color-secundario);
+    font-size: 14px;
+}
+
+.botonLimpiarFiltros {
+    background: none;
+    border: none;
+    border-top: var(--borde-estandar);
+    margin-top: 8px;
+    padding-top: 12px;
+    color: var(--color-primario);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-align: left;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+.botonLimpiarFiltros:hover {
+    color: var(--color-primario-hover);
+}
+
+.botonLimpiarFiltros:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+/* Contador */
+.contadorEventos {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    color: var(--color-secundario);
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+/* Grilla */
+.grilla {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 1024px) {
+    .grilla {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .grilla {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Tarjeta Evento */
+.card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-fondo);
+    border: var(--borde-estandar);
+    border-left-width: 4px;
+    border-left-style: solid;
+    border-radius: var(--radio-tarjeta);
+    box-shadow: var(--sombra-tarjeta);
+    padding: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 150ms ease, box-shadow 150ms ease;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sombra-tarjeta-hover);
+}
+
+.card:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+.cardDisponible {
+    border-left-color: var(--color-exito-texto);
+}
+
+.cardAgotado {
+    border-left-color: var(--color-peligro-texto);
+}
+
+.cardPasado {
+    border-left-color: var(--color-inactivo-texto);
+}
+
+.cardCancelado {
+    border-left-color: var(--color-peligro-texto);
+}
+
+.imagenContenedor {
+    position: relative;
+    width: 100%;
+    height: 160px;
+    border-radius: var(--radio-input);
+    overflow: hidden;
+    margin-bottom: 8px;
+    background-color: var(--color-info);
+}
+
+.imagen {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    border-radius: var(--radio-input);
+    display: block;
+}
+
+.imagenAtenuada {
+    opacity: 0.6;
+}
+
+.imagenFallback {
+    width: 100%;
+    height: 160px;
+    background-color: var(--color-info);
+    border-radius: var(--radio-input);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-secundario);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.badgeEstado {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-family: var(--font-familia-cuerpo);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 4px 8px;
+    border-radius: var(--radio-pill);
+    z-index: 2;
+}
+
+.badgeAgotado {
+    background-color: var(--color-peligro-fondo);
+    color: var(--color-peligro-texto);
+}
+
+.badgePasado {
+    background-color: var(--color-inactivo-fondo);
+    color: var(--color-inactivo-texto);
+}
+
+.badgeCancelado {
+    background-color: var(--color-peligro-fondo);
+    color: var(--color-peligro-texto);
+}
+
+.pillCalificacion {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background-color: var(--color-fondo-pill-calificacion);
+    color: var(--color-primario);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 4px 8px;
+    border-radius: var(--radio-pill);
+    z-index: 2;
+}
+
+.tarjetaInfo {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.tarjetaTitulo {
+    font-family: var(--font-familia-titulos);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-primario);
+    margin: 4px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: calc(16px * 1.2);
+}
+
+.tarjetaDetalle {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--color-secundario);
+    margin: 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tarjetaPrecio {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--color-primario);
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+.precioGratis {
+    color: var(--color-exito-texto);
+}
+
+/* Paginación */
+.paginacion {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 32px 0;
+}
+
+.botonPaginacion {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: var(--borde-estandar);
+    border-radius: var(--radio-boton);
+    background-color: var(--color-fondo);
+    color: var(--color-primario);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 150ms ease;
+}
+
+.botonPaginacion:hover:not(:disabled) {
+    background-color: var(--color-info);
+}
+
+.botonPaginacion:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.botonPaginacion:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+.textoPaginacion {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-primario);
+}
+
+/* Sin Resultados */
+.sinResultados {
+    text-align: center;
+    padding: 48px 16px;
+    background-color: var(--color-fondo-panel);
+    border-radius: var(--radio-tarjeta);
+    border: var(--borde-estandar);
+    margin: 32px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.textoSinResultados {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--color-secundario);
+    margin: 0;
+}
+
+.botonReset {
+    height: 40px;
+    min-height: 44px;
+    padding: 0 24px;
+    border: none;
+    border-radius: var(--radio-boton);
+    background-color: var(--color-primario);
+    color: var(--color-fondo);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 150ms ease;
+}
+
+.botonReset:hover {
+    background-color: var(--color-primario-hover);
+}
+
+.botonReset:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+/* Error de Carga */
+.errorCarga {
+    background-color: var(--color-peligro-fondo);
+    color: var(--color-peligro-texto);
+    border-radius: var(--radio-tarjeta);
+    padding: 24px;
+    text-align: center;
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    margin: 24px 0;
+    border: var(--borde-estandar);
+    border-color: var(--color-peligro-texto);
+}
+
+/* Detalle de Evento */
+.detalleContenedor {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.linkVolver {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    min-width: 44px;
+    color: var(--color-primario);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 16px;
+    border-radius: var(--radio-boton);
+}
+
+.linkVolver:hover {
+    text-decoration: underline;
+}
+
+.linkVolver:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+.bannerImagen {
+    width: 100%;
+    object-fit: cover;
+}
+
+@media (max-width: 640px) {
+    .bannerImagen {
+        height: 200px !important;
+    }
+}
+
+.cabeceraDetalle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-top: 24px;
+    gap: 8px;
+}
+
+.tituloDetalle {
+    font-family: var(--font-familia-titulos);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-primario);
+    margin: 0;
+}
+
+.badgeEstadoDetalle {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 4px 12px;
+    border-radius: var(--radio-pill);
+}
+
+.categoriaDetalle {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-secundario);
+}
+
+.panelInfo {
+    background-color: var(--color-fondo-panel);
+    border: var(--borde-estandar);
+    border-radius: var(--radio-tarjeta);
+    padding: 24px;
+    margin-top: 24px;
+    box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+    .panelInfo {
+        padding: 16px;
+    }
+}
+
+.subtituloDetalle {
+    font-family: var(--font-familia-titulos);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-primario);
+    margin: 0 0 12px 0;
+}
+
+.descripcionTexto {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--color-primario);
+    margin: 0;
+}
+
+.separadorPanel {
+    border: none;
+    border-top: var(--borde-estandar);
+    margin: 20px 0;
+}
+
+.listaDatos {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.filaDato {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+}
+
+.iconoDato {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primario);
+}
+
+.etiquetaDato {
+    font-weight: 600;
+    color: var(--color-primario);
+    margin: 0;
+}
+
+.valorDato {
+    font-weight: 400;
+    color: var(--color-primario);
+    margin: 0;
+}
+
+.bloquesOtrosGrupos {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.seccionCompra {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-top: 32px;
+    margin-bottom: 32px;
+}
+
+.textoCompraEncabezado {
+    font-family: var(--font-familia-titulos);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-primario);
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.botonCompra {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    min-height: 44px;
+    padding: 0 32px;
+    border-radius: var(--radio-boton);
+    background-color: var(--color-primario);
+    color: var(--color-fondo);
+    font-family: var(--font-familia-titulos);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+    margin-top: 12px;
+    border: none;
+    transition: background-color 150ms ease;
+    box-sizing: border-box;
+}
+
+.botonCompra:hover:not(:disabled) {
+    background-color: var(--color-primario-hover);
+}
+
+.botonCompra:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+.botonCompraDeshabilitado {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.textoEstadoAviso {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-secundario);
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
+.errorDetalle {
+    background-color: var(--color-peligro-fondo);
+    color: var(--color-peligro-texto);
+    border-radius: var(--radio-tarjeta);
+    padding: 24px;
+    text-align: center;
+    margin-top: 24px;
+    border: var(--borde-estandar);
+    border-color: var(--color-peligro-texto);
+}
+
+.errorDetalleTexto {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    margin: 0 0 16px 0;
+}
+
+.linkVolverError {
+    display: inline-flex;
+    align-items: center;
+    color: var(--color-peligro-texto);
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: underline;
+    border-radius: var(--radio-boton);
+}
+
+.linkVolverError:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}
+
+/* Calificación en Detalle */
+.calificacionDetalle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.estrellasContenedor {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.calificacionPromedio {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-primario);
+}
+
+.calificacionTotal {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--color-secundario);
+}
+
+.sinCalificaciones {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-secundario);
+}
+
+.etiquetaCanceladoPill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-peligro-fondo);
+    color: var(--color-peligro-texto);
+    font-family: var(--font-familia-titulos);
+    font-size: 14px;
+    font-weight: 600;
+    height: 40px;
+    padding: 0 24px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+}
+
+/* Resumen Reseñas (HU6) */
+.resumenResenasContainer {
+    display: flex;
+    flex-direction: column;
+}
+
+.resumenResenasBarra {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.resumenResenasLinea {
+    flex: 1;
+    height: 1px;
+    background-color: var(--color-borde);
+}
+
+.resumenResenasBotonToggle {
+    background-color: var(--color-fondo);
+    border: 1px solid var(--color-borde);
+    border-radius: 999px;
+    padding: 8px 24px;
+    min-height: 44px;
+    font-family: var(--font-familia-titulos);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-primario);
+    cursor: pointer;
+    margin: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.resumenResenasBotonToggle:hover {
+    background-color: var(--color-info);
+}
+
+.resumenResenasContenido {
+    margin-top: 32px;
+}
+
+.resumenResenasCabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+@media (max-width: 768px) {
+    .resumenResenasCabecera {
+        flex-direction: column;
+    }
+}
+
+.resumenResenasTitulos {
+    flex: 1;
+}
+
+.resumenResenasH2 {
+    font-family: var(--font-familia-titulos);
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--color-primario);
+    margin: 0 0 8px 0;
+}
+
+.resumenResenasDescripcion {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    color: var(--color-secundario);
+    margin: 0;
+}
+
+.resumenResenasTarjeta {
+    background-color: var(--color-fondo);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-tarjeta);
+    box-shadow: var(--sombra-tarjeta);
+    overflow: hidden;
+    max-width: 340px;
+    display: flex;
+}
+
+.resumenResenasTarjetaImagen {
+    width: 120px;
+    height: 110px;
+    flex-shrink: 0;
+}
+
+.resumenResenasTarjetaDatos {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+}
+
+.resumenResenasPromedioFila {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.resumenResenasPromedioNum {
+    font-family: var(--font-familia-titulos);
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--color-primario);
+    line-height: 1;
+}
+
+.resumenResenasPromedioTotal {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    color: var(--color-secundario);
+}
+
+.resumenResenasBasadoEn {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 12px;
+    color: var(--color-secundario);
+    margin-top: 8px;
+}
+
+.resumenResenasLista {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.resumenResenasItem {
+    background-color: var(--color-fondo);
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-tarjeta);
+    padding: 16px 20px;
+}
+
+.resumenResenasItemCabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.resumenResenasItemAvatarFila {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.resumenResenasAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--color-info);
+    color: var(--color-primario);
+    font-family: var(--font-familia-titulos);
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.resumenResenasItemDatosUser {
+    display: flex;
+    flex-direction: column;
+}
+
+.resumenResenasNombre {
+    font-family: var(--font-familia-cuerpo);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-primario);
+}
+
+.resumenResenasFecha {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 12px;
+    color: var(--color-secundario);
+    margin-top: 2px;
+}
+
+.resumenResenasEstrellasContainer {
+    display: flex;
+    align-items: center;
+}
+
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.resumenResenasComentario {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--color-primario);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.resumenResenasBotonCtaContainer {
+    margin-top: 32px;
+    display: flex;
+    justify-content: center;
+}
+
+.resumenResenasVacio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px;
+    text-align: center;
+}
+
+.resumenResenasVacioTitulo {
+    font-family: var(--font-familia-titulos);
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--color-primario);
+    margin: 0 0 4px 0;
+}
+
+.resumenResenasVacioDesc {
+    font-family: var(--font-familia-cuerpo);
+    font-size: 14px;
+    color: var(--color-secundario);
+    margin: 0 0 16px 0;
+}
+
+.botonPrincipal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 24px;
+    border-radius: var(--radio-boton);
+    background-color: var(--color-primario);
+    color: var(--color-fondo);
+    font-family: var(--font-familia-titulos);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: background-color 150ms ease;
+    box-sizing: border-box;
+}
+
+.botonPrincipal:hover {
+    background-color: var(--color-primario-hover);
+}
+
+.botonPrincipal:focus-visible {
+    outline: 2px solid var(--color-primario);
+    outline-offset: 2px;
+}

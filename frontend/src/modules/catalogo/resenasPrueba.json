@@ -1,0 +1,253 @@
+{
+  "evt-101": {
+    "id_evento": "evt-101",
+    "promedio": 4.8,
+    "total_resenas": 12,
+    "resenas": [
+      {
+        "usuario_id": "usr-501",
+        "nombre_usuario": "Diego Morales",
+        "calificacion": 5,
+        "comentario": "Excelente feria de innovación, me encantó ver los proyectos de las distintas escuelas de ingeniería. La organización estuvo impecable y los expositores tenían mucha disposición para explicar sus prototipos. Además, los stands estaban muy bien distribuidos, lo que permitía recorrer todo el auditorio sin aglomeraciones excesivas. ¡Totalmente recomendado para los próximos años!",
+        "fecha": "2026-09-25T14:30:00Z"
+      },
+      {
+        "usuario_id": "usr-502",
+        "nombre_usuario": "Camila Silva",
+        "calificacion": 5,
+        "comentario": "Muy buenos stands, la charla de apertura estuvo buenísima.",
+        "fecha": "2026-09-15T10:15:00Z"
+      },
+      {
+        "usuario_id": "usr-503",
+        "nombre_usuario": "Sebastián Rojas",
+        "calificacion": 4,
+        "comentario": "Interesante muestra. Faltó un poco más de tiempo para ver todo.",
+        "fecha": "2026-09-02T16:45:00Z"
+      }
+    ]
+  },
+  "evt-102": {
+    "id_evento": "evt-102",
+    "promedio": 4.2,
+    "total_resenas": 5,
+    "resenas": [
+      {
+        "usuario_id": "usr-504",
+        "nombre_usuario": "Valentina Soto",
+        "calificacion": 4,
+        "comentario": "Estuvo buena la fiesta, la música prendió harto, aunque la fila para entrar estaba un poco lenta al principio. La barra funcionó bastante bien y el ambiente general era muy relajado. El lugar, El Huevo, nunca defrauda para este tipo de eventos, tiene el espacio perfecto para bailar tranquilos. Lo pasamos súper.",
+        "fecha": "2026-09-28T11:00:00Z"
+      },
+      {
+        "usuario_id": "usr-505",
+        "nombre_usuario": "Ignacio Pérez",
+        "calificacion": 5,
+        "comentario": "Tremendo carrete, increíble para cerrar el semestre.",
+        "fecha": "2026-09-10T09:30:00Z"
+      },
+      {
+        "usuario_id": "usr-506",
+        "nombre_usuario": "Javiera Muñoz",
+        "calificacion": 4,
+        "fecha": "2026-08-20T18:20:00Z"
+      }
+    ]
+  },
+  "evt-103": {
+    "id_evento": "evt-103",
+    "promedio": 5.0,
+    "total_resenas": 45,
+    "resenas": [
+      {
+        "usuario_id": "usr-507",
+        "nombre_usuario": "Matías Castro",
+        "calificacion": 5,
+        "comentario": "¡El mejor torneo de Valorant en el que he participado dentro de la u! Todo fluyó sin problemas, cero lag en las partidas, el casteo estuvo a nivel profesional y el ambiente de competencia sana se sintió desde el primer match. La final estuvo de infarto, se nota que le pusieron mucho esfuerzo a organizar todo.",
+        "fecha": "2026-09-22T20:10:00Z"
+      },
+      {
+        "usuario_id": "usr-508",
+        "nombre_usuario": "Fernanda Tapia",
+        "calificacion": 5,
+        "comentario": "Se pasaron, todo súper fluido y buenos premios.",
+        "fecha": "2026-09-18T15:00:00Z"
+      },
+      {
+        "usuario_id": "usr-509",
+        "nombre_usuario": "Nicolás Vargas",
+        "calificacion": 5,
+        "comentario": "Excelente organización, los pc andaban perfectos.",
+        "fecha": "2026-09-05T12:45:00Z"
+      }
+    ]
+  },
+  "evt-105": {
+    "id_evento": "evt-105",
+    "promedio": 3.9,
+    "total_resenas": 18,
+    "resenas": [
+      {
+        "usuario_id": "usr-510",
+        "nombre_usuario": "Paula Reyes",
+        "calificacion": 4,
+        "comentario": "El congreso estuvo interesante, las ponencias sobre investigación social fueron de alto nivel, pero los horarios se atrasaron bastante. Sería ideal que para la próxima edición mejoren la gestión del tiempo entre cada charla, porque muchas veces los expositores se extendían más de la cuenta y nos quedábamos sin pausa para el café.",
+        "fecha": "2026-09-27T10:05:00Z"
+      },
+      {
+        "usuario_id": "usr-511",
+        "nombre_usuario": "Cristóbal Díaz",
+        "calificacion": 4,
+        "comentario": "Buenas temáticas, pero la acústica del lugar no ayudó mucho.",
+        "fecha": "2026-09-12T14:30:00Z"
+      },
+      {
+        "usuario_id": "usr-512",
+        "nombre_usuario": "Antonia Flores",
+        "calificacion": 3,
+        "comentario": "Interesante, aunque esperaba más mesas de debate.",
+        "fecha": "2026-08-25T11:20:00Z"
+      }
+    ]
+  },
+  "evt-107": {
+    "id_evento": "evt-107",
+    "promedio": 4.6,
+    "total_resenas": 31,
+    "resenas": [
+      {
+        "usuario_id": "usr-513",
+        "nombre_usuario": "Benjamín Orellana",
+        "calificacion": 5,
+        "comentario": "Muy buena corrida, la ruta estaba bien señalizada y hubo varios puntos de hidratación. Además, el kit de participación estuvo bastante completo. Es súper motivante ver a tanta gente reunida haciendo deporte. Ojalá se sigan repitiendo estas iniciativas para fomentar la vida sana en la comunidad universitaria. ¡Excelente domingo deportivo!",
+        "fecha": "2026-09-26T09:15:00Z"
+      },
+      {
+        "usuario_id": "usr-514",
+        "nombre_usuario": "Isidora Castillo",
+        "calificacion": 4,
+        "comentario": "Bonita experiencia, todo súper ordenado.",
+        "fecha": "2026-09-08T13:40:00Z"
+      },
+      {
+        "usuario_id": "usr-515",
+        "nombre_usuario": "Tomás Herrera",
+        "calificacion": 5,
+        "comentario": "Genial circuito, me encantó participar.",
+        "fecha": "2026-08-15T17:50:00Z"
+      }
+    ]
+  },
+  "evt-110": {
+    "id_evento": "evt-110",
+    "promedio": 4.3,
+    "total_resenas": 8,
+    "resenas": [
+      {
+        "usuario_id": "usr-601",
+        "nombre_usuario": "Ignacio Fuentealba",
+        "calificacion": 5,
+        "comentario": "Partidos muy parejos y buen ambiente en las graderías. La final se definió en los últimos minutos y la barra de cada facultad le puso mucha energía. Se notó el esfuerzo de la organización con los horarios y el arbitraje; ojalá se repita el próximo semestre.",
+        "fecha": "2026-09-27T20:10:00Z"
+      },
+      {
+        "usuario_id": "usr-602",
+        "nombre_usuario": "Javiera Sepúlveda",
+        "calificacion": 4,
+        "comentario": "Muy entretenido, aunque faltaron asientos para el público.",
+        "fecha": "2026-09-24T18:30:00Z"
+      },
+      {
+        "usuario_id": "usr-603",
+        "nombre_usuario": "Matías Contreras",
+        "calificacion": 4,
+        "comentario": "Buen nivel de los equipos. Mejoraría la difusión del fixture.",
+        "fecha": "2026-09-21T16:45:00Z"
+      }
+    ]
+  },
+  "evt-111": {
+    "id_evento": "evt-111",
+    "promedio": 4.9,
+    "total_resenas": 52,
+    "resenas": [
+      {
+        "usuario_id": "usr-604",
+        "nombre_usuario": "Fernanda Riquelme",
+        "calificacion": 5,
+        "comentario": "Una noche increíble para cerrar el año. La cena estuvo muy bien servida, la banda en vivo tocó un repertorio para todos los gustos y la pista no se vació en ningún momento. El lugar era elegante y la organización cumplió los horarios. Totalmente recomendable.",
+        "fecha": "2026-09-26T22:05:00Z"
+      },
+      {
+        "usuario_id": "usr-605",
+        "nombre_usuario": "Benjamín Aravena",
+        "calificacion": 5,
+        "comentario": "La mejor gala a la que he ido en la universidad. Volvería sin dudarlo.",
+        "fecha": "2026-09-15T19:20:00Z"
+      },
+      {
+        "usuario_id": "usr-606",
+        "nombre_usuario": "Constanza Olivares",
+        "calificacion": 5,
+        "comentario": "Excelente música y muy buena atención del personal.",
+        "fecha": "2026-09-02T21:40:00Z"
+      }
+    ]
+  },
+  "evt-112": {
+    "id_evento": "evt-112",
+    "promedio": 4.7,
+    "total_resenas": 27,
+    "resenas": [
+      {
+        "usuario_id": "usr-607",
+        "nombre_usuario": "Tomás Cáceres",
+        "calificacion": 5,
+        "comentario": "Muy buena selección de películas latinoamericanas y la pantalla se veía excelente incluso con el viento. Se agradece que la entrada sea liberada; llegó mucha gente del barrio y de otras universidades. Solo recomendaría llevar una manta porque en la noche refresca bastante.",
+        "fecha": "2026-09-25T23:15:00Z"
+      },
+      {
+        "usuario_id": "usr-608",
+        "nombre_usuario": "Daniela Espinoza",
+        "calificacion": 5,
+        "comentario": "Una experiencia distinta y muy bien organizada en el Parque Cultural.",
+        "fecha": "2026-09-21T20:00:00Z"
+      },
+      {
+        "usuario_id": "usr-609",
+        "nombre_usuario": "Vicente Paredes",
+        "calificacion": 4,
+        "comentario": "Buenas películas, aunque el sonido se escuchaba bajo en la parte de atrás.",
+        "fecha": "2026-09-19T12:30:00Z"
+      }
+    ]
+  },
+  "evt-114": {
+    "id_evento": "evt-114",
+    "promedio": 4.8,
+    "total_resenas": 14,
+    "resenas": [
+      {
+        "usuario_id": "usr-610",
+        "nombre_usuario": "Catalina Muñoz",
+        "calificacion": 5,
+        "comentario": "Torneo muy bien armado: bracket claro, pantallas funcionando y partidas a tiempo. Se armó una comunidad muy buena entre carreras y hasta hubo gente que llegó solo a mirar. Los organizadores respondieron rápido cuando hubo problemas con un control. Esperando la próxima edición.",
+        "fecha": "2026-09-23T19:50:00Z"
+      },
+      {
+        "usuario_id": "usr-611",
+        "nombre_usuario": "Joaquín Salinas",
+        "calificacion": 5,
+        "comentario": "Muy entretenido y competitivo, con buen ambiente.",
+        "fecha": "2026-09-12T17:10:00Z"
+      },
+      {
+        "usuario_id": "usr-612",
+        "nombre_usuario": "Antonia Bustos",
+        "calificacion": 4,
+        "comentario": "Buena organización, pero las rondas eliminatorias se alargaron un poco.",
+        "fecha": "2026-08-28T15:25:00Z"
+      }
+    ]
+  }
+}

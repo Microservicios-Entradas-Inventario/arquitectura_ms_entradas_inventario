@@ -1,0 +1,16 @@
+export const notificaciones_design = {
+  color_superficie: "#FFFFFF",
+  color_banner: "#EEF1F8",
+  color_texto_primario: "#2F4374",
+  color_texto_secundario: "#6B7A9A",
+  color_acento: "#2F4374",
+  color_exito_texto: "#1A6640",
+  color_exito_fondo: "#E2F4EA",
+  color_peligro_texto: "#B3261E",
+  color_peligro_fondo: "#FDF0F2",
+  color_borde: "#D8DFF0",
+  tipografia_titulos: "Poppins, sans-serif",
+  tipografia_interfaz: "Inter, sans-serif",
+  radio_tarjeta: "12px",
+  sombra_tarjeta: "0 8px 24px rgba(47, 67, 116, 0.08)",
+} as const;

@@ -1,0 +1,378 @@
+/* ============================================================================
+   Design Tokens & CSS Variables - TicketU (Design System Oficial)
+   Acordado en Documentacion Front_End.docx (Checklist de Consistencia Visual)
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap');
+
+.entradasModuleScope {
+  /* Paleta de Colores Oficial */
+  --color-primary: #2F4374;
+  --color-primary-hover: #24355D;
+  --color-secondary: #6B7A9A;
+  --color-bg-main: #FFFFFF;
+  --color-bg-panel: #F8F9FA;
+  --color-surface: #FFFFFF;
+  --color-border: #D8DFF0;
+  --color-banner: #EEF1F8;
+
+  /* Colores de Estado Semánticos */
+  --color-success-text: #1A6640;
+  --color-success-bg: #E2F4EA;
+  --color-danger-text: #B3261E;
+  --color-danger-bg: #FDF0F2;
+  --color-info-text: #2F4374;
+  --color-info-bg: #EEF1F8;
+  --color-muted-text: #6B7A9A;
+  --color-muted-bg: #F0F0F5;
+
+  /* Tipografías */
+  --font-titles: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Tamaños de Fuente */
+  --text-h1: 28px;
+  --text-h2: 20px;
+  --text-h3: 16px;
+  --text-body: 14px;
+  --text-caption: 12px;
+  --text-button: 14px;
+
+  /* Espaciado Base 8px */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-48: 48px;
+
+  /* Radios de Esquinas */
+  --radius-button: 8px;
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+
+  /* Sombras y Elevaciones */
+  --shadow-card: 0 2px 10px rgba(47, 67, 116, 0.08);
+  --shadow-modal: 0 10px 30px rgba(0, 0, 0, 0.2);
+
+  font-family: var(--font-body);
+  color: var(--color-primary);
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   Layout y Estructura
+   ============================================================================ */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-16);
+}
+
+.titleH1 {
+  font-family: var(--font-titles);
+  font-size: var(--text-h1);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0 0 var(--space-8) 0;
+  line-height: 1.2;
+}
+
+.titleH2 {
+  font-family: var(--font-titles);
+  font-size: var(--text-h2);
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0 0 var(--space-8) 0;
+  line-height: 1.2;
+}
+
+.titleH3 {
+  font-family: var(--font-titles);
+  font-size: var(--text-h3);
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.textMuted {
+  color: var(--color-secondary);
+  font-size: var(--text-body);
+  margin: 0;
+}
+
+.bannerContext {
+  background-color: var(--color-banner);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--space-16) var(--space-24);
+  margin-bottom: var(--space-24);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+}
+
+/* ============================================================================
+   Tarjetas (Cards)
+   ============================================================================ */
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--space-24);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cardInteractive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(47, 67, 116, 0.12);
+}
+
+/* ============================================================================
+   Badges / Pills
+   ============================================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badgeSuccess {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.badgeDanger {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.badgeInfo {
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+.badgeMuted {
+  background-color: var(--color-muted-bg);
+  color: var(--color-muted-text);
+}
+
+/* ============================================================================
+   Botones (Segun Design System: 40px alto, 8px radio, #2F4374)
+   ============================================================================ */
+.buttonPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  height: 40px;
+  min-height: 40px;
+  padding: 0 var(--space-24);
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-button);
+  font-family: var(--font-body);
+  font-size: var(--text-button);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  text-decoration: none;
+}
+
+.buttonPrimary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.buttonPrimary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.buttonPrimary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.buttonSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  height: 40px;
+  padding: 0 var(--space-20);
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-body);
+  font-size: var(--text-button);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+}
+
+.buttonSecondary:hover:not(:disabled) {
+  background-color: var(--color-banner);
+  border-color: var(--color-primary);
+}
+
+/* ============================================================================
+   Stepper / Contador de Entradas
+   ============================================================================ */
+.stepperContainer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.stepperBtn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--color-border);
+  background-color: #FFFFFF;
+  color: var(--color-primary);
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.stepperBtn:hover:not(:disabled) {
+  background-color: var(--color-banner);
+  border-color: var(--color-primary);
+}
+
+.stepperBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stepperValue {
+  font-family: var(--font-titles);
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: center;
+  color: var(--color-primary);
+}
+
+/* ============================================================================
+   Alertas y Mensajes
+   ============================================================================ */
+.alert {
+  padding: var(--space-16);
+  border-radius: var(--radius-button);
+  font-size: var(--text-body);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12, 12px);
+  margin-top: var(--space-16);
+}
+
+.alertDanger {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border: 1px solid rgba(179, 38, 30, 0.2);
+}
+
+.alertSuccess {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid rgba(26, 102, 64, 0.2);
+}
+
+.alertInfo {
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+  border: 1px solid var(--color-border);
+}
+
+/* ============================================================================
+   Modales (480px pequeño / 720px grande, overlay 40%)
+   ============================================================================ */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-16);
+  backdrop-filter: blur(2px);
+}
+
+.modalContent {
+  background: #FFFFFF;
+  border-radius: var(--radius-card);
+  width: 100%;
+  max-width: 520px;
+  padding: var(--space-32);
+  box-shadow: var(--shadow-modal);
+  position: relative;
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ============================================================================
+   Estilos de Impresión (@media print)
+   Imprime estrictamente el ticket de acceso oficial, ocultando el resto de la página.
+   ============================================================================ */
+@media print {
+  .noPrint {
+    display: none !important;
+  }
+
+  .entradasModuleScope {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .ticketPrintable {
+    border: 2px solid #000000 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    margin: 0 auto !important;
+    max-width: 580px !important;
+  }
+}
+
