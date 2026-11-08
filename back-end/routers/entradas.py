@@ -423,10 +423,12 @@ async def emitir_entrada_directa_frontend(solicitud: EmisionDirectaRequest):
     id_reserva = solicitud.id_reserva
 
     # Si no viene de una reserva previa (ej. evento gratuito), descontar stock y crear reserva consolidada
+    nuevo_stock = stock_actual
     if not id_reserva:
         if solicitud.cantidad_entradas > stock_actual:
             raise HTTPException(status_code=400, detail="Stock insuficiente para emitir la entrada.")
         id_reserva = f"res-{uuid.uuid4().hex[:8]}"
+        nuevo_stock = stock_actual - solicitud.cantidad_entradas
         await db.inventario_evento.update_one(
             {"id_evento": solicitud.id_evento},
             {
@@ -452,6 +454,12 @@ async def emitir_entrada_directa_frontend(solicitud: EmisionDirectaRequest):
             "fecha_creacion": datetime.utcnow(),
             "fecha_expiracion": None
         })
+        # Sincronizar el nuevo stock en el microservicio de Catálogo de Eventos (Contrato I8)
+        await CatalogoService.actualizar_stock_catalogo(
+            solicitud.id_evento,
+            nuevo_stock,
+            "token-frontend-ticketu"
+        )
 
     id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={id_entrada}"

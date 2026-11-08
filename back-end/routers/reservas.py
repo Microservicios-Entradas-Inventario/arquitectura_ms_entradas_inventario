@@ -11,6 +11,7 @@ from services.auth_service import AuthService
 from services.pagos_service import PagosService
 from services.notificaciones_service import NotificacionesService
 from services.checkin_service import CheckinService
+from services.catalogo_service import CatalogoService
 from services.broker_service import BrokerService
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
@@ -158,6 +159,13 @@ async def liberar_reserva_y_anular_pago(
             {"id_evento": id_evento},
             {"$inc": {"stock_actual": cantidad, "cantidad_entrada_reservada": -cantidad}}
         )
+        evento_actualizado = await db.inventario_evento.find_one({"id_evento": id_evento})
+        if evento_actualizado:
+            await CatalogoService.actualizar_stock_catalogo(
+                id_evento,
+                evento_actualizado.get("stock_actual", 0),
+                "token-liberacion-reserva"
+            )
 
     resultado_pagos = None
     if anular_en_pagos and id_pago:
@@ -242,6 +250,7 @@ async def crear_reserva_hold(
             detail=f"Stock insuficiente. Disponibles: {stock_disponible}, solicitados: {solicitud.cantidad}"
         )
 
+    nuevo_stock = stock_disponible - solicitud.cantidad
     await db.inventario_evento.update_one(
         {"id_evento": solicitud.id_evento},
         {
@@ -250,6 +259,11 @@ async def crear_reserva_hold(
                 "cantidad_entrada_reservada": solicitud.cantidad
             }
         }
+    )
+    await CatalogoService.actualizar_stock_catalogo(
+        solicitud.id_evento,
+        nuevo_stock,
+        AuthService.extraer_jwt(cookie_reenvio) or "token-hold-ticketu"
     )
 
     hold_id = f"hold-{uuid.uuid4().hex[:8]}"

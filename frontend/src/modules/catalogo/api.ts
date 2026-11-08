@@ -14,10 +14,37 @@ const USAR_DATOS_PRUEBA = false;
 // Simulación de la integración con Reseñas (Grupo 6).
 const USAR_DATOS_PRUEBA_RESENAS = false;
 
-// TODO: el repo común usa "/api/catalogo/eventos" vía Gateway. Confirmar path final.
 const BASE_PATH = "/api/catalogo/eventos";
 
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Resuelve la URL base tanto desde el navegador (cliente) como desde Server Components
+ * dentro del contenedor Docker (donde localhost:8080 no apunta al contenedor del Gateway,
+ * sino que se resuelve por nombre de servicio en la red plataforma-eventos-net).
+ */
+async function fetchDesdeCatalogo(endpointPath: string): Promise<Response> {
+    const candidatos =
+        typeof window !== "undefined"
+            ? [GATEWAY_URL]
+            : [
+                  process.env.INTERNAL_GATEWAY_URL || "http://ticketu-api-gateway:8080",
+                  "http://catalogo-service:4000",
+                  "http://ms-catalogo-eventos:4000",
+                  GATEWAY_URL,
+              ];
+
+    let ultimoError: unknown = null;
+    for (const base of candidatos) {
+        try {
+            const res = await fetch(`${base}${endpointPath}`, { cache: "no-store" });
+            if (res.ok) return res;
+        } catch (err) {
+            ultimoError = err;
+        }
+    }
+    throw ultimoError ?? new Error("Error al conectar con el módulo de catálogo");
+}
 
 export async function buscarEventos(filtros: FiltrosEventos = {}): Promise<Evento[]> {
     if (USAR_DATOS_PRUEBA) {
@@ -34,11 +61,9 @@ export async function buscarEventos(filtros: FiltrosEventos = {}): Promise<Event
     if (filtros.search) params.set("search", filtros.search);
     if (filtros.category) params.set("category", filtros.category);
     if (filtros.isFree !== undefined) params.set("isFree", String(filtros.isFree));
-    // TODO: temporal. El front pagina en el navegador, así que pide todos los eventos de una vez.
-    // Quitar cuando el front use la paginación del backend (pagina/limite).
     params.set("limite", "100");
-    const res = await fetch(`${GATEWAY_URL}${BASE_PATH}?${params}`, { cache: "no-store" });
-    if (!res.ok) throw new Error("Error al conectar con el módulo de catálogo");
+
+    const res = await fetchDesdeCatalogo(`${BASE_PATH}?${params}`);
     const json: RespuestaLista = await res.json();
     return json.data;
 }
@@ -51,8 +76,7 @@ export async function obtenerEventoPorId(eventoId: string): Promise<Evento> {
         return evento;
     }
 
-    const res = await fetch(`${GATEWAY_URL}${BASE_PATH}/${encodeURIComponent(eventoId)}`, { cache: "no-store" });
-    if (!res.ok) throw new Error("Error al obtener el evento del catálogo");
+    const res = await fetchDesdeCatalogo(`${BASE_PATH}/${encodeURIComponent(eventoId)}`);
     const json: RespuestaDetalle = await res.json();
     return json.data;
 }
@@ -71,9 +95,7 @@ export async function obtenerResenasEvento(eventoId: string, limite = 3): Promis
             };
         }
 
-        // TODO: endpoint propuesto del backend de Catálogo, que por dentro invoca a Reseñas.
-        const res = await fetch(`${GATEWAY_URL}${BASE_PATH}/${encodeURIComponent(eventoId)}/resenas?limite=${limite}`, { cache: "no-store" });
-        if (!res.ok) throw new Error("Error al obtener reseñas del evento");
+        const res = await fetchDesdeCatalogo(`${BASE_PATH}/${encodeURIComponent(eventoId)}/resenas?limite=${limite}`);
         const json: RespuestaResenas = await res.json();
         return json.data;
     } catch (error) {

@@ -232,11 +232,11 @@ export default function EntradasPlaceholder() {
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
               <span className={`${styles.badge} ${styles.badgeInfo}`}>Grupo 3 · Entradas</span>
               <span className={`${styles.badge} ${styles.badgeSuccess}`}>
-                ✓ Conectado con API Gateway (:8080) · MongoDB Entradas · MySQL Check-in (:3005)
+                ✓ Conectado con API Gateway (:8080) · Catálogo (:4000) · MongoDB Entradas · MySQL Check-in (:3005)
               </span>
             </div>
             <h1 className={styles.titleH1} style={{ margin: "4px 0 0 0" }}>
-              Adquisición, Reserva (Hold) y Emisión hacia Check-in
+              Adquisición, Sincronización con Catálogo y Emisión hacia Check-in
             </h1>
           </div>
 
@@ -267,6 +267,13 @@ export default function EntradasPlaceholder() {
                 </option>
               ))}
             </select>
+            <Link
+              href={eventoActivo ? `/catalogo/${eventoActivo.id}` : "/catalogo"}
+              className={styles.buttonSecondary}
+              style={{ height: "40px", padding: "0 14px", textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            >
+              🔎 Ver en Catálogo
+            </Link>
             <Link
               href="/checkin"
               className={styles.buttonSecondary}
@@ -307,10 +314,14 @@ export default function EntradasPlaceholder() {
           </div>
         )}
 
-        {/* Widget HU-01 para Catálogo */}
+        {/* Widget HU-01 para Catálogo (sin botón redundante dentro de /entradas) */}
         {eventoActivo && (
           <div style={{ marginBottom: "24px" }}>
-            <DisponibilidadPlaceholder key={`${eventoActivo.id}-${eventoActivo.stockDisponible}`} eventoId={eventoActivo.id} />
+            <DisponibilidadPlaceholder
+              key={`${eventoActivo.id}-${eventoActivo.stockDisponible}`}
+              eventoId={eventoActivo.id}
+              mostrarBotonAccion={false}
+            />
           </div>
         )}
 

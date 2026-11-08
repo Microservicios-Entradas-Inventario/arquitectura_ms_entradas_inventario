@@ -8,6 +8,8 @@
 
 import CatalogoPlaceholder from "@/modules/catalogo/components/CatalogoPlaceholder";
 
+export const dynamic = "force-dynamic";
+
 export default function CatalogoPage() {
   return <CatalogoPlaceholder />;
 }

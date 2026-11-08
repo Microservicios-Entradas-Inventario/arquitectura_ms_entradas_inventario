@@ -24,7 +24,13 @@ interface DisponibilidadData {
   precio: number;
 }
 
-export default function DisponibilidadPlaceholder({ eventoId }: { eventoId: string }) {
+export default function DisponibilidadPlaceholder({
+  eventoId,
+  mostrarBotonAccion = true,
+}: {
+  eventoId: string;
+  mostrarBotonAccion?: boolean;
+}) {
   const [data, setData] = useState<DisponibilidadData | null>(null);
   const [cargando, setCargando] = useState(true);
 
@@ -177,21 +183,23 @@ export default function DisponibilidadPlaceholder({ eventoId }: { eventoId: stri
           </div>
         </div>
 
-        {/* Botón de Llamado a la Acción hacia el Módulo de Entradas */}
-        <div>
-          <Link
-            href={`/entradas?eventoId=${eventoId}`}
-            className={styles.buttonPrimary}
-            style={{
-              height: "42px",
-              padding: "0 22px",
-              textDecoration: "none",
-              backgroundColor: estaAgotado ? THEME.colors.secondary : THEME.colors.primary,
-            }}
-          >
-            {estaAgotado ? "Ver Evento / Avisarme ➔" : "Adquirir Entradas ➔"}
-          </Link>
-        </div>
+        {/* Botón de Llamado a la Acción hacia el Módulo de Entradas (solo visible en Catálogo) */}
+        {mostrarBotonAccion && (
+          <div>
+            <Link
+              href={`/entradas?eventoId=${eventoId}`}
+              className={styles.buttonPrimary}
+              style={{
+                height: "42px",
+                padding: "0 22px",
+                textDecoration: "none",
+                backgroundColor: estaAgotado ? THEME.colors.secondary : THEME.colors.primary,
+              }}
+            >
+              {estaAgotado ? "Ver Evento / Avisarme ➔" : "Adquirir Entradas ➔"}
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
