@@ -609,6 +609,100 @@
             "description": "**Historia de Usuario:** HU-02 (Entradas - Seguridad en Compra) + **Contrato I9 (Issue #25: Catálogo → Entradas)**.\n\nVerifica que `POST /api/entradas/procesar-compra` bloquee con `401 NO_AUTENTICADO` cualquier solicitud sin la cookie `jwt` emitida por Auth."
           },
           "response": []
+        },
+        {
+          "name": "[Integración I5 / Auth Real Keycloak + PostgreSQL] 1.13 Iniciar Sesión Real de Comprador en Auth (Emite Cookie JWT RS256)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Auth HU-B2: Login real en Keycloak + PostgreSQL responde 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.message).to.eql('Inicio de sesión exitoso');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"comprador.qa@ticketu.cl\",\n  \"password\": \"TicketU2026!\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-B2 (Auth) ↔ **Contrato I5 (Issue #21: Entradas → Auth)**.\n\nAutentica al comprador real `comprador.qa@ticketu.cl` contra **Keycloak (`ticketu-keycloak:8081`)** y **PostgreSQL (`ticketu-db:5433`)**, guardando la cookie `jwt` (RS256) en el Cookie Jar de Postman para las compras reales siguientes."
+          },
+          "response": []
+        },
+        {
+          "name": "[Integración Real 5 Microservicios: Catálogo → Entradas → Auth + Pagos + Catálogo] 1.14 Procesar Compra Pagada Real con Sesión de Auth (Contratos I5, I6, I7, I8, I9)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-02 Entradas + Contratos I5/I6/I7/I8/I9: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Crea reserva en MongoDB (Entradas), actualiza Catálogo y crea transacción en PostgreSQL (Pagos)', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id_reserva');",
+                  "    pm.expect(json).to.have.property('id_pago').that.is.a('string').and.is.not.empty;",
+                  "    pm.expect(json.estado_pago).to.eql('PENDIENTE');",
+                  "    pm.expect(json.url_checkout).to.include(json.id_pago);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_evento\": \"evt-77889\",\n  \"tipo_entrada\": \"PAGADA\",\n  \"cantidad\": 1,\n  \"metodo\": \"formulario\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/procesar-compra",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "procesar-compra"
+              ]
+            },
+            "description": "**Flujo Real E2E entre 5 Microservicios (HU-02 y HU-03 Entradas | Contratos I5, I6, I7, I8, I9):**\n1. `entradas-service` valida la cookie `jwt` contra **`ticketu-auth-service:10000`** (`GET /internal/validar-sesion`).\n2. Descuenta 1 cupo en **MongoDB (`ticketu_entradas_mongo`)** y crea la reserva.\n3. Sincroniza el nuevo stock en **`ms-catalogo-eventos:4000`** (`PUT /api/v1/catalogo/eventos/evt-77889/stock`).\n4. Invoca a **`pagos-service:3000`** (`POST /api/v1/pagos/transacciones`), el cual a su vez valida la sesión con **Auth**, consulta la reserva a **Entradas** (`GET /api/entradas/reservas/{id_reserva}`) e inserta la transacción en **PostgreSQL (`pagos-db`)**."
+          },
+          "response": []
         }
       ]
     },
