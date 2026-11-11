@@ -1,23 +1,86 @@
 {
   "info": {
     "_postman_id": "5b28009e-e3cf-411f-910d-04b6b1bde9ea",
-    "name": "TicketU - QA Integracion",
+    "name": "TicketU - QA Integración E2E (Entradas ↔ Catálogo ↔ Check-in ↔ Pagos ↔ Panel)",
+    "description": "Suite oficial de Pruebas de Integración (CA2) del microservicio de Entradas e Inventario (`entradas-service`, Grupo 3) con los microservicios de:\n- **Catálogo de Eventos (`ms-catalogo-eventos`, Grupo 2)**: Contratos **I8** (`PUT /api/catalogo/eventos/{id}/stock`) e **I9** (`POST /api/entradas/procesar-compra`), cubriendo **HU-01, HU-02 y HU-03 de Entradas** y **HU-01 a HU-04, BE1 y BE3 de Catálogo**.\n- **Check-in (`checkin-service`, Grupo 5)**: Contratos **I3** (`POST /api/checkin/tickets`), **I4** (`GET /api/entradas/{id_ticket}`), validación en puerta (`POST /api/checkin/validaciones`) y cierre de asistencia a RabbitMQ (`POST /api/checkin/eventos/{id_evento}/finalizar`), cubriendo **HU-02, HU-04 y HU-05 de Entradas** y **HU-01, HU-02 y HU-03 de Check-in**.\n- **Pagos (`pagos-service`, Grupo 4)** y **Panel Organizador (`organizador-service`, Grupo 1)**: Contratos **I2, I6 e I7**.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "37240432"
   },
+  "variable": [
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "entradas_url",
+      "value": "http://localhost:3003",
+      "type": "string"
+    },
+    {
+      "key": "catalogo_url",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "checkin_url",
+      "value": "http://localhost:3005",
+      "type": "string"
+    },
+    {
+      "key": "stock_inicial_evt101",
+      "value": "150",
+      "type": "string"
+    },
+    {
+      "key": "id_reserva_catalogo",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "id_entrada_emitida",
+      "value": "tk-998877",
+      "type": "string"
+    },
+    {
+      "key": "id_reserva_webhook",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "id_entrada_webhook",
+      "value": "",
+      "type": "string"
+    }
+  ],
   "item": [
     {
-      "name": "Integración como proveedor (Check-in)",
+      "name": "01. Integración Entradas ↔ Catálogo de Eventos (Contratos I8 e I9 | HU-01 a HU-03 Entradas ↔ HU-01 a HU-04 Catálogo)",
+      "description": "Valida la integración bidireccional entre **Entradas e Inventario (`entradas-service`, MongoDB)** y **Catálogo de Eventos (`ms-catalogo-eventos`, PostgreSQL/Local DB)** a través del API Gateway (`:8080`).\n\n### Historias de Usuario probadas:\n- **HU-01 (Entradas) ↔ HU-01, HU-02, HU-03, HU-04, BE1, BE3 (Catálogo)**: Consulta de vitrina de eventos, filtros, detalle de evento y disponibilidad real de inventario.\n- **HU-03 (Entradas) ↔ Contrato I8 (Catálogo - Issue #24)**: Creación y cancelación de Reserva Temporal (*Hold*) con sincronización automática vía HTTP `PUT /api/v1/catalogo/eventos/{id_evento}/stock` entre contenedores Docker.\n- **HU-01 (Entradas) ↔ Contrato I8 (Catálogo)**: Agotamiento automático (`nuevo_stock = 0` -> `estado_evento = 'agotado'`), reactivación de stock y validaciones negativas de contrato (`400 Bad Request` y `401 Unauthorized`).\n- **HU-02 (Entradas) ↔ Contrato I9 (Catálogo - Issue #25)**: Protección de compra (`POST /api/entradas/procesar-compra`) exigiendo sesión válida de Auth (`401 NO_AUTENTICADO`).",
       "item": [
         {
-          "name": "Consultar Entrada",
+          "name": "[Catálogo HU-01/HU-02/BE1 ↔ Entradas HU-01] 1.1 Listar Eventos Próximos en Catálogo",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code es 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"El ticket pertenece al usuario\", function () {\r\n    var jsonData = pm.response.json();\r\n    // Validamos usando la llave id_ticket confirmada en el body\r\n    pm.expect(jsonData.id_ticket).to.eql(\"tk-998877\");\r\n});\r\n\r\npm.test(\"Cumple SLA de Check-in menor a 500ms\", function () {\r\n    // validamos el SLA estricto definido en la arquitectura\r\n    pm.expect(pm.response.responseTime).to.be.below(500);\r\n})\r\n\r\n"
+                  "pm.test('HU-01 Catálogo: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-01 Catálogo: Respuesta contiene listado paginado de eventos disponibles', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data).to.be.an('array').that.is.not.empty;",
+                  "    pm.expect(json.pagination).to.have.property('total');",
+                  "    pm.expect(json.data[0]).to.include.all.keys('id_evento', 'nombre_evento', 'stock_actual', 'estado_evento', 'tipo_evento');",
+                  "});",
+                  "",
+                  "pm.test('SLA de respuesta menor a 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
                 ]
               }
             }
@@ -26,119 +89,45 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:8000/api/v1/entradas/tk-998877",
-              "protocol": "http",
+              "raw": "{{gateway_url}}/api/catalogo/eventos?temporalidad=proximos",
               "host": [
-                "localhost"
+                "{{gateway_url}}"
               ],
-              "port": "8000",
               "path": [
                 "api",
-                "v1",
-                "entradas",
-                "tk-998877"
-              ]
-            }
-          },
-          "response": []
-        }
-      ],
-      "description": "Esta carpeta validará el endpoint expuesto para el microservicio de Check-in."
-    },
-    {
-      "name": "Integración con Pagos (Consulta y Webhook)",
-      "item": [
-        {
-          "name": "Consultar Estado de Reserva",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code es 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"La reserva existe y está en estado RESERVADO\", function () {\r\n    var jsonData = pm.response.json();\r\n    pm.expect(jsonData.id_reserva).to.eql(\"res-98766\");\r\n    pm.expect(jsonData.estado_reserva).to.be.oneOf([\"RESERVADO\", \"CONSOLIDADO\"]);\r\n})\r\n"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:8000/api/v1/reservas/res-98766",
-              "protocol": "http",
-              "host": [
-                "localhost"
+                "catalogo",
+                "eventos"
               ],
-              "port": "8000",
-              "path": [
-                "api",
-                "v1",
-                "reservas",
-                "res-98766"
+              "query": [
+                {
+                  "key": "temporalidad",
+                  "value": "proximos"
+                }
               ]
-            }
+            },
+            "description": "**Historia de Usuario:** HU-01 / HU-02 / BE1 (Catálogo) ↔ HU-01 (Entradas).\n\nVerifica que el microservicio `ms-catalogo-eventos` responda a través del API Gateway con el listado de eventos próximos y su stock sincronizado."
           },
           "response": []
         },
         {
-          "name": "Simular Aprobación de Pago (Webhook)",
+          "name": "[Catálogo HU-04 ↔ Entradas HU-01] 1.2 Consultar Ficha Detalle de Evento en Catálogo (evt-101)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"El pago se procesa exitosamente o ya fue procesado previamente\", function () {\r\n    // 400 es la respuesta esperada si la reserva ya pasó a CONSOLIDADA\r\n    pm.expect(pm.response.code).to.be.oneOf([200, 201, 400]);\r\n});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"estado_pago\": \"APROBADO\",\r\n    \"id_transaccion\": \"txn-abc-123\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8000/api/v1/reservas/res-98766/webhook-pago",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8000",
-              "path": [
-                "api",
-                "v1",
-                "reservas",
-                "res-98766",
-                "webhook-pago"
-              ]
-            }
-          },
-          "response": []
-        }
-      ],
-      "description": "Esta carpeta simula el flujo completo de una reserva que espera ser pagada y la posterior confirmación simulando RabbitMQ."
-    },
-    {
-      "name": "Integración Panel Organizador (Métricas)",
-      "item": [
-        {
-          "name": "Consultar Stock del Evento",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code es 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"Retorna métricas de stock integras\", function () {\r\n    var jsonData = pm.response.json();\r\n    // Validación usando las llaves exactas que retorna la API\r\n    pm.expect(jsonData).to.have.property(\"id_evento\", \"evt-77889\");\r\n    pm.expect(jsonData).to.have.property(\"stock\", 148);\r\n});"
+                  "pm.test('HU-04 Catálogo: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-04 Catálogo: Retorna ficha completa de Feria de Innovación TITEC (evt-101)', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data.id_evento).to.eql('evt-101');",
+                  "    pm.expect(json.data.tipo_evento).to.eql('gratuito');",
+                  "    pm.expect(json.data).to.have.property('stock_actual');",
+                  "});"
                 ]
               }
             }
@@ -147,39 +136,176 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:8000/api/v1/entradas/eventos/evt-77889/stock",
-              "protocol": "http",
+              "raw": "{{gateway_url}}/api/catalogo/eventos/evt-101",
               "host": [
-                "localhost"
+                "{{gateway_url}}"
               ],
-              "port": "8000",
               "path": [
                 "api",
-                "v1",
+                "catalogo",
+                "eventos",
+                "evt-101"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-04 (Catálogo - Ficha Detalle de Evento) ↔ HU-01 (Entradas - Disponibilidad)."
+          },
+          "response": []
+        },
+        {
+          "name": "[Catálogo BE3 ↔ Entradas HU-01] 1.3 Consultar Información Ligera de Servicio en Catálogo (evt-101)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('BE3 Catálogo: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('BE3 Catálogo: Entrega metadatos comerciales del evento para otros microservicios', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data.id_evento).to.eql('evt-101');",
+                  "    pm.expect(json.data).to.have.property('titulo');",
+                  "    pm.expect(json.data).to.have.property('precio_final', 0);",
+                  "    pm.expect(json.data).to.have.property('estado');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/catalogo/eventos/evt-101/info-servicio",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "catalogo",
+                "eventos",
+                "evt-101",
+                "info-servicio"
+              ]
+            },
+            "description": "**Historia de Usuario:** BE3 (Servicio ofrecido por Catálogo a otros microservicios)."
+          },
+          "response": []
+        },
+        {
+          "name": "[Entradas HU-01 ↔ Catálogo HU-04] 1.4 Consultar Disponibilidad Inicial en Entradas (MongoDB evt-101)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-01 Entradas: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-01 Entradas: Guarda stock_inicial_evt101 desde MongoDB para verificar sincronización con Catálogo', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.idEvento).to.eql('evt-101');",
+                  "    pm.expect(json.stockDisponible).to.be.a('number');",
+                  "    pm.collectionVariables.set('stock_inicial_evt101', String(json.stockDisponible));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/eventos/evt-101/disponibilidad",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
                 "entradas",
                 "eventos",
-                "evt-77889",
-                "stock"
+                "evt-101",
+                "disponibilidad"
               ]
-            }
+            },
+            "description": "**Historia de Usuario:** HU-01 (Entradas - Visualización de Disponibilidad en Tiempo Real) ↔ HU-04 (Catálogo).\n\nObtiene el `stockDisponible` actual de `evt-101` en MongoDB (`entradas-service`) y lo guarda en la variable `{{stock_inicial_evt101}}` antes de crear una reserva Hold."
           },
           "response": []
-        }
-      ],
-      "description": "Esta carpeta asegura que el Panel del Organizador reciba los datos de inventario correctamente."
-    },
-    {
-      "name": "HU-01 y HU-02 (Disponibilidad y Seguridad)",
-      "item": [
+        },
         {
-          "name": "Consulta de Inventario HU-01 (Happy Path)",
+          "name": "[Integración I8 / HU-03 Entradas ↔ Catálogo] 1.5 Crear Reserva Hold (-2 cupos) en Entradas y Propagar Stock a Catálogo",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status is 200\", () => { pm.response.to.have.status(200); });\r\npm.test(\"Contiene stock y tipo de entrada\", () => {\r\n    const data = pm.response.json();\r\n    pm.expect(data).to.have.property(\"stock_actual\");\r\n    pm.expect(data).to.have.property(\"tipo_entrada\");\r\n    pm.expect(data.id_evento).to.eql(\"evt-77889\");\r\n});"
+                  "pm.test('HU-03 Entradas: Status code es 200 OK al crear Hold temporal', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-03 Entradas: Genera id_reserva en estado RESERVADO por 2 entradas', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.estado_reserva).to.eql('RESERVADO');",
+                  "    pm.expect(json.cantidad_entrada).to.eql(2);",
+                  "    pm.expect(json.tiempo_restante_segundos).to.be.above(0);",
+                  "    pm.collectionVariables.set('id_reserva_catalogo', json.id_reserva);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_evento\": \"evt-101\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"cantidad\": 2,\n  \"tiempo_limite_minutos\": 15\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/reservas/hold",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "reservas",
+                "hold"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-03 (Entradas - Reserva Temporal de Cupo Hold) + **Integración I8 (Issue #24: Entradas → Catálogo)**.\n\nAl reservar 2 cupos en `entradas-service`, éste descuenta el stock en MongoDB e invoca internamente `PUT http://catalogo-service:4000/api/v1/catalogo/eventos/evt-101/stock` en la red Docker."
+          },
+          "response": []
+        },
+        {
+          "name": "[Integración I8 / HU-01 y HU-03 Entradas ↔ HU-04 Catálogo] 1.6 Verificar en Catálogo que el Stock Bajó Exactamente en 2 Cupos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Integración I8: Status code es 200 OK en Catálogo', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Integración I8 (Entradas -> Catálogo): El stock_actual en Catálogo disminuyó exactamente en 2 unidades', function () {",
+                  "    const json = pm.response.json();",
+                  "    const stockEsperado = Number(pm.collectionVariables.get('stock_inicial_evt101')) - 2;",
+                  "    pm.expect(json.data.id_evento).to.eql('evt-101');",
+                  "    pm.expect(json.data.stock_actual).to.eql(stockEsperado);",
+                  "});"
                 ]
               }
             }
@@ -188,188 +314,383 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3000/api/v1/inventario/evt-77889",
-              "protocol": "http",
+              "raw": "{{gateway_url}}/api/catalogo/eventos/evt-101",
               "host": [
-                "localhost"
+                "{{gateway_url}}"
               ],
-              "port": "3000",
               "path": [
                 "api",
-                "v1",
-                "inventario",
-                "evt-77889"
+                "catalogo",
+                "eventos",
+                "evt-101"
               ]
-            }
+            },
+            "description": "**Historia de Usuario:** HU-01 / HU-03 (Entradas) ↔ HU-04 (Catálogo) — **Contrato I8 (Issue #24)**.\n\nComprueba directamente en el microservicio `ms-catalogo-eventos` que el `stock_actual` de `evt-101` se redujo automáticamente en 2 unidades tras la reserva creada en `entradas-service`."
           },
           "response": []
         },
         {
-          "name": "Bloqueo de compra sin autenticación HU-02 (Negative Test)",
+          "name": "[Integración I8 / HU-03 Entradas ↔ Catálogo] 1.7 Cancelar Reserva Hold (+2 cupos) y Propagar Liberación a Catálogo",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Debe ser rechazado (401, 403 o 422)\", () => {\r\n    pm.expect(pm.response.code).to.be.oneOf([401, 403, 422]);\r\n});"
+                  "pm.test('HU-03 Entradas: Status code es 200 OK al cancelar Hold', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-03 Entradas: Libera exactamente los 2 cupos reservados', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.cupos_liberados).to.eql(2);",
+                  "});"
                 ]
               }
             }
           ],
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"id_evento\": \"evt-77889\",\r\n    \"tipo_entrada\": \"PAGADA\",\r\n    \"cantidad\": 2\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"motivo\": \"Prueba QA de integración Entradas <-> Catálogo (liberación de cupos)\"\n}"
             },
             "url": {
-              "raw": "http://localhost:3000/api/v1/entradas/procesar-compra",
-              "protocol": "http",
+              "raw": "{{gateway_url}}/api/entradas/reservas/{{id_reserva_catalogo}}/cancelar",
               "host": [
-                "localhost"
+                "{{gateway_url}}"
               ],
-              "port": "3000",
               "path": [
                 "api",
-                "v1",
+                "entradas",
+                "reservas",
+                "{{id_reserva_catalogo}}",
+                "cancelar"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-03 (Entradas - Liberación de Cupos de Reserva) + **Integración I8 (Issue #24)**.\n\nCancela la reserva temporal `{{id_reserva_catalogo}}`, devuelve los 2 cupos a MongoDB y notifica automáticamente a `ms-catalogo-eventos` el stock restaurado."
+          },
+          "response": []
+        },
+        {
+          "name": "[Integración I8 / HU-01 y HU-03 Entradas ↔ HU-04 Catálogo] 1.8 Verificar en Catálogo que el Stock Volvió a su Valor Inicial",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Integración I8: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Integración I8 (Entradas -> Catálogo): El stock_actual en Catálogo fue restaurado al valor original', function () {",
+                  "    const json = pm.response.json();",
+                  "    const stockInicial = Number(pm.collectionVariables.get('stock_inicial_evt101'));",
+                  "    pm.expect(json.data.stock_actual).to.eql(stockInicial);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/catalogo/eventos/evt-101",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "catalogo",
+                "eventos",
+                "evt-101"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-03 (Entradas) ↔ HU-04 (Catálogo) — **Contrato I8**.\n\nVerifica que al cancelar la reserva en Entradas, el stock en Catálogo regresó exactamente a `{{stock_inicial_evt101}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "[Contrato I8 Directo / HU-01 Entradas ↔ Catálogo] 1.9 Actualizar Stock a 0 en Catálogo y Verificar Cambio Automático a 'agotado'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contrato I8: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Contrato I8: Con nuevo_stock = 0, Catálogo cambia automáticamente estado_evento a agotado', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data.stock_actual).to.eql(0);",
+                  "    pm.expect(json.data.estado_evento).to.eql('agotado');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nuevo_stock\": 0,\n  \"token_sesion\": \"jwt-integracion-entradas-catalogo\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/catalogo/eventos/evt-104/stock",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "catalogo",
+                "eventos",
+                "evt-104",
+                "stock"
+              ]
+            },
+            "description": "**Contrato I8 (Issue #24 - Entradas → Catálogo):** Valida la regla de negocio de Catálogo donde al recibir `nuevo_stock: 0` desde Entradas, marca automáticamente `estado_evento: 'agotado'`."
+          },
+          "response": []
+        },
+        {
+          "name": "[Contrato I8 Directo / HU-01 Entradas ↔ Catálogo] 1.10 Restaurar Stock de evt-104 en Catálogo y Verificar Reactivación a 'disponible'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contrato I8: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Contrato I8: Al restaurar nuevo_stock = 8, estado_evento vuelve a disponible', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data.stock_actual).to.eql(8);",
+                  "    pm.expect(json.data.estado_evento).to.eql('disponible');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nuevo_stock\": 8,\n  \"token_sesion\": \"jwt-integracion-entradas-catalogo\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/catalogo/eventos/evt-104/stock",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "catalogo",
+                "eventos",
+                "evt-104",
+                "stock"
+              ]
+            },
+            "description": "**Contrato I8 (Issue #24):** Restaura el stock de `evt-104` a `8` entradas y verifica que `estado_evento` vuelva a `'disponible'`."
+          },
+          "response": []
+        },
+        {
+          "name": "[Contrato I8 Negativo] 1.11 Rechazo en Catálogo por Stock Negativo (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contrato I8 Negativo: Rechaza stock negativo con HTTP 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nuevo_stock\": -5,\n  \"token_sesion\": \"jwt-integracion-entradas-catalogo\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/catalogo/eventos/evt-104/stock",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "catalogo",
+                "eventos",
+                "evt-104",
+                "stock"
+              ]
+            },
+            "description": "**Contrato I8 Negativo:** Verifica que `ms-catalogo-eventos` rechace con `400 Bad Request` cualquier intento de actualizar el stock con un número negativo."
+          },
+          "response": []
+        },
+        {
+          "name": "[Integración I9 / HU-02 Entradas ↔ Catálogo] 1.12 Bloqueo de Procesar Compra desde Catálogo sin Cookie JWT (401 NO_AUTENTICADO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-02 / Contrato I9: Rechaza compra sin sesión de Auth con HTTP 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    const bodyText = pm.response.text();",
+                  "    pm.expect(bodyText).to.include('NO_AUTENTICADO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_evento\": \"evt-77889\",\n  \"tipo_entrada\": \"PAGADA\",\n  \"cantidad\": 1\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/procesar-compra",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
                 "entradas",
                 "procesar-compra"
               ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Historial de usuario y detalle inmutable (HU-02 y HU-04)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status is 200 y retorna un array\", () => {\r\n    pm.response.to.have.status(200);\r\n    pm.expect(pm.response.json()).to.be.an(\"array\");\r\n});\r\npm.test(\"Reglas de negocio HU-04 (Inmutabilidad)\", () => {\r\n    const data = pm.response.json();\r\n    if(data.length > 0) {\r\n        pm.expect(data[0].tipo_acceso).to.eql(\"GENERAL\");\r\n        pm.expect(data[0]).to.have.property(\"precio_final_pagado\");\r\n        pm.expect(data[0]).to.have.property(\"lugar_ingreso\");\r\n    }\r\n});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:3000/api/v1/entradas/usuario/usr-12345",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "api",
-                "v1",
-                "entradas",
-                "usuario",
-                "usr-12345"
-              ]
-            }
+            },
+            "description": "**Historia de Usuario:** HU-02 (Entradas - Seguridad en Compra) + **Contrato I9 (Issue #25: Catálogo → Entradas)**.\n\nVerifica que `POST /api/entradas/procesar-compra` bloquee con `401 NO_AUTENTICADO` cualquier solicitud sin la cookie `jwt` emitida por Auth."
           },
           "response": []
         }
       ]
     },
     {
-      "name": "HU-03 a HU-05 (Reservas y Contratos)",
+      "name": "02. Integración Entradas ↔ Check-in (Contratos I3 e I4 | HU-02, HU-04, HU-05 Entradas ↔ HU-01, HU-02, HU-03 Check-in)",
+      "description": "Valida la integración completa de punta a punta entre **Entradas e Inventario (`entradas-service`, MongoDB)** y **Check-in (`checkin-service`, MySQL)** a través del API Gateway (`:8080`).\n\n### Historias de Usuario probadas:\n- **HU-02 y HU-05 (Entradas) ↔ HU-01 (Check-in) — Contrato I3 (Issue #19)**: Al emitir una entrada (por emisión directa o por confirmación de pago `webhook-pago`), `entradas-service` la guarda en MongoDB y la registra en tiempo real en la tabla `ticket` de MySQL de `checkin-service` vía `POST /api/checkin/tickets`.\n- **HU-04 y HU-05 (Entradas) ↔ HU-02 (Check-in) — Contrato I4 (Issue #20)**: `checkin-service` y el operador en puerta consultan la validez, titularidad (`GET /api/entradas/{id_ticket}`), QR (`GET /api/entradas/{id_ticket}/qr`) y detalle inmutable (`GET /api/entradas/{id_ticket}/detalle`) en MongoDB de Entradas.\n- **HU-02 (Check-in - Validación en Puerta / Torniquete)**: Escaneo exitoso en primer ingreso (`TICKET_FOUND`), bloqueo antifraude en segundo escaneo (`TICKET_ALREADY_USED`), rechazo por evento incorrecto (`EVENT_MISMATCH`) y rechazo por ticket inexistente (`TICKET_NOT_FOUND`).\n- **HU-03 (Check-in - Cierre de Evento y Publicación a RabbitMQ)**: Finalización del evento (`POST /api/checkin/eventos/{id_evento}/finalizar`) emitiendo el lote de asistentes (`checkin.asistencia_final`) al broker RabbitMQ.",
       "item": [
         {
-          "name": "Crear reserva Hold (HU-03)",
+          "name": "[Integración I3 + I8 / HU-02 y HU-05 Entradas ↔ HU-01 Check-in] 2.1 Emitir Entrada en Entradas y Sincronizar en Vivo con Check-in (MySQL)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status is 200\", () => { pm.response.to.have.status(200); });\r\npm.test(\"Guarda id_reserva en variable de entorno\", () => {\r\n    if(pm.response.code === 200){\r\n        pm.environment.set(\"id_reserva\", pm.response.json().id_reserva);\r\n    }\r\n});"
+                  "pm.test('HU-02 y HU-05 Entradas: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Integración I3 (Entradas -> Check-in MySQL): Ticket emitido en MongoDB y registrado exitosamente en Check-in', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('idEntrada');",
+                  "    pm.expect(json.idEntrada).to.match(/^tk-/);",
+                  "    pm.expect(json.registradoEnCheckin).to.be.true;",
+                  "    pm.expect(json.idEvento).to.eql('evt-002');",
+                  "    pm.collectionVariables.set('id_entrada_emitida', json.idEntrada);",
+                  "});"
                 ]
               }
             }
           ],
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"id_evento\": \"evt-77889\",\r\n    \"id_usuario\": \"usr-12345\",\r\n    \"cantidad\": 1,\r\n    \"tiempo_limite_minutos\": 15\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"id_evento\": \"evt-002\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_comprador\": \"Sebastian Fuentes\",\n  \"correo_comprador\": \"sebastian.fuentes@ticketu.cl\",\n  \"cantidad_entradas\": 1,\n  \"precio_final\": 0\n}"
             },
             "url": {
-              "raw": "http://localhost:3000/api/v1/reservas/hold",
-              "protocol": "http",
+              "raw": "{{gateway_url}}/api/entradas/emision-directa",
               "host": [
-                "localhost"
+                "{{gateway_url}}"
               ],
-              "port": "3000",
               "path": [
                 "api",
-                "v1",
-                "reservas",
-                "hold"
+                "entradas",
+                "emision-directa"
               ]
-            }
+            },
+            "description": "**Historia de Usuario:** HU-02 y HU-05 (Entradas) ↔ HU-01 (Check-in) — **Contrato I3 (Issue #19)**.\n\nEmite una entrada nueva en `entradas-service` (MongoDB) para `evt-002` y la registra síncronamente en `checkin-service` (MySQL) mediante `POST http://checkin-service:3005/api/checkin/tickets`. Guarda `{{id_entrada_emitida}}` para las siguientes pruebas."
           },
           "response": []
         },
         {
-          "name": "Cancelar Reserva Hold (HU-03)",
+          "name": "[Integración I4 / Proveedor Tipo B / HU-04 Entradas ↔ Check-in] 2.2 Consultar desde Check-in la Validez y Titular del Ticket en Entradas",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status is 200\", () => { pm.response.to.have.status(200); });\r\npm.test(\"Libera exactamente 1 cupo\", () => {\r\n    pm.expect(pm.response.json().cupos_liberados).to.eql(1);\r\n});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:3000/api/v1/reservas/{{id_reserva}}/cancelar",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "3000",
-              "path": [
-                "api",
-                "v1",
-                "reservas",
-                "{{id_reserva}}",
-                "cancelar"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Payload QR Check-in (HU-05)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status is 200\", () => { pm.response.to.have.status(200); });\r\npm.test(\"Contrato estricto v2.1 para QR\", () => {\r\n    const payload = pm.response.json().qr_payload;\r\n    pm.expect(payload).to.have.property(\"id_evento\");\r\n    pm.expect(payload).to.have.property(\"id_entrada\");\r\n    pm.expect(pm.response.json().habilitado_checkin).to.be.true;\r\n});"
+                  "pm.test('Contrato I4: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Contrato I4: Retorna id_ticket, nombre_usuario y objeto usuario según contrato con Check-in', function () {",
+                  "    const json = pm.response.json();",
+                  "    const idEsperado = pm.collectionVariables.get('id_entrada_emitida');",
+                  "    pm.expect(json.id_ticket).to.eql(idEsperado);",
+                  "    pm.expect(json.nombre_usuario).to.eql('Sebastian Fuentes');",
+                  "    pm.expect(json.usuario).to.have.property('id_usuario', 'usr-12345');",
+                  "    pm.expect(json.usuario).to.have.property('rol_usuario');",
+                  "});",
+                  "",
+                  "pm.test('Contrato I4: Cumple SLA estricto menor a 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
                 ]
               }
             }
@@ -378,20 +699,698 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3000/api/v1/entradas/tk-998877/qr",
-              "protocol": "http",
+              "raw": "{{gateway_url}}/api/entradas/{{id_entrada_emitida}}",
               "host": [
-                "localhost"
+                "{{gateway_url}}"
               ],
-              "port": "3000",
               "path": [
                 "api",
-                "v1",
                 "entradas",
-                "tk-998877",
+                "{{id_entrada_emitida}}"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-04 / HU-05 (Entradas) ↔ HU-02 (Check-in) — **Contrato I4 (Issue #20: Check-in → Entradas)**.\n\nVerifica el endpoint que `entradas-service` provee a `checkin-service` para respaldar la titularidad del ticket recién emitido."
+          },
+          "response": []
+        },
+        {
+          "name": "[HU-05 Entradas ↔ Check-in] 2.3 Obtener Código QR y Payload de Acceso Habilitado para Check-in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-05 Entradas: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-05 Entradas: QR habilitado para Check-in con payload estandarizado', function () {",
+                  "    const json = pm.response.json();",
+                  "    const idEsperado = pm.collectionVariables.get('id_entrada_emitida');",
+                  "    pm.expect(json.id_entrada).to.eql(idEsperado);",
+                  "    pm.expect(json.habilitado_checkin).to.be.true;",
+                  "    pm.expect(json.qr_payload).to.have.property('id_entrada', idEsperado);",
+                  "    pm.expect(json.qr_payload).to.have.property('id_evento', 'evt-002');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/{{id_entrada_emitida}}/qr",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "{{id_entrada_emitida}}",
                 "qr"
               ]
+            },
+            "description": "**Historia de Usuario:** HU-05 (Entradas - Recepción de Código QR de Acceso) ↔ HU-02 (Check-in)."
+          },
+          "response": []
+        },
+        {
+          "name": "[HU-04 Entradas] 2.4 Consultar Detalle Inmutable de la Entrada Emitida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-04 Entradas: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-04 Entradas: Contiene campos inmutables (tipo_acceso, lugar_ingreso, precio_final_pagado, estado_entrada)', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id_entrada).to.eql(pm.collectionVariables.get('id_entrada_emitida'));",
+                  "    pm.expect(json.tipo_acceso).to.eql('GENERAL');",
+                  "    pm.expect(json.estado_entrada).to.eql('EMITIDA');",
+                  "    pm.expect(json).to.have.property('lugar_ingreso');",
+                  "    pm.expect(json).to.have.property('precio_final_pagado', 0);",
+                  "});"
+                ]
+              }
             }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/{{id_entrada_emitida}}/detalle",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "{{id_entrada_emitida}}",
+                "detalle"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-04 (Entradas - Visualización de Detalles Inmutables de la Entrada Adquirida)."
+          },
+          "response": []
+        },
+        {
+          "name": "[Flujo E2E Torniquete / HU-05 Entradas ↔ HU-02 Check-in] 2.5 Validar Ticket Emitido en Puerta (1er Escaneo -> ACCESO AUTORIZADO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-02 Check-in: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-02 Check-in: Primer escaneo en puerta autoriza el ingreso (valido = true, motivo = TICKET_FOUND)', function () {",
+                  "    const json = pm.response.json();",
+                  "    const idEsperado = pm.collectionVariables.get('id_entrada_emitida');",
+                  "    pm.expect(json.valido).to.be.true;",
+                  "    pm.expect(json.motivo).to.eql('TICKET_FOUND');",
+                  "    pm.expect(json.ticket.id_entrada).to.eql(idEsperado);",
+                  "    pm.expect(json.ticket.id_evento).to.eql('evt-002');",
+                  "    pm.expect(json.ticket.nombre_usuario).to.eql('Sebastian Fuentes');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"evt-002\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/checkin/validaciones",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "checkin",
+                "validaciones"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-05 (Entradas) ↔ HU-02 (Check-in - Validación de Entrada en Puerta).\n\nComprueba que el ticket emitido por `entradas-service` en el paso 2.1 ya existe en el MySQL de `checkin-service` y autoriza el acceso en el primer escaneo."
+          },
+          "response": []
+        },
+        {
+          "name": "[Seguridad Antifraude / HU-02 Check-in] 2.6 Reintentar Escaneo del Mismo Ticket en Puerta (2do Escaneo -> TICKET_ALREADY_USED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-02 Check-in Antifraude: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-02 Check-in Antifraude: Rechaza segundo ingreso con el mismo QR (valido = false, motivo = TICKET_ALREADY_USED)', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.valido).to.be.false;",
+                  "    pm.expect(json.motivo).to.eql('TICKET_ALREADY_USED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"evt-002\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/checkin/validaciones",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "checkin",
+                "validaciones"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-02 (Check-in - Prevención de Reingreso / Doble Escaneo de QR).\n\nVerifica que una vez registrado el ingreso en `registro_asistencia` de MySQL, un segundo intento de escaneo del mismo ticket sea rechazado con `TICKET_ALREADY_USED`."
+          },
+          "response": []
+        },
+        {
+          "name": "[Flujo Pagado -> Check-in / HU-03 Entradas] 2.7a Crear Reserva Hold para Evento Pagado (evt-77889)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-03 Entradas: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-03 Entradas: Guarda id_reserva_webhook para consolidar pago', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.estado_reserva).to.eql('RESERVADO');",
+                  "    pm.collectionVariables.set('id_reserva_webhook', json.id_reserva);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_evento\": \"evt-77889\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"cantidad\": 1,\n  \"tiempo_limite_minutos\": 15\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/reservas/hold",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "reservas",
+                "hold"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-03 (Entradas) — Crea una reserva `RESERVADO` para probar el flujo completo de pago aprobado -> emisión de ticket -> registro automático en Check-in."
+          },
+          "response": []
+        },
+        {
+          "name": "[Flujo Pagado -> Check-in / HU-05 Entradas ↔ I3 Check-in] 2.7b Confirmar Pago (Webhook) y Emitir Ticket hacia Check-in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-05 Entradas: Status code es 200 OK al consolidar pago', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Integración I3: Emite ticket definitivo y lo envía a Check-in MySQL', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.entradas_emitidas).to.be.an('array').that.is.not.empty;",
+                  "    pm.collectionVariables.set('id_entrada_webhook', json.entradas_emitidas[0]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado_pago\": \"APROBADO\",\n  \"id_transaccion\": \"txn-qa-integracion\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/reservas/{{id_reserva_webhook}}/webhook-pago",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "reservas",
+                "{{id_reserva_webhook}}",
+                "webhook-pago"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-05 (Entradas) ↔ HU-01 (Check-in) — **Contrato I3 (Issue #19)**.\n\nConsolida la reserva `{{id_reserva_webhook}}`, emite el ticket en MongoDB y lo registra automáticamente en MySQL de Check-in."
+          },
+          "response": []
+        },
+        {
+          "name": "[Flujo Pagado -> Check-in / HU-02 Check-in] 2.7c Validar en Puerta el Ticket Emitido tras Pago Aprobado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-02 Check-in: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-02 Check-in: Ticket emitido tras pago aprobado es válido en puerta (TICKET_FOUND)', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.valido).to.be.true;",
+                  "    pm.expect(json.motivo).to.eql('TICKET_FOUND');",
+                  "    pm.expect(json.ticket.id_entrada).to.eql(pm.collectionVariables.get('id_entrada_webhook'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_webhook}}\",\n  \"id_evento\": \"evt-77889\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/checkin/validaciones",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "checkin",
+                "validaciones"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-05 (Entradas) ↔ HU-02 (Check-in).\n\nValida en el torniquete de Check-in el ticket `{{id_entrada_webhook}}` generado tras la confirmación del pago."
+          },
+          "response": []
+        },
+        {
+          "name": "[Contrato I3 Directo / HU-01 Check-in] 2.8 Control de Idempotencia en Check-in: Rechazo de Ticket Duplicado (409 TICKET_ALREADY_EXISTS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contrato I3 Idempotencia: Status code es 409 Conflict', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});",
+                  "",
+                  "pm.test('Contrato I3 Idempotencia: Retorna código TICKET_ALREADY_EXISTS sin sobrescribir el ticket', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.error.code).to.eql('TICKET_ALREADY_EXISTS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"evt-002\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"qr_data\": \"{{id_entrada_emitida}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/checkin/tickets",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "checkin",
+                "tickets"
+              ]
+            },
+            "description": "**Contrato I3 (Issue #19) — HU-01 Check-in:** Verifica que si se intenta registrar nuevamente un `id_entrada` ya existente en MySQL de Check-in, responda `409 Conflict (TICKET_ALREADY_EXISTS)`."
+          },
+          "response": []
+        },
+        {
+          "name": "[Contrato I3 Negativo / HU-01 Check-in] 2.9 Rechazo en Check-in cuando qr_data no coincide con id_entrada (400 QR_MISMATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contrato I3 Validación: Status code es 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Contrato I3 Validación: Retorna código QR_MISMATCH cuando se envía una URL en vez del id_entrada', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.error.code).to.eql('QR_MISMATCH');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_entrada\": \"tk-test-mismatch-01\",\n  \"id_evento\": \"evt-002\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"qr_data\": \"https://storage.midominio.com/qr/tk-test-mismatch-01.png\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/checkin/tickets",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "checkin",
+                "tickets"
+              ]
+            },
+            "description": "**Contrato I3 (Issue #19) — HU-01 Check-in:** Verifica que `checkin-service` exija que `qr_data === id_entrada` y rechace URLs o valores distintos con `400 QR_MISMATCH`."
+          },
+          "response": []
+        },
+        {
+          "name": "[Validación en Puerta Negativa / HU-02 Check-in] 2.10 Rechazo en Puerta por Evento Equivocado (EVENT_MISMATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-02 Check-in: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-02 Check-in: Deniega acceso cuando el ticket pertenece a otro evento (EVENT_MISMATCH)', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.valido).to.be.false;",
+                  "    pm.expect(json.motivo).to.eql('EVENT_MISMATCH');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"evt-otro-evento-999\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/checkin/validaciones",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "checkin",
+                "validaciones"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-02 (Check-in - Validación de correspondencia entre Ticket y Evento).\n\nVerifica que un ticket válido para `evt-002` sea rechazado con `EVENT_MISMATCH` si se intenta usar en la puerta de otro evento."
+          },
+          "response": []
+        },
+        {
+          "name": "[Integración I4 Negativo / HU-04 Entradas ↔ Check-in] 2.11 Consulta de Ticket Inexistente en Entradas Retorna 404 Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contrato I4 Negativo: Retorna 404 Not Found cuando el id_ticket no existe en MongoDB', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/tk-inexistente-000000",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "tk-inexistente-000000"
+              ]
+            },
+            "description": "**Contrato I4 (Issue #20):** Verifica que `GET /api/entradas/{id_ticket}` responda `404 Not Found` cuando se consulta un ticket inexistente."
+          },
+          "response": []
+        },
+        {
+          "name": "[Cierre de Evento / HU-03 Check-in ↔ RabbitMQ] 2.12 Finalizar Evento en Check-in y Emitir Lote de Asistencia a RabbitMQ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-03 Check-in: Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('HU-03 Check-in: Publica evento checkin.asistencia_final en RabbitMQ con asistentes validados', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.mensaje).to.eql('Lote de asistencia emitido a RabbitMQ');",
+                  "    pm.expect(json.total_notificados).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/checkin/eventos/evt-002/finalizar",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "checkin",
+                "eventos",
+                "evt-002",
+                "finalizar"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-03 (Check-in - Cierre de Asistencia y Notificación Asíncrona por Broker).\n\nEnvía el listado consolidado de asistentes que hicieron check-in en `evt-002` al exchange `ticketu.events` de RabbitMQ con routing key `checkin.asistencia_final`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03. Integración Entradas ↔ Pagos y Panel Organizador (Contratos I2, I6 | HU-01, HU-03, HU-04 Entradas)",
+      "description": "Valida los contratos provistos por `entradas-service` hacia:\n- **Pasarela de Pagos (`pagos-service`, Grupo 4)**: **Contrato I6 (Issue #22 / INT-01)** `GET /api/entradas/reservas/{id_reserva}` con soporte *Tolerant Reader* (`monto_total`/`total`, `cantidad_entrada`/`cantidad_entradas`, `estado_reserva`, `tiempo_restante_segundos`).\n- **Panel Organizador (`organizador-service`, Grupo 1)**: **Contrato I2 (Issue #18)** `GET /api/entradas/eventos/{id_evento}/stock`.\n- **Clientes / Historial (HU-04)**: `GET /api/entradas/usuario/{id_usuario}`.",
+      "item": [
+        {
+          "name": "[Integración I6 / INT-01 / HU-03 Entradas ↔ Pagos] 3.1 Consultar Reserva Temporal desde Pagos (res-demo-pagos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contrato I6 (Entradas -> Pagos): Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Contrato I6: Incluye todos los campos requeridos por el Tolerant Reader de Pagos', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id_reserva).to.eql('res-demo-pagos');",
+                  "    pm.expect(json.estado_reserva).to.eql('RESERVADO');",
+                  "    pm.expect(json.monto_total).to.eql(20000);",
+                  "    pm.expect(json.total).to.eql(20000);",
+                  "    pm.expect(json.cantidad_entrada).to.eql(2);",
+                  "    pm.expect(json.cantidad_entradas).to.eql(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/reservas/res-demo-pagos",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "reservas",
+                "res-demo-pagos"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-03 (Entradas) ↔ **Contrato I6 (Issue #22 / INT-01 Pagos)**.\n\nValida el endpoint que `pagos-service` invoca al crear una transacción para verificar que la reserva exista, esté vigente y coincida en monto y cantidad."
+          },
+          "response": []
+        },
+        {
+          "name": "[Integración I2 / HU-01 Entradas ↔ Panel Organizador] 3.2 Consultar Stock del Evento para Panel Organizador (evt-77889)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Contrato I2 (Entradas -> Panel): Status code es 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Contrato I2: Retorna id_evento y stock numérico íntegro', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id_evento).to.eql('evt-77889');",
+                  "    pm.expect(json.stock).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/eventos/evt-77889/stock",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "eventos",
+                "evt-77889",
+                "stock"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-01 (Entradas) ↔ **Contrato I2 (Issue #18: Panel Organizador → Entradas)**."
+          },
+          "response": []
+        },
+        {
+          "name": "[HU-04 Entradas] 3.3 Consultar Historial Completo de Entradas Adquiridas por Comprador (usr-12345)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HU-04 Entradas: Status code es 200 OK y retorna array', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('HU-04 Entradas: Cada entrada conserva sus datos inmutables y QR', function () {",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data[0]).to.include.all.keys('id_entrada', 'id_evento', 'nombre_evento', 'tipo_acceso', 'lugar_ingreso', 'precio_final_pagado', 'qr_data');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/entradas/usuario/usr-12345",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "entradas",
+                "usuario",
+                "usr-12345"
+              ]
+            },
+            "description": "**Historia de Usuario:** HU-04 (Entradas - Visualización de Historial de Entradas Adquiridas)."
           },
           "response": []
         }
