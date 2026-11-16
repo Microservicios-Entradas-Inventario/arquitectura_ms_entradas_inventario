@@ -20,7 +20,7 @@ class PagosService:
     7. Entradas ignora 'client_secret' y solo persiste 'id_pago' como referencia.
     """
 
-    BASE_URL = os.getenv("PAGOS_SERVICE_URL", "http://pagos-service:3000")
+    BASE_URL = os.getenv("PAGOS_SERVICE_URL", "http://ticketu-api-gateway:8080")
     STAFF_COOKIE = os.getenv("PAGOS_STAFF_COOKIE", os.getenv("PAGOS_STAFF_TOKEN", ""))
 
     @classmethod
@@ -78,7 +78,7 @@ class PagosService:
         SLA: < 2000 ms (incluye validación de sesión con Auth y creación en Stripe).
         Idempotencia: Reintentar con el mismo id_reserva y los mismos datos es seguro y devuelve 200 sin duplicar cobro.
         """
-        url = f"{cls.BASE_URL}/api/v1/pagos/transacciones"
+        url = f"{cls.BASE_URL}/api/pagos/transacciones"
         cookie_reenvio = cls._preparar_cookie_header(cookie_header or token_sesion)
 
         headers = {}
@@ -165,7 +165,7 @@ class PagosService:
         SLA: < 300 ms cuando el estado es final; < 2000 ms si Pagos debe confirmar con Stripe un pago PENDIENTE.
         Estados posibles: PENDIENTE, APROBADO, RECHAZADO, ANULADO, REEMBOLSADO.
         """
-        url = f"{cls.BASE_URL}/api/v1/pagos/{id_pago}"
+        url = f"{cls.BASE_URL}/api/pagos/{id_pago}"
         cookie_reenvio = cls._preparar_cookie_header(cookie_header or token_sesion)
         headers = {"Cookie": cookie_reenvio} if cookie_reenvio else {}
 
@@ -224,7 +224,7 @@ class PagosService:
         Nota v2.3: Auth solo valida desde la cookie 'jwt'; los roles SERVICIO y ADMIN dejaron de existir.
         SLA: < 2000 ms.
         """
-        url = f"{cls.BASE_URL}/api/v1/pagos/{id_pago}/reembolso"
+        url = f"{cls.BASE_URL}/api/pagos/{id_pago}/reembolso"
         cookie_reenvio = cls._preparar_cookie_header(cookie_header or token_sesion or token_servicio)
         headers = {"Cookie": cookie_reenvio} if cookie_reenvio else {}
 
