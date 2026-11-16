@@ -498,6 +498,29 @@ async def emitir_entrada_directa_frontend(solicitud: EmisionDirectaRequest):
         qr_data=id_entrada
     )
 
+    asyncio.create_task(NotificacionesService.enviar_ticket_correo(
+        correo_comprador=solicitud.correo_comprador,
+        nombre_comprador=solicitud.nombre_comprador,
+        id_usuario=solicitud.id_usuario,
+        nombre_evento=nombre_evento,
+        id_evento=solicitud.id_evento,
+        fecha_evento=fecha_evento,
+        hora_evento=hora_evento,
+        qr_data=qr_url
+    ))
+    asyncio.create_task(BrokerService.publish_event("entrada.emitida", {
+        "id_entrada": id_entrada,
+        "id_reserva": id_reserva,
+        "id_evento": solicitud.id_evento,
+        "id_usuario": solicitud.id_usuario,
+        "nombre_usuario": solicitud.nombre_comprador,
+        "correo_usuario": solicitud.correo_comprador,
+        "tipo_acceso": "GENERAL",
+        "precio_final_pagado": solicitud.precio_final,
+        "qr_data": {"url": qr_url},
+        "fecha_emision": datetime.utcnow().isoformat()
+    }))
+
     return {
         "idEntrada": id_entrada,
         "idEvento": solicitud.id_evento,
