@@ -14,6 +14,7 @@ class BrokerService:
     connection = None
     channel = None
     exchange = None
+    entradas_exchange = None
     consumer_task = None
     _is_connected = False
 
@@ -30,6 +31,12 @@ class BrokerService:
             # Declarar exchange de tipo topic durable según especificación TicketU
             cls.exchange = await cls.channel.declare_exchange(
                 EVENT_EXCHANGE,
+                aio_pika.ExchangeType.TOPIC,
+                durable=True
+            )
+            # Exchange requerido por el Contrato v3 de Notificaciones
+            cls.entradas_exchange = await cls.channel.declare_exchange(
+                "entradas.events",
                 aio_pika.ExchangeType.TOPIC,
                 durable=True
             )
@@ -130,6 +137,22 @@ class BrokerService:
                     "qr_data": qr_obj
                 })
 
+                # Publicar evento entradas_emitidas para Notificaciones (Contrato v3)
+                correo_comprador = reserva.get("correo_usuario") or data.get("correo_usuario") or ""
+                if correo_comprador:
+                    from services.notificaciones_service import NotificacionesService
+                    evento_doc = await db.inventario_evento.find_one({"id_evento": id_evento}) or {}
+                    await NotificacionesService.enviar_ticket_correo(
+                        correo_comprador=correo_comprador,
+                        nombre_comprador=reserva.get("nombre_usuario", "Cliente"),
+                        id_usuario=reserva.get("id_usuario", ""),
+                        nombre_evento=evento_doc.get("nombre_evento") or f"Evento {id_evento}",
+                        id_evento=id_evento,
+                        fecha_evento=evento_doc.get("fecha_evento") or "",
+                        hora_evento=evento_doc.get("hora_evento") or "",
+                        qr_data=qr_obj["url"]
+                    )
+
         elif event_name == "pago.rechazado":
             id_reserva = data.get("id_reserva")
             if not id_reserva:
@@ -222,6 +245,28 @@ class BrokerService:
             print(f"[RabbitMQ] Evento publicado: '{event_name}' (ID: {envelope['eventId']})")
         except Exception as e:
             print(f"[RabbitMQ] Error publicando evento '{event_name}': {e}")
+
+    @classmethod
+    async def publish_notificaciones(cls, payload: dict) -> bool:
+        """Publica el evento plano 'entradas_emitidas' en el exchange 'entradas.events' (Contrato v3)."""
+        if not cls._is_connected or not cls.entradas_exchange:
+            print(f"[RabbitMQ Mock/Offline] Evento 'entradas_emitidas' generado: {payload}")
+            return False
+
+        try:
+            message_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            message = aio_pika.Message(
+                body=message_body,
+                content_type="application/json",
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                timestamp=datetime.utcnow()
+            )
+            await cls.entradas_exchange.publish(message, routing_key="entradas_emitidas")
+            print(f"[RabbitMQ - entradas.events] Evento 'entradas_emitidas' publicado para {payload.get('correo_comprador')}")
+            return True
+        except Exception as e:
+            print(f"[RabbitMQ] Error publicando en 'entradas.events': {e}")
+            return False
 
     @classmethod
     async def close(cls):
