@@ -3,7 +3,7 @@ import httpx
 from typing import Optional, Dict
 
 class PanelService:
-    BASE_URL = os.getenv("PANEL_SERVICE_URL", "http://organizador-service:3000")
+    BASE_URL = os.getenv("PANEL_SERVICE_URL", "http://ticketu-api-gateway:8080")
 
     @classmethod
     async def obtener_info_evento(cls, id_evento: str, token_sesion: Optional[str] = None) -> Optional[Dict]:
@@ -12,7 +12,7 @@ class PanelService:
         Consumidor: Entradas / Inventario
         Propósito: Fallback para rehidratar BD, o consultar estado ("CANCELADO") antes de operar.
         """
-        url = f"{cls.BASE_URL}/api/v1/panel/eventos/{id_evento}"
+        url = f"{cls.BASE_URL}/api/organizador/v1/panel/eventos/{id_evento}"
         headers = {}
         if token_sesion:
             headers["Cookie"] = f"jwt={token_sesion}"
