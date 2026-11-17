@@ -5,6 +5,7 @@ from datetime import datetime
 from database import connect_to_mongo, close_mongo_connection, get_database
 from services.broker_service import BrokerService
 from services.pagos_service import PagosService
+from services.panel_service import PanelService
 
 from routers.inventario import router as inventario_router
 from routers.entradas import router as entradas_router
@@ -108,6 +109,8 @@ async def tarea_polling_pagos_pendientes():
 async def lifespan(app: FastAPI):
     # Conectar a MongoDB
     await connect_to_mongo()
+    # Sincronizar eventos publicados de Panel al iniciar (sin bloquear arranque)
+    asyncio.create_task(PanelService.sincronizar_eventos_panel(get_database()))
     # Conectar al Event Broker compartido (RabbitMQ)
     await BrokerService.connect()
     # Iniciar monitor de expiración de reservas (HU-03 + Pagos v2.3 Op 4) y polling de pagos (Pagos v2.3 Op 3)
