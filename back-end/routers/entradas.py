@@ -124,7 +124,7 @@ async def procesar_compra(
         })
         
         id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
-        qr_data_url = f"https://storage.midominio.com/qr/gratis-{id_entrada}.png"
+        qr_data_url = CheckinService.generar_qr_url(id_entrada, compra.id_evento)
         qr_obj = {
             "url": qr_data_url,
             "hash": uuid.uuid4().hex[:7]
@@ -462,7 +462,7 @@ async def emitir_entrada_directa_frontend(solicitud: EmisionDirectaRequest):
         )
 
     id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
-    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={id_entrada}"
+    qr_url = CheckinService.generar_qr_url(id_entrada, solicitud.id_evento)
     nombre_evento = evento.get("nombre_evento") or f"Evento {solicitud.id_evento}"
     fecha_evento = evento.get("fecha_evento") or "20 de Noviembre, 2026"
     hora_evento = evento.get("hora_evento") or "20:00 hrs"

@@ -106,9 +106,10 @@ class BrokerService:
                 )
                 
                 # Emitir ticket
+                from services.checkin_service import CheckinService
                 id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
                 qr_obj = {
-                    "url": f"https://storage.midominio.com/qr/{id_entrada}.png",
+                    "url": CheckinService.generar_qr_url(id_entrada, id_evento),
                     "hash": uuid.uuid4().hex[:7]
                 }
                 doc_entrada = {

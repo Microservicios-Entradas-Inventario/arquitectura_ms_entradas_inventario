@@ -1,9 +1,20 @@
+import json
 import os
+from urllib.parse import quote
 import httpx
 from typing import Any, Optional, Union
 
 class CheckinService:
     BASE_URL = os.getenv("CHECKIN_SERVICE_URL", "http://ticketu-api-gateway:8080")
+
+    @staticmethod
+    def generar_qr_url(id_entrada: str, id_evento: str) -> str:
+        """Genera la URL del QR con JSON {id_entrada, id_evento} para el lector de Check-in."""
+        payload = json.dumps(
+            {"id_entrada": str(id_entrada).strip(), "id_evento": str(id_evento).strip()},
+            separators=(",", ":"),
+        )
+        return f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={quote(payload, safe='')}"
 
     @classmethod
     async def registrar_ticket_puerta(
@@ -15,12 +26,11 @@ class CheckinService:
         qr_data: Optional[Union[str, Any]] = None
     ) -> bool:
         """
-        Contrato HTTP de Check-in (v0.2.0 / Integración)
+        Contrato HTTP de Check-in (v2 / Integración)
         Consumidor: Entradas / Inventario
         Proveedor: Check-in
         Operación: Recibir y guardar un ticket desde Entradas
         Endpoint: POST /api/checkin/tickets
-        Campos requeridos (strings sin espacios extremos): id_entrada, id_evento, id_usuario, nombre_usuario y qr_data (= id_entrada).
         """
         url = f"{cls.BASE_URL}/api/checkin/tickets"
         
@@ -28,15 +38,13 @@ class CheckinService:
         id_evento_str = str(id_evento or "").strip()
         id_usuario_str = str(id_usuario or "usr-desconocido").strip()
         nombre_usuario_str = str(nombre_usuario or "Asistente").strip()
-        # Check-in exige que qr_data sea string y coincida exactamente con id_entrada
-        qr_string = str(qr_data).strip() if isinstance(qr_data, str) and str(qr_data).strip() == id_entrada_str else id_entrada_str
             
         payload = {
             "id_entrada": id_entrada_str,
             "id_evento": id_evento_str,
             "id_usuario": id_usuario_str,
             "nombre_usuario": nombre_usuario_str,
-            "qr_data": qr_string
+            "qr_data": {"id_entrada": id_entrada_str, "id_evento": id_evento_str},
         }
         
         async with httpx.AsyncClient() as client:

@@ -70,8 +70,8 @@ async def consolidar_y_emitir_entradas(
 
     for _ in range(cantidad):
         id_entrada = f"tk-{uuid.uuid4().hex[:8]}"
-        qr_data_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={id_entrada}"
-        qr_checkin = id_entrada
+        qr_data_url = CheckinService.generar_qr_url(id_entrada, id_evento)
+        qr_checkin = {"id_entrada": id_entrada, "id_evento": id_evento}
         qr_obj = {
             "url": qr_data_url,
             "hash": uuid.uuid4().hex[:7]
