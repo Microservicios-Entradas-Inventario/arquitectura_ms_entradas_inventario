@@ -2,7 +2,9 @@
 
 Repositorio oficial del microservicio de **Entradas e Inventario** (`entradas-service`) de la plataforma de gestión de eventos **TicketU** (TITEC 2026-2), desarrollado con **FastAPI (Python 3.12)**, **MongoDB (Motor)** y **RabbitMQ (aio-pika)**, e integrado en la red Docker compartida `plataforma-eventos-net`.
 
-📄 **Evidencias de integración en vivo en Docker:** [docs/EVIDENCIAS_INTEGRACION.md](docs/EVIDENCIAS_INTEGRACION.md)
+📄 **Evidencias de integración en vivo en Docker:** [docs/EVIDENCIAS_INTEGRACION.md](docs/EVIDENCIAS_INTEGRACION.md)  
+🔗 **Declaración de integraciones (Evaluación 2):** [INTEGRACIONES.md](INTEGRACIONES.md)  
+👥 **Responsables del microservicio:** [RESPONSABLES.md](RESPONSABLES.md)
 
 ---
 
@@ -36,11 +38,11 @@ Repositorio oficial del microservicio de **Entradas e Inventario** (`entradas-se
 │   ├── services/                    # Clientes de integración con microservicios externos
 │   │   ├── auth_service.py          # Validación de sesión con Auth (GET /internal/validar-sesion + Cookie jwt + x-api-key)
 │   │   ├── broker_service.py        # Publicación y consumo de eventos en RabbitMQ (ticketu.events)
-│   │   ├── catalogo_service.py      # Sincronización de stock hacia Catálogo de Eventos (puerto 4000)
-│   │   ├── checkin_service.py       # Registro de tickets emitidos en Check-in (puerto 3001)
+│   │   ├── catalogo_service.py      # Sincronización de stock hacia Catálogo de Eventos (vía API Gateway :8080)
+│   │   ├── checkin_service.py       # Registro de tickets emitidos y QR en Check-in (vía API Gateway :8080 / :3005)
 │   │   ├── notificaciones_service.py# Publicación de eventos para envío de tickets por correo
 │   │   ├── pagos_service.py         # Integración Contrato Pagos <-> Entradas v2.3 (transacciones, estado y reembolso)
-│   │   └── panel_service.py         # Notificación de métricas al Panel Organizador (puerto 3000)
+│   │   └── panel_service.py         # Notificación de métricas al Panel Organizador (vía API Gateway :8080)
 │   └── tests/                       # Pruebas automatizadas (Pytest) y colección Postman
 ├── database/
 │   ├── init_db.js                   # Inicialización de colecciones ($jsonSchema), índices TTL y datos semilla
@@ -51,6 +53,8 @@ Repositorio oficial del microservicio de **Entradas e Inventario** (`entradas-se
 ├── Contratos (endpoints que damos)/      # Especificación de contratos provistos al resto de equipos
 ├── .env.example                     # Plantilla de variables de entorno para Docker / local
 ├── docker-compose.yml               # Orquestación de entradas-service, MongoDB y Mongo Express
+├── INTEGRACIONES.md                 # Declaración formal de integraciones (I1 Check-in Tipo A, I2 Catálogo Tipo B)
+├── RESPONSABLES.md                  # Responsables asignados al microservicio
 └── README.md
 ```
 
@@ -68,24 +72,25 @@ El servicio `entradas-service` se comunica dentro de la red Docker `plataforma-e
   * `x-api-key: <INTERNAL_API_KEY>`
 * **Comportamiento:** Obtiene `id_usuario`, `rol` (`USUARIO`, `ORGANIZADOR`, `STAFF`, `CLIENTE`), `nombre`, `rut` y `correo`. Si Auth rechaza la cookie devuelve `401 NO_AUTENTICADO`; si Auth no está disponible o falla la red devuelve `503 AUTH_NO_DISPONIBLE`.
 
-### 2. Pasarela de Pagos (`pagos-service:3000` - Contrato Pagos ↔ Entradas v2.3)
+### 2. Pasarela de Pagos (`PAGOS_SERVICE_URL` vía API Gateway `ticketu-api-gateway:8080` - Contrato Pagos ↔ Entradas v2.3)
 * **Método:** [`PagosService`](back-end/services/pagos_service.py) y [`routers/reservas.py`](back-end/routers/reservas.py)
 * **Operación 1 (Provista a Pagos - INT-01):** `GET /api/v1/entradas/reservas/{id_reserva}` y `GET /api/entradas/reservas/{id_reserva}`. Responde `200 OK` con `id_reserva`, `id_evento`, `total` (y `monto_total`), `cantidad_entradas` (y `cantidad_entrada`), `estado_reserva` y `tiempo_restante_segundos`.
-* **Operación 2 (Consumida - Crear intención de cobro):** `POST http://pagos-service:3000/api/v1/pagos/transacciones` reenviando el header `Cookie` (`jwt`) del comprador. Guarda únicamente `id_pago` como referencia en la reserva (ignorando `client_secret`) y retorna `url_checkout`.
-* **Operación 3 (Consumida - Polling de estado cada 5s):** Worker en segundo plano (`tarea_polling_pagos_pendientes` en [`main.py`](back-end/main.py)) y endpoint `GET /api/entradas/reservas/{id_reserva}/estado-pago` que consultan `GET http://pagos-service:3000/api/v1/pagos/{id_pago}`. Si pasa a `APROBADO`, consolida la reserva y emite las entradas con QR; si pasa a `RECHAZADO`/`ANULADO`/`REEMBOLSADO`, libera los cupos.
-* **Operación 4 (Consumida - Anulación / Reembolso por expiración o cancelación):** `POST http://pagos-service:3000/api/v1/pagos/{id_pago}/reembolso` reenviando el header `Cookie` (`jwt`) cuando vence el TTL de 15 minutos del Hold (`tarea_liberacion_reservas_expiradas`) o el usuario cancela su reserva.
+* **Operación 2 (Consumida - Crear intención de cobro):** `POST ${PAGOS_SERVICE_URL}/api/v1/pagos/transacciones` reenviando el header `Cookie` (`jwt`) del comprador. Guarda únicamente `id_pago` como referencia en la reserva (ignorando `client_secret`) y retorna `url_checkout`.
+* **Operación 3 (Consumida - Polling de estado cada 5s):** Worker en segundo plano (`tarea_polling_pagos_pendientes` en [`main.py`](back-end/main.py)) y endpoint `GET /api/entradas/reservas/{id_reserva}/estado-pago` que consultan `GET ${PAGOS_SERVICE_URL}/api/v1/pagos/{id_pago}`. Si pasa a `APROBADO`, consolida la reserva y emite las entradas con QR; si pasa a `RECHAZADO`/`ANULADO`/`REEMBOLSADO`, libera los cupos.
+* **Operación 4 (Consumida - Anulación / Reembolso por expiración o cancelación):** `POST ${PAGOS_SERVICE_URL}/api/v1/pagos/{id_pago}/reembolso` reenviando el header `Cookie` (`jwt`) cuando vence el TTL de 15 minutos del Hold (`tarea_liberacion_reservas_expiradas`) o el usuario cancela su reserva.
 
-### 3. Catálogo de Eventos (`catalogo-service:4000` / `ms-catalogo-eventos:4000`)
-* **Método:** [`CatalogoService.actualizar_stock_catalogo`](back-end/services/catalogo_service.py)
-* **Endpoint consumido:** `PUT http://catalogo-service:4000/api/v1/catalogo/eventos/{id_evento}/stock` enviando `{"nuevo_stock": int, "token_sesion": str}`.
-* **Endpoint provisto a Catálogo:** `POST /api/entradas/procesar-compra` (y `/api/v1/entradas/procesar-compra`).
+### 3. Catálogo de Eventos (`CATALOGO_SERVICE_URL` vía API Gateway `ticketu-api-gateway:8080` - Integración I2 Tipo B)
+* **Método:** [`CatalogoService.actualizar_stock_catalogo`](back-end/services/catalogo_service.py) y publicación asíncrona en RabbitMQ.
+* **Endpoint consumido:** `PUT ${CATALOGO_SERVICE_URL}/api/v1/catalogo/eventos/{id_evento}/stock` enviando `{"nuevo_stock": int, "token_sesion": str}`.
+* **Eventos RabbitMQ publicados hacia Catálogo:** `entradas.evento.stock.v1` y `stock.agotado` (incluyendo cuando una compra gratuita deja el stock en `0`).
+* **Endpoints provistos a Catálogo:** `POST /api/entradas/procesar-compra` (y `/api/v1/entradas/procesar-compra`) y `GET /api/entradas/eventos/{id_evento}/disponibilidad`.
 
-### 4. Check-in (`checkin-service:3001`)
+### 4. Check-in (`CHECKIN_SERVICE_URL` vía API Gateway `ticketu-api-gateway:8080` / `3005` - Integración I1 Tipo A)
 * **Método:** [`CheckinService.registrar_ticket_puerta`](back-end/services/checkin_service.py)
-* **Endpoint consumido:** `POST http://checkin-service:3001/api/checkin/tickets` enviando `id_entrada`, `id_evento`, `id_usuario`, `nombre_usuario` y `qr_data` (string idéntico a `id_entrada`).
+* **Endpoint consumido:** `POST ${CHECKIN_SERVICE_URL}/api/checkin/tickets` enviando `id_entrada`, `id_evento`, `id_usuario`, `nombre_usuario` y `qr_data` como objeto JSON estructurado `{"id_entrada": "...", "id_evento": "..."}` (la URL del QR generada con `api.qrserver.com` codifica este mismo JSON).
 * **Endpoint provisto a Check-in:** `GET /api/entradas/{id_ticket}` (y `/api/v1/entradas/{id_ticket}`).
 
-### 5. Panel Organizador (`organizador-service:3000`)
+### 5. Panel Organizador (`PANEL_SERVICE_URL` vía API Gateway `ticketu-api-gateway:8080`)
 * **Endpoints provistos al Panel Organizador:**
   * `POST /api/entradas/inventario` (y `/api/v1/inventario`): Inicialización de stock y precio de un evento.
   * `PUT /api/entradas/inventario/{id_evento}`: Actualización de stock/estado del evento.
@@ -95,8 +100,9 @@ El servicio `entradas-service` se comunica dentro de la red Docker `plataforma-e
 * **API Gateway:** Enruta todo el tráfico bajo `/api/entradas/*` hacia `http://entradas-service:3000`.
 * **RabbitMQ (`BrokerService`):**
   * **Exchange:** `ticketu.events` (`topic`, durable), cola propia `entradas.pagos`.
+  * **Bindings:** `pago.*`, `evento.*` y `panel.evento.entradas.v1`.
   * **Eventos publicados:** `entrada.reservada`, `entrada.emitida`, `stock.agotado`, `entradas.evento.stock.v1`, `entradas_emitidas`.
-  * **Eventos escuchados:** `pago.realizado`, `pago.rechazado`, `evento.publicado`, `evento.actualizado`, `evento.cancelado`.
+  * **Eventos escuchados:** `pago.realizado`, `pago.rechazado`, `evento_creado`, `evento_publicado` / `evento.publicado`, `evento_actualizado` / `evento.actualizado`, `evento_cancelado` / `evento.cancelado` y `evento_eliminado`.
 
 ---
 
@@ -154,10 +160,12 @@ Puedes copiar [`.env.example`](.env.example) a `.env` en la raíz o en `back-end
 | `QUEUE_NAME` | `entradas.pagos` | Cola de consumo del microservicio de Entradas |
 | `AUTH_SERVICE_URL` | `http://auth-service:10000` | URL interna del microservicio de Autenticación |
 | `INTERNAL_API_KEY` | `CAMBIAR_CLAVE_COMPARTIDA_SEGURA` | API Key compartida para `GET /internal/validar-sesion` en Auth |
-| `PAGOS_SERVICE_URL` | `http://pagos-service:3000` | URL interna del microservicio de Pagos |
-| `CATALOGO_SERVICE_URL` | `http://catalogo-service:4000` | URL interna del microservicio de Catálogo de Eventos |
-| `CHECKIN_SERVICE_URL` | `http://checkin-service:3001` | URL interna del microservicio de Check-in |
-| `PANEL_SERVICE_URL` | `http://organizador-service:3000` | URL interna del microservicio de Panel Organizador |
+| `PAGOS_SERVICE_URL` | `http://ticketu-api-gateway:8080` | URL interna hacia Pagos (enrutado vía API Gateway) |
+| `CATALOGO_SERVICE_URL` | `http://ticketu-api-gateway:8080` | URL interna hacia Catálogo de Eventos (enrutado vía API Gateway) |
+| `CHECKIN_SERVICE_URL` | `http://ticketu-api-gateway:8080` | URL interna hacia Check-in (enrutado vía API Gateway) |
+| `PANEL_SERVICE_URL` | `http://ticketu-api-gateway:8080` | URL interna hacia Panel Organizador (enrutado vía API Gateway) |
+| `AUTH_SERVICE_URL` | `http://auth-service:10000` | URL interna del microservicio de Autenticación |
+| `INTERNAL_API_KEY` | `CAMBIAR_CLAVE_COMPARTIDA_SEGURA` | Clave compartida `X-Internal-API-Key` para comunicación entre servicios |
 
 ---
 
@@ -179,9 +187,9 @@ docker network create plataforma-eventos-net 2>/dev/null || true
 docker compose up -d --build
 ```
 Esto levantará:
-* **`entradas-service`:** `http://localhost:3000` (y `http://entradas-service:3000` dentro de `plataforma-eventos-net`)
-* **Swagger UI (OpenAPI 3.0):** [http://localhost:3000/docs](http://localhost:3000/docs)
-* **Healthcheck:** [http://localhost:3000/health](http://localhost:3000/health)
+* **`entradas-service`:** `http://localhost:3003` (y `http://entradas-service:3000` dentro de `plataforma-eventos-net`, o `http://localhost:8080/api/entradas/...` vía API Gateway)
+* **Swagger UI (OpenAPI 3.0):** [http://localhost:3003/docs](http://localhost:3003/docs)
+* **Healthcheck:** [http://localhost:3003/health](http://localhost:3003/health)
 * **`ticketu_entradas_mongo` (MongoDB):** `localhost:27017`
 * **`ticketu_entradas_gui` (Mongo Express):** [http://localhost:8082](http://localhost:8082)
 
