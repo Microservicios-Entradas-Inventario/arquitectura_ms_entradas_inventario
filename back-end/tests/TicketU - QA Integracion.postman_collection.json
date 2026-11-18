@@ -637,7 +637,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"comprador.qa@ticketu.cl\",\n  \"password\": \"TicketU2026!\"\n}"
+              "raw": "{\n  \"email\": \"comprador1@ticketu.test\",\n  \"password\": \"TicketuQA2026!\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/auth/login",
@@ -727,7 +727,7 @@
                   "    pm.expect(json).to.have.property('idEntrada');",
                   "    pm.expect(json.idEntrada).to.match(/^tk-/);",
                   "    pm.expect(json.registradoEnCheckin).to.be.true;",
-                  "    pm.expect(json.idEvento).to.eql('evt-002');",
+                  "    pm.expect(json.idEvento).to.eql('66f1a0000000000000000003');",
                   "    pm.collectionVariables.set('id_entrada_emitida', json.idEntrada);",
                   "});"
                 ]
@@ -744,7 +744,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_evento\": \"evt-002\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_comprador\": \"Sebastian Fuentes\",\n  \"correo_comprador\": \"sebastian.fuentes@ticketu.cl\",\n  \"cantidad_entradas\": 1,\n  \"precio_final\": 0\n}"
+              "raw": "{\n  \"id_evento\": \"66f1a0000000000000000003\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_comprador\": \"Sebastian Fuentes\",\n  \"correo_comprador\": \"sebastian.fuentes@ticketu.cl\",\n  \"cantidad_entradas\": 1,\n  \"precio_final\": 0\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/entradas/emision-directa",
@@ -757,7 +757,7 @@
                 "emision-directa"
               ]
             },
-            "description": "**Historia de Usuario:** HU-02 y HU-05 (Entradas) ↔ HU-01 (Check-in) — **Contrato I3 (Issue #19)**.\n\nEmite una entrada nueva en `entradas-service` (MongoDB) para `evt-002` y la registra síncronamente en `checkin-service` (MySQL) mediante `POST http://checkin-service:3005/api/checkin/tickets`. Guarda `{{id_entrada_emitida}}` para las siguientes pruebas."
+            "description": "**Historia de Usuario:** HU-02 y HU-05 (Entradas) ↔ HU-01 (Check-in) — **Contrato I3 (Issue #19)**.\n\nEmite una entrada nueva en `entradas-service` (MongoDB) para `66f1a0000000000000000003` y la registra síncronamente en `checkin-service` (MySQL) mediante `POST http://checkin-service:3005/api/checkin/tickets`. Guarda `{{id_entrada_emitida}}` para las siguientes pruebas."
           },
           "response": []
         },
@@ -825,7 +825,7 @@
                   "    pm.expect(json.id_entrada).to.eql(idEsperado);",
                   "    pm.expect(json.habilitado_checkin).to.be.true;",
                   "    pm.expect(json.qr_payload).to.have.property('id_entrada', idEsperado);",
-                  "    pm.expect(json.qr_payload).to.have.property('id_evento', 'evt-002');",
+                  "    pm.expect(json.qr_payload).to.have.property('id_evento', '66f1a0000000000000000003');",
                   "});"
                 ]
               }
@@ -894,6 +894,48 @@
           "response": []
         },
         {
+          "name": "[Integración Auth ↔ Check-in] 2.4b Iniciar Sesión STAFF en Auth (Cookie JWT para Puerta)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Auth responde 200 OK para operador STAFF', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff1@ticketu.test\",\n  \"password\": \"TicketuQA2026!\",\n  \"admin\": true\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Inicia sesión como operador STAFF (`staff1@ticketu.test`) para obtener la cookie `jwt` requerida por `POST /api/checkin/validaciones`."
+          },
+          "response": []
+        },
+        {
           "name": "[Flujo E2E Torniquete / HU-05 Entradas ↔ HU-02 Check-in] 2.5 Validar Ticket Emitido en Puerta (1er Escaneo -> ACCESO AUTORIZADO)",
           "event": [
             {
@@ -911,7 +953,7 @@
                   "    pm.expect(json.valido).to.be.true;",
                   "    pm.expect(json.motivo).to.eql('TICKET_FOUND');",
                   "    pm.expect(json.ticket.id_entrada).to.eql(idEsperado);",
-                  "    pm.expect(json.ticket.id_evento).to.eql('evt-002');",
+                  "    pm.expect(json.ticket.id_evento).to.eql('66f1a0000000000000000003');",
                   "    pm.expect(json.ticket.nombre_usuario).to.eql('Sebastian Fuentes');",
                   "});"
                 ]
@@ -928,7 +970,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"evt-002\"\n}"
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"66f1a0000000000000000003\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/checkin/validaciones",
@@ -976,7 +1018,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"evt-002\"\n}"
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"66f1a0000000000000000003\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/checkin/validaciones",
@@ -994,7 +1036,7 @@
           "response": []
         },
         {
-          "name": "[Flujo Pagado -> Check-in / HU-03 Entradas] 2.7a Crear Reserva Hold para Evento Pagado (evt-77889)",
+          "name": "[Flujo Pagado -> Check-in / HU-03 Entradas] 2.7a Crear Reserva Hold para Evento Pagado (66f1a0000000000000000002)",
           "event": [
             {
               "listen": "test",
@@ -1024,7 +1066,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_evento\": \"evt-77889\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"cantidad\": 1,\n  \"tiempo_limite_minutos\": 15\n}"
+              "raw": "{\n  \"id_evento\": \"66f1a0000000000000000002\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"cantidad\": 1,\n  \"tiempo_limite_minutos\": 15\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/entradas/reservas/hold",
@@ -1124,7 +1166,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_entrada\": \"{{id_entrada_webhook}}\",\n  \"id_evento\": \"evt-77889\"\n}"
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_webhook}}\",\n  \"id_evento\": \"66f1a0000000000000000002\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/checkin/validaciones",
@@ -1171,7 +1213,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"evt-002\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"qr_data\": \"{{id_entrada_emitida}}\"\n}"
+              "raw": "{\n  \"id_entrada\": \"{{id_entrada_emitida}}\",\n  \"id_evento\": \"66f1a0000000000000000003\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"qr_data\": \"{{id_entrada_emitida}}\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/checkin/tickets",
@@ -1218,7 +1260,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"id_entrada\": \"tk-test-mismatch-01\",\n  \"id_evento\": \"evt-002\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"qr_data\": \"https://storage.midominio.com/qr/tk-test-mismatch-01.png\"\n}"
+              "raw": "{\n  \"id_entrada\": \"tk-test-mismatch-01\",\n  \"id_evento\": \"66f1a0000000000000000003\",\n  \"id_usuario\": \"usr-12345\",\n  \"nombre_usuario\": \"Sebastian Fuentes\",\n  \"qr_data\": \"https://storage.midominio.com/qr/tk-test-mismatch-01.png\"\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/api/checkin/tickets",
@@ -1279,7 +1321,7 @@
                 "validaciones"
               ]
             },
-            "description": "**Historia de Usuario:** HU-02 (Check-in - Validación de correspondencia entre Ticket y Evento).\n\nVerifica que un ticket válido para `evt-002` sea rechazado con `EVENT_MISMATCH` si se intenta usar en la puerta de otro evento."
+            "description": "**Historia de Usuario:** HU-02 (Check-in - Validación de correspondencia entre Ticket y Evento).\n\nVerifica que un ticket válido para `66f1a0000000000000000003` sea rechazado con `EVENT_MISMATCH` si se intenta usar en la puerta de otro evento."
           },
           "response": []
         },
@@ -1341,7 +1383,7 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{gateway_url}}/api/checkin/eventos/evt-002/finalizar",
+              "raw": "{{gateway_url}}/api/checkin/eventos/66f1a0000000000000000003/finalizar",
               "host": [
                 "{{gateway_url}}"
               ],
@@ -1349,11 +1391,11 @@
                 "api",
                 "checkin",
                 "eventos",
-                "evt-002",
+                "66f1a0000000000000000003",
                 "finalizar"
               ]
             },
-            "description": "**Historia de Usuario:** HU-03 (Check-in - Cierre de Asistencia y Notificación Asíncrona por Broker).\n\nEnvía el listado consolidado de asistentes que hicieron check-in en `evt-002` al exchange `ticketu.events` de RabbitMQ con routing key `checkin.asistencia_final`."
+            "description": "**Historia de Usuario:** HU-03 (Check-in - Cierre de Asistencia y Notificación Asíncrona por Broker).\n\nEnvía el listado consolidado de asistentes que hicieron check-in en `66f1a0000000000000000003` al exchange `ticketu.events` de RabbitMQ con routing key `checkin.asistencia_final`."
           },
           "response": []
         }
