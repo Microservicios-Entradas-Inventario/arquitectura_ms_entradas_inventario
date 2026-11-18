@@ -20,7 +20,7 @@ services:
       CATALOGO_SERVICE_URL: "http://ticketu-api-gateway:8080"
       CHECKIN_SERVICE_URL: "http://ticketu-api-gateway:8080"
       AUTH_SERVICE_URL: "http://auth-service:10000"
-      INTERNAL_API_KEY: "CAMBIAR_CLAVE_COMPARTIDA_SEGURA"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-CAMBIAR_CLAVE_COMPARTIDA_SEGURA}"
       PAGOS_SERVICE_URL: "http://ticketu-api-gateway:8080"
     depends_on:
       - mongodb

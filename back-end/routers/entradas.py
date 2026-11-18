@@ -181,6 +181,10 @@ async def procesar_compra(
         }))
         
         if nuevo_stock == 0:
+            asyncio.create_task(BrokerService.publish_event("entradas.evento.stock.v1", {
+                "id_evento": compra.id_evento,
+                "stock": 0
+            }))
             asyncio.create_task(BrokerService.publish_event("stock.agotado", {
                 "id_evento": compra.id_evento,
                 "stock": 0

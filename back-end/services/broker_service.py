@@ -45,7 +45,6 @@ class BrokerService:
             # Enlazar cola a eventos de interés (pago.*, evento.* y eventos de Panel Organizador)
             await queue.bind(cls.exchange, routing_key="pago.*")
             await queue.bind(cls.exchange, routing_key="evento.*")
-            await queue.bind(cls.exchange, routing_key="panel.#")
             await queue.bind(cls.exchange, routing_key="panel.evento.entradas.v1")
             
             # Iniciar consumidor en background
@@ -172,13 +171,18 @@ class BrokerService:
                 )
                 print(f"[RabbitMQ - pago.rechazado] Reserva '{id_reserva}' liberada. Se devolvieron {cant} cupos.")
 
-        elif routing_key.startswith("panel.") or event_name in ["evento_creado", "evento_publicado", "evento_actualizado"]:
+        elif routing_key.startswith("panel.") or event_name in ["evento_creado", "evento_publicado", "evento_actualizado", "evento_eliminado", "evento_cancelado"]:
             # Evento originado desde Panel Organizador (Outbox Pattern)
             payload = envelope.get("payload", data)
             sub_tipo = envelope.get("envelope", {}).get("tipo", event_name)
             id_evt = payload.get("id_evento") or envelope.get("envelope", {}).get("id_evento")
 
             if id_evt:
+                if sub_tipo == "evento_eliminado":
+                    await db.inventario_evento.delete_one({"id_evento": id_evt})
+                    print(f"[RabbitMQ - Panel Organizador] Evento '{id_evt}' eliminado del inventario.")
+                    return
+
                 cant = int(payload.get("cantidad_entradas") or 100)
                 estado_g = payload.get("estado_gestion", "PUBLICADO").upper()
                 if estado_g not in ["BORRADOR", "PUBLICADO", "FINALIZADO", "CANCELADO", "AGOTADO"]:
@@ -187,17 +191,22 @@ class BrokerService:
                 if tipo_e not in ["PAGADA", "GRATUITA"]:
                     tipo_e = "PAGADA"
                 id_usr = payload.get("id_usuario") or "org-panel"
-                precio_u = int(payload.get("precio") or 10000)
+                precio_u = 0 if tipo_e == "GRATUITA" else int(payload.get("precio") or 0)
                 
                 evento_existente = await db.inventario_evento.find_one({"id_evento": id_evt})
                 if evento_existente:
+                    vendidas = evento_existente.get("cantidad_entrada_comprada", 0)
+                    reservadas = evento_existente.get("cantidad_entrada_reservada", 0)
+                    nuevo_stock = max(cant - vendidas - reservadas, 0)
                     await db.inventario_evento.update_one(
                         {"id_evento": id_evt},
                         {
                             "$set": {
-                                "stock_actual": cant,
+                                "stock_actual": nuevo_stock,
                                 "stock_inicial": cant,
                                 "tipo_entrada": tipo_e,
+                                "precio_unitario": precio_u,
+                                "id_usuario": id_usr,
                                 "estado_gestion": estado_g,
                                 "fecha_actualizacion": datetime.utcnow()
                             }

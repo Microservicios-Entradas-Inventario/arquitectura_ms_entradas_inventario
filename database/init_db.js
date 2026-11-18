@@ -380,25 +380,6 @@ dbRef.inventario_evento.insertMany([
     maximo_ticket: NumberInt(4),
     estado_gestion: "CANCELADO",
     fecha_actualizacion: ahora
-  },
-  {
-    id_evento: "66f1a0000000000000000002",
-    nombre_evento: "Feria de Innovacion TITEC",
-    descripcion: "Exposicion de proyectos de ingenieria de software y arquitectura de microservicios.",
-    fecha_evento: "10 de Diciembre, 2026",
-    hora_evento: "10:00 hrs",
-    lugar_ingreso: "Hall Central Facultad de Ingenieria",
-    id_usuario: "usr-org-panel",
-    rol_usuario: "ORGANIZADOR",
-    tipo_entrada: "PAGADA",
-    precio_unitario: NumberInt(10000),
-    stock_inicial: NumberInt(300),
-    stock_actual: NumberInt(300),
-    cantidad_entrada_reservada: NumberInt(0),
-    cantidad_entrada_comprada: NumberInt(0),
-    maximo_ticket: NumberInt(10),
-    estado_gestion: "PUBLICADO",
-    fecha_actualizacion: ahora
   }
 ]);
 
