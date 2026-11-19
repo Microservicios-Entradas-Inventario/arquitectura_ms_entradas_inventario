@@ -3,7 +3,8 @@
 Repositorio oficial del microservicio de **Entradas e Inventario** (`entradas-service`) de la plataforma de gestión de eventos **TicketU** (TITEC 2026-2), desarrollado con **FastAPI (Python 3.12)**, **MongoDB (Motor)** y **RabbitMQ (aio-pika)**, e integrado en la red Docker compartida `plataforma-eventos-net`.
 
 📄 **Evidencias de integración en vivo en Docker:** [docs/EVIDENCIAS_INTEGRACION.md](docs/EVIDENCIAS_INTEGRACION.md)  
-🔗 **Declaración de integraciones (Evaluación 2):** [INTEGRACIONES.md](INTEGRACIONES.md)  
+🛠️ **Guía de instalación y flujo principal (Evaluación 3):** [INSTALACION.md](INSTALACION.md)  
+🔗 **Declaración de integraciones (Evaluación 3):** [INTEGRACIONES.md](INTEGRACIONES.md)  
 👥 **Responsables del microservicio:** [RESPONSABLES.md](RESPONSABLES.md)
 
 ---
