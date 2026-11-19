@@ -41,7 +41,7 @@ class PromocionesService:
 
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.post(url, json=payload, timeout=1.0)
+                response = await client.post(url, json=payload, timeout=3.0)
                 if response.status_code == 200:
                     data = response.json()
                     if isinstance(data, dict):
