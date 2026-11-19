@@ -23,6 +23,18 @@ class PagosService:
     BASE_URL = os.getenv("PAGOS_SERVICE_URL", "http://ticketu-api-gateway:8080")
     STAFF_COOKIE = os.getenv("PAGOS_STAFF_COOKIE", os.getenv("PAGOS_STAFF_TOKEN", ""))
 
+    @staticmethod
+    def normalizar_promocion(
+        precio_base: int,
+        nombre_codigo: Optional[str] = None,
+        porcentaje_descuento: float = 0.0
+    ) -> tuple[Optional[str], int, int]:
+        """Normaliza el código promocional y calcula el monto final aplicando el porcentaje de descuento."""
+        codigo_limpio = str(nombre_codigo).strip().upper()[:64] if nombre_codigo and str(nombre_codigo).strip() else None
+        pct = int(round(max(0.0, min(100.0, float(porcentaje_descuento or 0)))))
+        monto_final = max(0, int(round(precio_base * (1.0 - pct / 100.0))))
+        return codigo_limpio, pct, monto_final
+
     @classmethod
     def _preparar_cookie_header(cls, cookie_o_token: Optional[str] = None) -> str:
         """
@@ -68,6 +80,7 @@ class PagosService:
         token_sesion: Optional[str] = None,
         id_evento: Optional[str] = None,
         metodo: Optional[str] = None,
+        nombre_codigo: Optional[str] = None,
         max_reintentos: int = 2
     ) -> Dict[str, Any]:
         """
@@ -94,6 +107,8 @@ class PagosService:
             payload["id_evento"] = str(id_evento)[:64]
         if metodo in ("formulario", "checkout"):
             payload["metodo"] = metodo
+        if nombre_codigo and str(nombre_codigo).strip():
+            payload["nombre_codigo"] = str(nombre_codigo).strip().upper()[:64]
 
         async with httpx.AsyncClient() as client:
             for intento in range(1, max_reintentos + 1):

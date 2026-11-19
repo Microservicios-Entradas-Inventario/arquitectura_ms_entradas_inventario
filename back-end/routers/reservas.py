@@ -270,7 +270,12 @@ async def crear_reserva_hold(
     ahora = datetime.utcnow()
     expira_en = ahora + timedelta(minutes=solicitud.tiempo_limite_minutos)
     precio_unitario = evento.get("precio_unitario", 0)
-    monto_total = precio_unitario * solicitud.cantidad
+    precio_base = precio_unitario * solicitud.cantidad
+    codigo_promo, pct_descuento, monto_total = PagosService.normalizar_promocion(
+        precio_base,
+        solicitud.nombre_codigo,
+        solicitud.porcentaje_descuento,
+    )
 
     doc_reserva = {
         "id_reserva": hold_id,
@@ -281,8 +286,9 @@ async def crear_reserva_hold(
         "correo_usuario": correo_usuario,
         "rol_usuario": rol_usuario,
         "cantidad_entrada": solicitud.cantidad,
-        "id_promocion": None,
-        "porcentaje_descuento": 0,
+        "id_promocion": solicitud.id_promocion,
+        "nombre_codigo": codigo_promo,
+        "porcentaje_descuento": pct_descuento,
         "monto_total": monto_total,
         "id_pago": None,
         "cookie_header": cookie_reenvio or None,
@@ -316,6 +322,9 @@ async def crear_reserva_hold(
         "rut_usuario": rut_usuario,
         "correo_usuario": correo_usuario,
         "cantidad_entrada": solicitud.cantidad,
+        "id_promocion": solicitud.id_promocion,
+        "nombre_codigo": codigo_promo,
+        "porcentaje_descuento": pct_descuento,
         "monto_total": monto_total,
         "estado_reserva": "RESERVADO",
         "fecha_creacion": ahora,
@@ -382,7 +391,8 @@ async def iniciar_pago_reserva(
         cantidad_entradas=int(reserva.get("cantidad_entrada", 1)),
         cookie_header=cookie_reenvio,
         id_evento=reserva.get("id_evento"),
-        metodo=metodo
+        metodo=metodo,
+        nombre_codigo=reserva.get("nombre_codigo")
     )
 
     if not pago or pago.get("estado_pago") == "ERROR" or not pago.get("id_pago"):

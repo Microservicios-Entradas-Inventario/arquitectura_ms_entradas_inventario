@@ -94,6 +94,7 @@ dbRef.createCollection("reserva_entrada", {
         },
         cantidad_entrada: { bsonType: "int", minimum: 1 },
         id_promocion: { bsonType: ["string", "null"] },
+        nombre_codigo: { bsonType: ["string", "null"] },
         porcentaje_descuento: { bsonType: "int", minimum: 0, maximum: 100 },
         monto_total: { bsonType: "int", minimum: 0 },
         id_pago: { bsonType: ["string", "null"] },

@@ -1,0 +1,291 @@
+================================================================================
+DEMOSTRACIÓN DE FLUJO BACKEND: ENTRADAS <-> CATÁLOGO Y ENTRADAS <-> CHECK-IN
+================================================================================
+Entorno: API Gateway (http://localhost:8080) sobre red Docker plataforma-eventos-net
+Servicios: entradas-service (:3003), ms-catalogo-eventos (:4000),
+           checkin-service (:3005), auth-service (:10000)
+
+
+--------------------------------------------------------------------------------
+DIAGRAMA DE FLUJO (SECUENCIA EN VIVO)
+--------------------------------------------------------------------------------
+
+[Cliente / Gateway :8080]
+   |
+   |--- FLUJO 1: ENTRADAS <-> CATÁLOGO DE EVENTOS (I2 Tipo B / R1 Tipo A) ------
+   |
+   |--(1) GET /api/entradas/eventos/evt-101/disponibilidad --------------------> [Entradas]
+   |<----- 200 OK (stockDisponible: 148) ---------------------------------------|
+   |
+   |--(2) POST /api/auth/login (comprador1@ticketu.test) ---------> [Auth]
+   |<----- 200 OK (Set-Cookie: jwt) ------------------------------|
+   |
+   |--(3) POST /api/entradas/reservas/hold (evt-101) --------------------------> [Entradas]
+   |                                                                               |-- PUT /api/v1/catalogo/eventos/evt-101/stock (147) --> [Catálogo]
+   |<----- 200 OK (id_reserva: hold-2dfb8e6b) ----------------------------------|
+   |
+   |--(4) GET /api/catalogo/eventos/evt-101 -------------------------------------------------------------> [Catálogo]
+   |<----- 200 OK (stock_actual: 147, estado_evento: disponible) ------------------------------------------|
+   |
+   |--(5) POST /api/entradas/reservas/hold-2dfb8e6b/cancelar ------------------> [Entradas]
+   |                                                                               |-- PUT /api/v1/catalogo/eventos/evt-101/stock (148) --> [Catálogo]
+   |<----- 200 OK (cupos_liberados: 1) -----------------------------------------|
+   |
+   |--(6) POST /api/entradas/procesar-compra (GRATUITA) -----------------------> [Entradas]
+   |<----- 200 OK (id_reserva: res-6063f555, nuevo_stock: 147) -----------------|
+   |
+   |
+   |--- FLUJO 2: ENTRADAS <-> CHECK-IN (I1 Tipo A / R2 Tipo B) -----------------
+   |
+   |--(7) POST /api/entradas/emision-directa (66f1a0000000000000000003) -------> [Entradas]
+   |                                                                               |-- POST /api/checkin/tickets (qr_data JSON) --> [Check-in]
+   |<----- 200 OK (idEntrada: tk-2a0f9a69, registradoEnCheckin: true) ----------|
+   |
+   |--(8) GET /api/entradas/tk-2a0f9a69/qr ------------------------------------> [Entradas]
+   |<----- 200 OK (habilitado_checkin: true, qr_payload JSON) ------------------|
+   |
+   |--(9) POST /api/auth/login (staff1@ticketu.test, admin: true) -> [Auth]
+   |<----- 200 OK (Set-Cookie: jwt STAFF) ------------------------|
+   |
+   |--(10) POST /api/checkin/validaciones (1er escaneo tk-2a0f9a69) ------------------------------------------> [Check-in]
+   |<----- 200 OK (valido: true, motivo: TICKET_FOUND) ----------------------------------------------------------|
+   |
+   |--(11) POST /api/checkin/validaciones (2do escaneo tk-2a0f9a69) ------------------------------------------> [Check-in]
+   |<----- 200 OK (valido: false, motivo: TICKET_ALREADY_USED) -------------------------------------------------|
+
+
+================================================================================
+1. FLUJO ENTRADAS <-> CATÁLOGO DE EVENTOS (I2 Tipo B + R1 Tipo A)
+================================================================================
+
+[1.1] Consulta de disponibilidad en Entradas (I2 ofrecido a Catálogo)
+--------------------------------------------------------------------------------
+GET http://localhost:8080/api/entradas/eventos/evt-101/disponibilidad
+
+Response (200 OK):
+{
+  "idEvento": "evt-101",
+  "stockDisponible": 148,
+  "stockTotal": 150,
+  "tipoEntrada": "GRATUITA",
+  "precio": 0
+}
+
+
+[1.2] Verificación inicial en Catálogo
+--------------------------------------------------------------------------------
+GET http://localhost:8080/api/catalogo/eventos/evt-101
+
+Response (200 OK):
+{
+  "id_evento": "evt-101",
+  "stock_actual": 148,
+  "estado_evento": "disponible"
+}
+
+
+[1.3] Autenticación de comprador en Auth
+--------------------------------------------------------------------------------
+POST http://localhost:8080/api/auth/login
+{
+  "email": "comprador1@ticketu.test",
+  "password": "TicketuQA2026!"
+}
+
+Response (200 OK + Cookie jwt):
+{
+  "message": "Inicio de sesión exitoso"
+}
+
+
+[1.4] Reserva Hold en Entradas y propagación de stock hacia Catálogo
+--------------------------------------------------------------------------------
+POST http://localhost:8080/api/entradas/reservas/hold
+{
+  "id_evento": "evt-101",
+  "cantidad_entradas": 2
+}
+
+Response (200 OK):
+{
+  "hold_id": "hold-2dfb8e6b",
+  "id_reserva": "hold-2dfb8e6b",
+  "id_evento": "evt-101",
+  "id_usuario": "f96e8278-1b2a-4a52-b997-dfeb6e8369a9",
+  "nombre_usuario": "Comprador QA 1",
+  "rut_usuario": "11.111.111-1",
+  "correo_usuario": "comprador1@ticketu.test",
+  "cantidad_entrada": 1,
+  "monto_total": 0,
+  "estado_reserva": "RESERVADO",
+  "fecha_creacion": "2026-11-18T19:08:51.643057",
+  "fecha_expiracion": "2026-11-18T19:23:51.643057",
+  "tiempo_restante_segundos": 900
+}
+
+Verificación en Catálogo (GET /api/catalogo/eventos/evt-101):
+{
+  "id_evento": "evt-101",
+  "stock_actual": 147,
+  "estado_evento": "disponible"
+}
+
+
+[1.5] Cancelación de Hold y restauración de stock en Catálogo
+--------------------------------------------------------------------------------
+POST http://localhost:8080/api/entradas/reservas/hold-2dfb8e6b/cancelar
+
+Response (200 OK):
+{
+  "mensaje": "Reserva cancelada exitosamente y cupos devueltos al pool disponible",
+  "id_reserva": "hold-2dfb8e6b",
+  "cupos_liberados": 1,
+  "id_pago": null,
+  "resultado_reembolso_pagos": null
+}
+
+Verificación en Catálogo (GET /api/catalogo/eventos/evt-101):
+{
+  "id_evento": "evt-101",
+  "stock_actual": 148,
+  "estado_evento": "disponible"
+}
+
+
+[1.6] Procesar compra desde Catálogo (I2 Tipo B)
+--------------------------------------------------------------------------------
+POST http://localhost:8080/api/entradas/procesar-compra
+{
+  "id_evento": "evt-101",
+  "tipo_entrada": "GRATUITA",
+  "cantidad": 1
+}
+
+Response (200 OK):
+{
+  "nuevo_stock": 147,
+  "id_reserva": "res-6063f555",
+  "id_pago": null,
+  "estado_pago": "GRATUITA",
+  "url_checkout": null,
+  "metodo": null,
+  "fecha_creacion": null,
+  "fecha_expiracion": null
+}
+
+
+================================================================================
+2. FLUJO ENTRADAS <-> CHECK-IN (I1 Tipo A + R2 Tipo B)
+================================================================================
+
+[2.1] Emisión de entrada y registro en vivo en Check-in (I1 Tipo A)
+--------------------------------------------------------------------------------
+POST http://localhost:8080/api/entradas/emision-directa
+{
+  "id_evento": "66f1a0000000000000000003"
+}
+
+Response (200 OK):
+{
+  "idEntrada": "tk-2a0f9a69",
+  "idEvento": "66f1a0000000000000000003",
+  "nombreEvento": "Charla de Ciberseguridad",
+  "nombreComprador": "Sebastian Fuentes",
+  "correoComprador": "sebastian.fuentes@ticketu.cl",
+  "tipoAcceso": "Entrada Gratuita",
+  "precioFinal": 0,
+  "cantidadEntradas": 1,
+  "qrData": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-2a0f9a69%22%2C%22id_evento%22%3A%2266f1a0000000000000000003%22%7D",
+  "fechaEvento": "2026-12-03",
+  "horaEvento": "17:00",
+  "lugarEvento": "Sala Multiuso, Facultad de Ingeniería",
+  "fechaEmision": "18-11-2026",
+  "registradoEnCheckin": true
+}
+
+
+[2.2] Consulta de ticket y payload QR (R2 ofrecido a Check-in)
+--------------------------------------------------------------------------------
+GET http://localhost:8080/api/entradas/tk-2a0f9a69
+
+Response (200 OK):
+{
+  "id_ticket": "tk-2a0f9a69",
+  "nombre_usuario": "Sebastian Fuentes",
+  "usuario": {
+    "id_usuario": "usr-12345",
+    "rol_usuario": "cliente"
+  }
+}
+
+GET http://localhost:8080/api/entradas/tk-2a0f9a69/qr
+
+Response (200 OK):
+{
+  "id_entrada": "tk-2a0f9a69",
+  "id_evento": "66f1a0000000000000000003",
+  "nombre_asistente": "Sebastian Fuentes",
+  "nombre_evento": "Charla de Ciberseguridad",
+  "lugar_ingreso": "Sala Multiuso, Facultad de Ingeniería",
+  "tipo_acceso": "GENERAL",
+  "qr_data": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-2a0f9a69%22%2C%22id_evento%22%3A%2266f1a0000000000000000003%22%7D",
+  "qr_payload": {
+    "id_evento": "66f1a0000000000000000003",
+    "id_entrada": "tk-2a0f9a69"
+  },
+  "habilitado_checkin": true
+}
+
+
+[2.3] Autenticación STAFF y validación en puerta (1er y 2do escaneo)
+--------------------------------------------------------------------------------
+POST http://localhost:8080/api/auth/login
+{
+  "email": "staff1@ticketu.test",
+  "password": "TicketuQA2026!",
+  "admin": true
+}
+
+Response (200 OK):
+{
+  "message": "Inicio de sesión exitoso"
+}
+
+--- 1er escaneo en puerta ---
+POST http://localhost:8080/api/checkin/validaciones
+{
+  "id_entrada": "tk-2a0f9a69",
+  "id_evento": "66f1a0000000000000000003"
+}
+
+Response (200 OK):
+{
+  "valido": true,
+  "motivo": "TICKET_FOUND",
+  "ticket": {
+    "id_entrada": "tk-2a0f9a69",
+    "id_evento": "66f1a0000000000000000003",
+    "nombre_usuario": "Sebastian Fuentes"
+  },
+  "evento": {
+    "estado_gestion": "PUBLICADO",
+    "nombre_evento": "Charla de Ciberseguridad",
+    "direccion_evento": "Sala Multiuso, Facultad de Ingeniería",
+    "fecha_evento": "2026-12-03",
+    "hora_evento": "17:00",
+    "hora_fin_evento": "19:00"
+  }
+}
+
+--- 2do escaneo en puerta (control antifraude) ---
+POST http://localhost:8080/api/checkin/validaciones
+{
+  "id_entrada": "tk-2a0f9a69",
+  "id_evento": "66f1a0000000000000000003"
+}
+
+Response (200 OK):
+{
+  "valido": false,
+  "motivo": "TICKET_ALREADY_USED"
+}

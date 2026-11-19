@@ -201,6 +201,11 @@ async def procesar_compra(
             {"$set": {"stock_actual": nuevo_stock}, "$inc": {"cantidad_entrada_reservada": compra.cantidad}}
         )
         
+        codigo_promo, pct_descuento, monto_final = PagosService.normalizar_promocion(
+            precio_base,
+            compra.nombre_codigo,
+            compra.porcentaje_descuento,
+        )
         expira_en = datetime.utcnow() + timedelta(minutes=15)
         # Persistencia de datos de comprador obtenidos de Auth y cookie_header para reenvío en polling/anulación con Pagos v2.3
         await db.reserva_entrada.insert_one({
@@ -212,9 +217,10 @@ async def procesar_compra(
             "correo_usuario": correo_usuario,
             "rol_usuario": rol_usuario.lower(),
             "cantidad_entrada": compra.cantidad,
-            "id_promocion": None,
-            "porcentaje_descuento": 0,
-            "monto_total": precio_base,
+            "id_promocion": compra.id_promocion,
+            "nombre_codigo": codigo_promo,
+            "porcentaje_descuento": pct_descuento,
+            "monto_total": monto_final,
             "id_pago": None,
             "cookie_header": cookie_reenvio,
             "estado_reserva": "RESERVADO",
@@ -225,11 +231,12 @@ async def procesar_compra(
         # Ejecutar inicio de cobro (Contrato Pagos v2.3: reenviar header Cookie tal cual)
         pago = await PagosService.iniciar_cobro(
             id_reserva=id_reserva, 
-            total=int(precio_base), 
+            total=monto_final, 
             cantidad_entradas=compra.cantidad,
             cookie_header=cookie_reenvio,
             id_evento=compra.id_evento,
-            metodo=compra.metodo
+            metodo=compra.metodo,
+            nombre_codigo=codigo_promo
         )
 
         # Si Pagos rechaza por 401 (NO_AUTENTICADO) o 503 (AUTH_NO_DISPONIBLE), revertir el descuento local para permitir reintento limpio

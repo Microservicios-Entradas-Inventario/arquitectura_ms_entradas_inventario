@@ -14,6 +14,9 @@ class ProcesarCompraRequest(BaseModel):
     cantidad: int = Field(gt=0, description="Cantidad de entradas a comprar (1 a 100 según contrato Pagos v2.3).")
     token_sesion: Optional[str] = Field(default=None, description="Opcional por retrocompatibilidad con Catálogo; en v2.3 se prioriza el header Cookie (jwt=<token>).")
     metodo: Optional[str] = Field(default="formulario", description="Método de cobro en Pagos v2.3: 'formulario' o 'checkout'.")
+    nombre_codigo: Optional[str] = Field(default=None, description="Código promocional aplicado para transmitir a Pagos.")
+    id_promocion: Optional[str] = Field(default=None, description="Identificador de la promoción aplicada.")
+    porcentaje_descuento: int = Field(default=0, ge=0, le=100, description="Porcentaje de descuento aplicado (0 a 100).")
 
 class ProcesarCompraResponse(BaseModel):
     nuevo_stock: int
@@ -37,6 +40,9 @@ class CrearReservaHoldRequest(BaseModel):
     correo_usuario: Optional[str] = Field(default=None, description="Correo electrónico del comprador (obtenido automáticamente de Auth desde la cookie 'jwt').")
     token_sesion: Optional[str] = Field(default=None, description="Opcional; en v2.3 se usa el header Cookie (jwt=<token>).")
     tiempo_limite_minutos: int = Field(default=15, gt=0, le=60, description="Tiempo límite de vigencia de la reserva en minutos.")
+    nombre_codigo: Optional[str] = Field(default=None, description="Código promocional aplicado para guardar en la reserva y transmitir a Pagos.")
+    id_promocion: Optional[str] = Field(default=None, description="Identificador de la promoción aplicada.")
+    porcentaje_descuento: int = Field(default=0, ge=0, le=100, description="Porcentaje de descuento aplicado (0 a 100).")
 
 class CrearReservaHoldResponse(BaseModel):
     hold_id: str = Field(..., description="Identificador único de la reserva temporal (holdId).")
@@ -47,6 +53,9 @@ class CrearReservaHoldResponse(BaseModel):
     rut_usuario: Optional[str] = None
     correo_usuario: Optional[str] = None
     cantidad_entrada: int
+    id_promocion: Optional[str] = None
+    nombre_codigo: Optional[str] = None
+    porcentaje_descuento: float = 0
     monto_total: int
     estado_reserva: str
     fecha_creacion: datetime
