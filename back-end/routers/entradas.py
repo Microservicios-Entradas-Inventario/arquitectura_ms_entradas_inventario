@@ -10,6 +10,7 @@ from database import get_database
 from services.auth_service import AuthService
 from services.notificaciones_service import NotificacionesService
 from services.pagos_service import PagosService
+from services.promociones_service import PromocionesService
 from services.catalogo_service import CatalogoService
 from services.checkin_service import CheckinService
 from services.broker_service import BrokerService
@@ -201,10 +202,14 @@ async def procesar_compra(
             {"$set": {"stock_actual": nuevo_stock}, "$inc": {"cantidad_entrada_reservada": compra.cantidad}}
         )
         
-        codigo_promo, pct_descuento, monto_final = PagosService.normalizar_promocion(
-            precio_base,
-            compra.nombre_codigo,
-            compra.porcentaje_descuento,
+        codigo_promo, id_promocion_real, pct_descuento, monto_final = await PromocionesService.revalidar_descuento(
+            id_evento=compra.id_evento,
+            id_usuario=id_usuario,
+            cantidad_entradas=compra.cantidad,
+            precio_base=precio_base,
+            nombre_codigo=compra.nombre_codigo,
+            id_promocion=compra.id_promocion,
+            porcentaje_descuento=compra.porcentaje_descuento,
         )
         expira_en = datetime.utcnow() + timedelta(minutes=15)
         # Persistencia de datos de comprador obtenidos de Auth y cookie_header para reenvío en polling/anulación con Pagos v2.3
@@ -217,7 +222,7 @@ async def procesar_compra(
             "correo_usuario": correo_usuario,
             "rol_usuario": rol_usuario.lower(),
             "cantidad_entrada": compra.cantidad,
-            "id_promocion": compra.id_promocion,
+            "id_promocion": id_promocion_real,
             "nombre_codigo": codigo_promo,
             "porcentaje_descuento": pct_descuento,
             "monto_total": monto_final,

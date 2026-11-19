@@ -9,6 +9,7 @@ from schemas.entradas import (
 )
 from services.auth_service import AuthService
 from services.pagos_service import PagosService
+from services.promociones_service import PromocionesService
 from services.notificaciones_service import NotificacionesService
 from services.checkin_service import CheckinService
 from services.catalogo_service import CatalogoService
@@ -271,10 +272,14 @@ async def crear_reserva_hold(
     expira_en = ahora + timedelta(minutes=solicitud.tiempo_limite_minutos)
     precio_unitario = evento.get("precio_unitario", 0)
     precio_base = precio_unitario * solicitud.cantidad
-    codigo_promo, pct_descuento, monto_total = PagosService.normalizar_promocion(
-        precio_base,
-        solicitud.nombre_codigo,
-        solicitud.porcentaje_descuento,
+    codigo_promo, id_promocion_real, pct_descuento, monto_total = await PromocionesService.revalidar_descuento(
+        id_evento=solicitud.id_evento,
+        id_usuario=id_usuario,
+        cantidad_entradas=solicitud.cantidad,
+        precio_base=precio_base,
+        nombre_codigo=solicitud.nombre_codigo,
+        id_promocion=solicitud.id_promocion,
+        porcentaje_descuento=solicitud.porcentaje_descuento,
     )
 
     doc_reserva = {
@@ -286,7 +291,7 @@ async def crear_reserva_hold(
         "correo_usuario": correo_usuario,
         "rol_usuario": rol_usuario,
         "cantidad_entrada": solicitud.cantidad,
-        "id_promocion": solicitud.id_promocion,
+        "id_promocion": id_promocion_real,
         "nombre_codigo": codigo_promo,
         "porcentaje_descuento": pct_descuento,
         "monto_total": monto_total,
@@ -322,7 +327,7 @@ async def crear_reserva_hold(
         "rut_usuario": rut_usuario,
         "correo_usuario": correo_usuario,
         "cantidad_entrada": solicitud.cantidad,
-        "id_promocion": solicitud.id_promocion,
+        "id_promocion": id_promocion_real,
         "nombre_codigo": codigo_promo,
         "porcentaje_descuento": pct_descuento,
         "monto_total": monto_total,
