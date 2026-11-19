@@ -22,13 +22,13 @@ class PromocionesService:
     ) -> tuple[Optional[str], Optional[str], int, int]:
         """
         Revalida el descuento contra `POST /api/promociones/evaluar` cuando hay código promocional.
-        Si Promociones no está disponible o falla por red/timeout, mantiene el cálculo recibido como respaldo.
+        Nunca confía en el porcentaje enviado desde el frontend: si no hay código válido o si
+        Promociones no responde/rechaza, no aplica descuento (0% sobre precio_base).
         """
-        codigo_promo, pct_fallback, monto_fallback = PagosService.normalizar_promocion(
-            precio_base, nombre_codigo, porcentaje_descuento
-        )
+        monto_sin_descuento = max(0, int(precio_base))
+        codigo_promo, _, _ = PagosService.normalizar_promocion(precio_base, nombre_codigo, 0)
         if not codigo_promo:
-            return None, id_promocion, pct_fallback, monto_fallback
+            return None, None, 0, monto_sin_descuento
 
         url = f"{cls.BASE_URL}/api/promociones/evaluar"
         payload = {
@@ -44,15 +44,17 @@ class PromocionesService:
                 response = await client.post(url, json=payload, timeout=1.0)
                 if response.status_code == 200:
                     data = response.json()
-                    if isinstance(data, dict) and "porcentaje_descuento" in data:
+                    if isinstance(data, dict):
                         _, pct_real, monto_real = PagosService.normalizar_promocion(
                             precio_base, codigo_promo, data.get("porcentaje_descuento", 0)
                         )
-                        id_promo_real = data.get("id_promocion") or id_promocion
-                        return codigo_promo, id_promo_real, pct_real, monto_real
+                        if pct_real > 0:
+                            id_promo_real = data.get("id_promocion") or id_promocion
+                            return codigo_promo, id_promo_real, pct_real, monto_real
+                        return None, None, 0, monto_sin_descuento
                 else:
-                    print(f"[Promociones] Respuesta HTTP {response.status_code} al evaluar '{codigo_promo}'; usando respaldo.")
+                    print(f"[Promociones] Respuesta HTTP {response.status_code} al evaluar '{codigo_promo}'; no se aplica descuento.")
             except httpx.RequestError as exc:
-                print(f"[Promociones] No disponible ({url}): {exc}; usando respaldo.")
+                print(f"[Promociones] No disponible ({url}): {exc}; no se aplica descuento sin validación.")
 
-        return codigo_promo, id_promocion, pct_fallback, monto_fallback
+        return None, None, 0, monto_sin_descuento
