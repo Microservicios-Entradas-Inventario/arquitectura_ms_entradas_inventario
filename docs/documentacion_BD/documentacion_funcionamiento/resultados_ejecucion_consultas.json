@@ -1,0 +1,865 @@
+{
+  "executed_at_utc": "2026-11-23 19:25:22 UTC",
+  "database": "ticketu_entradas_db",
+  "mongodb_version": "7.0.43",
+  "mongo_queries": {
+    "E01": {
+      "title": "Evidencia 01 — Aislamiento Database-per-Service y Colecciones Propias",
+      "criteria": "BD2 · Sin datos de negocio de otros squads",
+      "result": {
+        "verificacion": "Q1 [BD2] - Aislamiento Database-per-Service (ticketu_entradas_db)",
+        "bases_de_datos_servidor": [
+          {
+            "nombre": "admin",
+            "tamano_bytes": 40960
+          },
+          {
+            "nombre": "config",
+            "tamano_bytes": 110592
+          },
+          {
+            "nombre": "local",
+            "tamano_bytes": 73728
+          },
+          {
+            "nombre": "ticketu_entradas_db",
+            "tamano_bytes": 348160
+          }
+        ],
+        "colecciones_en_ticketu_entradas_db": [
+          "entrada",
+          "inventario_evento",
+          "reserva_entrada"
+        ],
+        "total_colecciones_propias": 3,
+        "colecciones_de_otros_microservicios": [],
+        "conteo_documentos_por_coleccion": {
+          "inventario_evento": 11,
+          "reserva_entrada": 7,
+          "entrada": 3
+        },
+        "resultado": "APROBADO: 3 colecciones propias, 0 colecciones de otros squads"
+      }
+    },
+    "E02": {
+      "title": "Evidencia 02 — Validadores $jsonSchema, additionalProperties: false e Índices PK/FK",
+      "criteria": "BD3 · BD4 · Diseño técnico y documentación",
+      "result": {
+        "verificacion": "Q2 [BD3/BD4] - Validadores $jsonSchema e indices reales en MongoDB 7.0",
+        "total_atributos_esquema": 54,
+        "total_indices_activos": 14,
+        "colecciones": [
+          {
+            "coleccion": "inventario_evento",
+            "additionalProperties": false,
+            "total_atributos": 18,
+            "atributos_required": 12,
+            "tiene_indice_ttl_destructivo": false,
+            "indices": [
+              {
+                "nombre": "_id_",
+                "llave": {
+                  "_id": 1
+                },
+                "unique": true
+              },
+              {
+                "nombre": "pk_inventario_id_evento",
+                "llave": {
+                  "id_evento": 1
+                },
+                "unique": true
+              },
+              {
+                "nombre": "idx_inventario_organizador",
+                "llave": {
+                  "id_usuario": 1,
+                  "rol_usuario": 1
+                },
+                "unique": false
+              }
+            ]
+          },
+          {
+            "coleccion": "reserva_entrada",
+            "additionalProperties": false,
+            "total_atributos": 19,
+            "atributos_required": 13,
+            "tiene_indice_ttl_destructivo": false,
+            "indices": [
+              {
+                "nombre": "_id_",
+                "llave": {
+                  "_id": 1
+                },
+                "unique": true
+              },
+              {
+                "nombre": "pk_reserva_id_reserva",
+                "llave": {
+                  "id_reserva": 1
+                },
+                "unique": true
+              },
+              {
+                "nombre": "fk_reserva_inventario_evento",
+                "llave": {
+                  "id_evento": 1
+                },
+                "unique": false
+              },
+              {
+                "nombre": "idx_reserva_usuario_evento",
+                "llave": {
+                  "id_usuario": 1,
+                  "id_evento": 1
+                },
+                "unique": false
+              },
+              {
+                "nombre": "idx_reserva_estado_expiracion",
+                "llave": {
+                  "estado_reserva": 1,
+                  "fecha_expiracion": 1
+                },
+                "unique": false
+              },
+              {
+                "nombre": "idx_reserva_id_pago",
+                "llave": {
+                  "id_pago": 1
+                },
+                "unique": false
+              }
+            ]
+          },
+          {
+            "coleccion": "entrada",
+            "additionalProperties": false,
+            "total_atributos": 17,
+            "atributos_required": 12,
+            "tiene_indice_ttl_destructivo": false,
+            "indices": [
+              {
+                "nombre": "_id_",
+                "llave": {
+                  "_id": 1
+                },
+                "unique": true
+              },
+              {
+                "nombre": "pk_entrada_id_entrada",
+                "llave": {
+                  "id_entrada": 1
+                },
+                "unique": true
+              },
+              {
+                "nombre": "fk_entrada_reserva",
+                "llave": {
+                  "id_reserva": 1
+                },
+                "unique": false
+              },
+              {
+                "nombre": "idx_entrada_evento",
+                "llave": {
+                  "id_evento": 1
+                },
+                "unique": false
+              },
+              {
+                "nombre": "idx_entrada_usuario",
+                "llave": {
+                  "id_usuario": 1,
+                  "fecha_emision": -1
+                },
+                "unique": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "E03": {
+      "title": "Evidencia 03 — Invariante Aritmética de Stock sobre inventario_evento (11 eventos)",
+      "criteria": "BD1 · BD4 · Persistencia de inventario y consistencia",
+      "result": {
+        "verificacion": "Q3 [BD1/BD4] - Invariante stock_inicial == stock_actual + reservadas + compradas",
+        "eventos_evaluados": 11,
+        "eventos_inconsistentes": 0,
+        "resultado": "APROBADO (11/11 eventos 100% consistentes)",
+        "detalle": [
+          {
+            "id_evento": "evt-001",
+            "tipo_entrada": "PAGADA",
+            "precio_unitario": 6000,
+            "stock_inicial": 200,
+            "stock_actual": 74,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 0,
+            "compradas": 126,
+            "suma_control": 200,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-002",
+            "tipo_entrada": "GRATUITA",
+            "precio_unitario": 0,
+            "stock_inicial": 100,
+            "stock_actual": 25,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 0,
+            "compradas": 75,
+            "suma_control": 100,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-003",
+            "tipo_entrada": "GRATUITA",
+            "precio_unitario": 0,
+            "stock_inicial": 50,
+            "stock_actual": 0,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 0,
+            "compradas": 50,
+            "suma_control": 50,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-004",
+            "tipo_entrada": "PAGADA",
+            "precio_unitario": 4500,
+            "stock_inicial": 300,
+            "stock_actual": 148,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 0,
+            "compradas": 152,
+            "suma_control": 300,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-101",
+            "tipo_entrada": "GRATUITA",
+            "precio_unitario": 0,
+            "stock_inicial": 150,
+            "stock_actual": 150,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 0,
+            "compradas": 0,
+            "suma_control": 150,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-102",
+            "tipo_entrada": "PAGADA",
+            "precio_unitario": 5000,
+            "stock_inicial": 300,
+            "stock_actual": 300,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 0,
+            "compradas": 0,
+            "suma_control": 300,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-103",
+            "tipo_entrada": "PAGADA",
+            "precio_unitario": 2000,
+            "stock_inicial": 100,
+            "stock_actual": 0,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 0,
+            "compradas": 100,
+            "suma_control": 100,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-104",
+            "tipo_entrada": "GRATUITA",
+            "precio_unitario": 0,
+            "stock_inicial": 8,
+            "stock_actual": 8,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 0,
+            "compradas": 0,
+            "suma_control": 8,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-105",
+            "tipo_entrada": "PAGADA",
+            "precio_unitario": 3000,
+            "stock_inicial": 100,
+            "stock_actual": 40,
+            "estado_gestion": "FINALIZADO",
+            "reservadas": 0,
+            "compradas": 60,
+            "suma_control": 100,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-109",
+            "tipo_entrada": "PAGADA",
+            "precio_unitario": 2000,
+            "stock_inicial": 60,
+            "stock_actual": 60,
+            "estado_gestion": "CANCELADO",
+            "reservadas": 0,
+            "compradas": 0,
+            "suma_control": 60,
+            "consistente": true
+          },
+          {
+            "id_evento": "evt-77889",
+            "tipo_entrada": "PAGADA",
+            "precio_unitario": 10000,
+            "stock_inicial": 150,
+            "stock_actual": 144,
+            "estado_gestion": "PUBLICADO",
+            "reservadas": 5,
+            "compradas": 1,
+            "suma_control": 150,
+            "consistente": true
+          }
+        ]
+      }
+    },
+    "E04": {
+      "title": "Evidencia 04 — Integridad Referencial (0 Huérfanos) y Join $lookup 3 Niveles",
+      "criteria": "BD1 · BD4 · Llaves foráneas e integridad",
+      "result": {
+        "Q4_integridad_referencial": {
+          "reservas_sin_inventario_evento": 0,
+          "entradas_sin_reserva_entrada": 0,
+          "entradas_sin_inventario_evento": 0,
+          "entradas_id_evento_desalineado_de_reserva": 0,
+          "resultado": "APROBADO (0 huerfanos)"
+        },
+        "Q5_join_3_niveles_entrada_reserva_inventario": [
+          {
+            "id_entrada": "tk-998877",
+            "precio_final_pagado": 8500,
+            "estado_entrada": "EMITIDA",
+            "qr_hash": "abc1234",
+            "id_reserva": "res-98765",
+            "estado_reserva": "CONSOLIDADO",
+            "id_pago_ref": "pay-112233",
+            "id_promocion_ref": "promo-estudiante-2026",
+            "descuento_pct": 15,
+            "id_evento": "evt-77889",
+            "tipo_entrada": "PAGADA",
+            "stock_actual": 144,
+            "id_usuario_ref": "usr-12345"
+          },
+          {
+            "id_entrada": "tk-DEMO-2026",
+            "precio_final_pagado": 6000,
+            "estado_entrada": "EMITIDA",
+            "qr_hash": "ghi9012",
+            "id_reserva": "res-demo-002",
+            "estado_reserva": "CONSOLIDADO",
+            "id_pago_ref": "pay-demo-002",
+            "id_promocion_ref": null,
+            "descuento_pct": 0,
+            "id_evento": "evt-001",
+            "tipo_entrada": "PAGADA",
+            "stock_actual": 74,
+            "id_usuario_ref": "usr-12345"
+          },
+          {
+            "id_entrada": "tk-demo-001",
+            "precio_final_pagado": 0,
+            "estado_entrada": "EMITIDA",
+            "qr_hash": "def5678",
+            "id_reserva": "res-demo-001",
+            "estado_reserva": "CONSOLIDADO",
+            "id_pago_ref": null,
+            "id_promocion_ref": null,
+            "descuento_pct": 0,
+            "id_evento": "evt-002",
+            "tipo_entrada": "GRATUITA",
+            "stock_actual": 25,
+            "id_usuario_ref": "usr-12345"
+          }
+        ]
+      }
+    },
+    "E05": {
+      "title": "Evidencia 05 — Referencias Externas por Squad y Rechazo $jsonSchema (Error 121)",
+      "criteria": "BD2 · BD4 · Solo referencias y bloqueo de campos ajenos",
+      "result": {
+        "Q6_referencias_externas_por_microservicio": {
+          "panel_y_catalogo_id_evento": [
+            "evt-001",
+            "evt-002",
+            "evt-003",
+            "evt-004",
+            "evt-101",
+            "evt-102",
+            "evt-103",
+            "evt-104",
+            "evt-105",
+            "evt-109",
+            "evt-77889"
+          ],
+          "auth_id_usuario_organizadores": [
+            "usr-org-001",
+            "usr-org-002"
+          ],
+          "auth_id_usuario_compradores": [
+            "usr-12345",
+            "usr-54321"
+          ],
+          "promociones_id_promocion": [
+            "promo-estudiante-2026"
+          ],
+          "pagos_id_pago": [
+            "pay-112233",
+            "pay-112234",
+            "pay-demo-002",
+            "pay-demo-cancel",
+            "pay-demo-checkin"
+          ],
+          "checkin_id_entrada": [
+            "tk-998877",
+            "tk-DEMO-2026",
+            "tk-demo-001"
+          ]
+        },
+        "campos_sensibles_o_ajenos_en_bd": {
+          "inventario_evento": [],
+          "reserva_entrada": [],
+          "entrada": []
+        },
+        "Q7_prueba_rechazo_jsonSchema": {
+          "rechazado": true,
+          "codigo_error_mongodb": 121,
+          "nombre_error": "DocumentValidationFailure",
+          "causa": "additionalProperties: false bloqueo campos ajenos/sensibles antes de escribir",
+          "campos_bloqueados": [
+            "password_hash",
+            "client_secret",
+            "token_jwt"
+          ]
+        },
+        "integridad_sin_mutacion": {
+          "docs_antes": 7,
+          "docs_despues": 7,
+          "intacta": true
+        }
+      }
+    },
+    "E06": {
+      "title": "Evidencia 06 — Consultas Operativas de Integración (Pagos, Promociones, Check-in, Panel/Catálogo)",
+      "criteria": "BD1 · Soporte a integraciones I2, I3, I4, I5, I7",
+      "result": {
+        "I2_I7_pagos_y_promociones_reservas": [
+          {
+            "id_reserva": "res-98765",
+            "id_evento": "evt-77889",
+            "id_usuario": "usr-12345",
+            "cantidad_entrada": 1,
+            "id_promocion": "promo-estudiante-2026",
+            "nombre_codigo": "ESTUDIANTE15",
+            "porcentaje_descuento": 15,
+            "monto_total": 8500,
+            "id_pago": "pay-112233",
+            "estado_reserva": "CONSOLIDADO"
+          },
+          {
+            "id_reserva": "res-demo-001",
+            "id_evento": "evt-002",
+            "id_usuario": "usr-12345",
+            "cantidad_entrada": 1,
+            "id_promocion": null,
+            "nombre_codigo": null,
+            "porcentaje_descuento": 0,
+            "monto_total": 0,
+            "id_pago": null,
+            "estado_reserva": "CONSOLIDADO"
+          },
+          {
+            "id_reserva": "res-demo-002",
+            "id_evento": "evt-001",
+            "id_usuario": "usr-12345",
+            "cantidad_entrada": 1,
+            "id_promocion": null,
+            "nombre_codigo": null,
+            "porcentaje_descuento": 0,
+            "monto_total": 6000,
+            "id_pago": "pay-demo-002",
+            "estado_reserva": "CONSOLIDADO"
+          },
+          {
+            "id_reserva": "res-98766",
+            "id_evento": "evt-77889",
+            "id_usuario": "usr-54321",
+            "cantidad_entrada": 1,
+            "id_promocion": null,
+            "nombre_codigo": null,
+            "porcentaje_descuento": 0,
+            "monto_total": 10000,
+            "id_pago": "pay-112234",
+            "estado_reserva": "RESERVADO"
+          },
+          {
+            "id_reserva": "res-demo-cancelar",
+            "id_evento": "evt-77889",
+            "id_usuario": "usr-12345",
+            "cantidad_entrada": 1,
+            "id_promocion": null,
+            "nombre_codigo": null,
+            "porcentaje_descuento": 0,
+            "monto_total": 10000,
+            "id_pago": "pay-demo-cancel",
+            "estado_reserva": "RESERVADO"
+          },
+          {
+            "id_reserva": "res-demo-checkin",
+            "id_evento": "evt-77889",
+            "id_usuario": "usr-12345",
+            "cantidad_entrada": 1,
+            "id_promocion": null,
+            "nombre_codigo": null,
+            "porcentaje_descuento": 0,
+            "monto_total": 10000,
+            "id_pago": "pay-demo-checkin",
+            "estado_reserva": "RESERVADO"
+          },
+          {
+            "id_reserva": "res-demo-pagos",
+            "id_evento": "evt-77889",
+            "id_usuario": "usr-12345",
+            "cantidad_entrada": 2,
+            "id_promocion": null,
+            "nombre_codigo": null,
+            "porcentaje_descuento": 0,
+            "monto_total": 20000,
+            "id_pago": null,
+            "estado_reserva": "RESERVADO"
+          }
+        ],
+        "I3_checkin_entradas_emitidas_qr": [
+          {
+            "id_entrada": "tk-998877",
+            "id_reserva": "res-98765",
+            "id_evento": "evt-77889",
+            "id_usuario": "usr-12345",
+            "estado_entrada": "EMITIDA",
+            "qr_data": {
+              "url": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-998877%22%2C%22id_evento%22%3A%22evt-77889%22%7D",
+              "hash": "abc1234"
+            }
+          },
+          {
+            "id_entrada": "tk-DEMO-2026",
+            "id_reserva": "res-demo-002",
+            "id_evento": "evt-001",
+            "id_usuario": "usr-12345",
+            "estado_entrada": "EMITIDA",
+            "qr_data": {
+              "url": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-DEMO-2026%22%2C%22id_evento%22%3A%22evt-001%22%7D",
+              "hash": "ghi9012"
+            }
+          },
+          {
+            "id_entrada": "tk-demo-001",
+            "id_reserva": "res-demo-001",
+            "id_evento": "evt-002",
+            "id_usuario": "usr-12345",
+            "estado_entrada": "EMITIDA",
+            "qr_data": {
+              "url": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-demo-001%22%2C%22id_evento%22%3A%22evt-002%22%7D",
+              "hash": "def5678"
+            }
+          }
+        ],
+        "I4_I5_panel_y_catalogo_agregado": [
+          {
+            "_id": {
+              "estado_gestion": "CANCELADO",
+              "tipo_entrada": "PAGADA"
+            },
+            "eventos": 1,
+            "stock_inicial": 60,
+            "stock_actual": 60,
+            "reservadas": 0,
+            "compradas": 0,
+            "agotados": 0
+          },
+          {
+            "_id": {
+              "estado_gestion": "FINALIZADO",
+              "tipo_entrada": "PAGADA"
+            },
+            "eventos": 1,
+            "stock_inicial": 100,
+            "stock_actual": 40,
+            "reservadas": 0,
+            "compradas": 60,
+            "agotados": 0
+          },
+          {
+            "_id": {
+              "estado_gestion": "PUBLICADO",
+              "tipo_entrada": "GRATUITA"
+            },
+            "eventos": 4,
+            "stock_inicial": 308,
+            "stock_actual": 183,
+            "reservadas": 0,
+            "compradas": 125,
+            "agotados": 1
+          },
+          {
+            "_id": {
+              "estado_gestion": "PUBLICADO",
+              "tipo_entrada": "PAGADA"
+            },
+            "eventos": 5,
+            "stock_inicial": 1050,
+            "stock_actual": 666,
+            "reservadas": 5,
+            "compradas": 379,
+            "agotados": 1
+          }
+        ]
+      }
+    },
+    "E08": {
+      "title": "Evidencia 08 — Auditoría Automatizada de Nomenclatura (snake_case) y Grafo Acíclico (DAG)",
+      "criteria": "BD3 · BD4 · Estándares y ausencia de ciclos",
+      "result": {
+        "auditoria_nomenclatura_bd3": [
+          {
+            "coleccion": "inventario_evento",
+            "coleccion_snake_case": true,
+            "atributos_totales": 18,
+            "atributos_invalidos": [],
+            "indices_totales": 3,
+            "indices_fuera_prefijo": []
+          },
+          {
+            "coleccion": "reserva_entrada",
+            "coleccion_snake_case": true,
+            "atributos_totales": 19,
+            "atributos_invalidos": [],
+            "indices_totales": 6,
+            "indices_fuera_prefijo": []
+          },
+          {
+            "coleccion": "entrada",
+            "coleccion_snake_case": true,
+            "atributos_totales": 17,
+            "atributos_invalidos": [],
+            "indices_totales": 5,
+            "indices_fuera_prefijo": []
+          }
+        ],
+        "cumplimiento_nomenclatura": "APROBADO (100% snake_case en 3 colecciones, 54 atributos y 14 indices)",
+        "verificacion_dag_bd4": {
+          "algoritmo": "Ordenamiento topologico de Kahn sobre llaves foraneas internas",
+          "orden_topologico": [
+            "Nivel 0: inventario_evento",
+            "Nivel 1: reserva_entrada",
+            "Nivel 2: entrada"
+          ],
+          "aristas_dirigidas": [
+            "inventario_evento(id_evento) -> reserva_entrada(id_evento) [1 : 0..N]",
+            "reserva_entrada(id_reserva) -> entrada(id_reserva) [1 : 0..N]",
+            "inventario_evento(id_evento) -> entrada(id_evento) [1 : 0..N]"
+          ],
+          "ciclos_detectados": 0,
+          "es_dag_aciclico": true
+        }
+      }
+    }
+  },
+  "api_responses": [
+    {
+      "descripcion": "Salud del servicio",
+      "integracion": "BE1 / Infra",
+      "metodo": "GET",
+      "ruta": "/api/entradas/health",
+      "http_status": 200,
+      "respuesta": {
+        "status": "UP",
+        "service": "entradas-service",
+        "timestamp": "2026-11-23T19:25:47.504834"
+      }
+    },
+    {
+      "descripcion": "Disponibilidad e inventario (HU-01)",
+      "integracion": "BE1 · BD1",
+      "metodo": "GET",
+      "ruta": "/api/entradas/inventario/evt-77889",
+      "http_status": 200,
+      "respuesta": {
+        "id_evento": "evt-77889",
+        "stock_actual": 144,
+        "tipo_entrada": "PAGADA",
+        "precio_unitario": 10000
+      }
+    },
+    {
+      "descripcion": "Widget disponibilidad para Catálogo (I4)",
+      "integracion": "BE3 · I4 Catálogo",
+      "metodo": "GET",
+      "ruta": "/api/entradas/eventos/evt-77889/disponibilidad",
+      "http_status": 200,
+      "respuesta": {
+        "idEvento": "evt-77889",
+        "stockDisponible": 144,
+        "stockTotal": 150,
+        "tipoEntrada": "PAGADA",
+        "precio": 10000,
+        "estadoGestion": "PUBLICADO"
+      }
+    },
+    {
+      "descripcion": "Stock oficial para Panel Organizador (I5)",
+      "integracion": "BE3 · I5 Panel",
+      "metodo": "GET",
+      "ruta": "/api/entradas/eventos/evt-77889/stock",
+      "http_status": 200,
+      "respuesta": {
+        "id_evento": "evt-77889",
+        "stock": 144
+      }
+    },
+    {
+      "descripcion": "Consulta reserva consolidada + promo (INT-01)",
+      "integracion": "BE3 · I2 Pagos / I7 Promo",
+      "metodo": "GET",
+      "ruta": "/api/entradas/reservas/res-98765",
+      "http_status": 200,
+      "respuesta": {
+        "id_reserva": "res-98765",
+        "hold_id": "res-98765",
+        "id_evento": "evt-77889",
+        "id_usuario": "usr-12345",
+        "nombre_usuario": "Sebastian Fuentes",
+        "rut_usuario": "20.123.456-7",
+        "correo_usuario": "sebastian.fuentes@ticketu.cl",
+        "cantidad_entrada": 1,
+        "cantidad_entradas": 1,
+        "monto_total": 8500,
+        "total": 8500,
+        "nombre_codigo": "ESTUDIANTE15",
+        "id_promocion": "promo-estudiante-2026",
+        "porcentaje_descuento": 15,
+        "id_pago": "pay-112233",
+        "estado_reserva": "CONSOLIDADO",
+        "estado": "CONSOLIDADO",
+        "fecha_expiracion": null,
+        "tiempo_restante_segundos": 0,
+        "expirada": false
+      }
+    },
+    {
+      "descripcion": "Consulta reserva Hold activo con TTL (INT-01)",
+      "integracion": "BE3 · HU-03 / I2 Pagos",
+      "metodo": "GET",
+      "ruta": "/api/entradas/reservas/res-demo-pagos",
+      "http_status": 200,
+      "respuesta": {
+        "id_reserva": "res-demo-pagos",
+        "hold_id": "res-demo-pagos",
+        "id_evento": "evt-77889",
+        "id_usuario": "usr-12345",
+        "nombre_usuario": "Sebastian Fuentes",
+        "rut_usuario": "20.123.456-7",
+        "correo_usuario": "sebastian.fuentes@ticketu.cl",
+        "cantidad_entrada": 2,
+        "cantidad_entradas": 2,
+        "monto_total": 20000,
+        "total": 20000,
+        "nombre_codigo": null,
+        "id_promocion": null,
+        "porcentaje_descuento": 0,
+        "id_pago": null,
+        "estado_reserva": "RESERVADO",
+        "estado": "RESERVADO",
+        "fecha_expiracion": "2026-11-30T19:02:13.379000",
+        "tiempo_restante_segundos": 603385,
+        "expirada": false
+      }
+    },
+    {
+      "descripcion": "Verificación de entrada para Check-in (I3)",
+      "integracion": "BE3 · I3 Check-in",
+      "metodo": "GET",
+      "ruta": "/api/entradas/tk-998877",
+      "http_status": 200,
+      "respuesta": {
+        "id_ticket": "tk-998877",
+        "id_entrada": "tk-998877",
+        "id_evento": "evt-77889",
+        "estado_entrada": "EMITIDA",
+        "nombre_usuario": "Sebastian Fuentes",
+        "usuario": {
+          "id_usuario": "usr-12345",
+          "rol_usuario": "usuario"
+        }
+      }
+    },
+    {
+      "descripcion": "Detalle inmutable de entrada adquirida (HU-04)",
+      "integracion": "BE1 · HU-04 / I3 Check-in",
+      "metodo": "GET",
+      "ruta": "/api/entradas/tk-998877/detalle",
+      "http_status": 200,
+      "respuesta": {
+        "id_entrada": "tk-998877",
+        "id_reserva": "res-98765",
+        "id_evento": "evt-77889",
+        "nombre_evento": "Concierto Sinfonico TicketU",
+        "fecha_evento": "2026-11-20",
+        "hora_evento": "20:00",
+        "id_usuario": "usr-12345",
+        "nombre_usuario": "Sebastian Fuentes",
+        "rut_usuario": "20.123.456-7",
+        "correo_usuario": "sebastian.fuentes@ticketu.cl",
+        "tipo_acceso": "GENERAL",
+        "lugar_ingreso": "Puerta Principal - Acceso General",
+        "precio_final_pagado": 8500,
+        "estado_entrada": "EMITIDA",
+        "nombre_archivo_qr": "tk-998877.png",
+        "qr_data": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-998877%22%2C%22id_evento%22%3A%22evt-77889%22%7D",
+        "fecha_emision": "2026-11-23T19:02:13.379000"
+      }
+    },
+    {
+      "descripcion": "Código QR y payload JSON para torniquete (HU-05)",
+      "integracion": "BE1 · HU-05 / I3 Check-in",
+      "metodo": "GET",
+      "ruta": "/api/entradas/tk-998877/qr",
+      "http_status": 200,
+      "respuesta": {
+        "id_entrada": "tk-998877",
+        "id_evento": "evt-77889",
+        "nombre_asistente": "Sebastian Fuentes",
+        "nombre_evento": "Concierto Sinfonico TicketU",
+        "lugar_ingreso": "Puerta Principal - Acceso General",
+        "tipo_acceso": "GENERAL",
+        "qr_data": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-998877%22%2C%22id_evento%22%3A%22evt-77889%22%7D",
+        "qr_payload": {
+          "id_evento": "evt-77889",
+          "id_entrada": "tk-998877"
+        },
+        "habilitado_checkin": true
+      }
+    },
+    {
+      "descripcion": "Control fail-secure sin cookie jwt (I1 Auth)",
+      "integracion": "BE2 · I1 Auth (sin JWT en BD)",
+      "metodo": "GET",
+      "ruta": "/api/entradas/mis-entradas",
+      "http_status": 401,
+      "respuesta": {
+        "detail": "NO_AUTENTICADO: Debes iniciar sesión para ver tus entradas."
+      }
+    }
+  ]
+}
