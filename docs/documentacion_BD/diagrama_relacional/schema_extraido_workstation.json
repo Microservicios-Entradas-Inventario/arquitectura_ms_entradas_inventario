@@ -1,0 +1,1136 @@
+{
+  "generated_at_utc": "2026-11-23 19:10:16 UTC",
+  "mongodb_version": "7.0.43",
+  "database_name": "ticketu_entradas_db",
+  "collection_order": [
+    "inventario_evento",
+    "reserva_entrada",
+    "entrada"
+  ],
+  "collections": {
+    "inventario_evento": {
+      "name": "inventario_evento",
+      "doc_count": 11,
+      "additional_properties": false,
+      "required_count": 12,
+      "fields": [
+        {
+          "name": "_id",
+          "bson_type_raw": "objectId",
+          "type_display": "objectId",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "ID"
+          ],
+          "external_ref": null
+        },
+        {
+          "name": "id_evento",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "PK",
+            "EXT"
+          ],
+          "external_ref": "Panel / Catálogo"
+        },
+        {
+          "name": "nombre_evento",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "descripcion",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "fecha_evento",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "hora_evento",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "lugar_ingreso",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "id_usuario",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "EXT"
+          ],
+          "external_ref": "Auth (Organizador)"
+        },
+        {
+          "name": "rol_usuario",
+          "bson_type_raw": "string",
+          "type_display": "string (enum[4])",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": [
+            "ORGANIZADOR",
+            "organizador",
+            "STAFF",
+            "staff"
+          ],
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "tipo_entrada",
+          "bson_type_raw": "string",
+          "type_display": "string (enum[2])",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": [
+            "PAGADA",
+            "GRATUITA"
+          ],
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "precio_unitario",
+          "bson_type_raw": "int",
+          "type_display": "int (>=0)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 0,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "stock_inicial",
+          "bson_type_raw": "int",
+          "type_display": "int (>=0)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 0,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "stock_actual",
+          "bson_type_raw": "int",
+          "type_display": "int (>=0)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 0,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "cantidad_entrada_reservada",
+          "bson_type_raw": "int",
+          "type_display": "int (>=0)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 0,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "cantidad_entrada_comprada",
+          "bson_type_raw": "int",
+          "type_display": "int (>=0)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 0,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "maximo_ticket",
+          "bson_type_raw": "int",
+          "type_display": "int (>=1)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 1,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "estado_gestion",
+          "bson_type_raw": "string",
+          "type_display": "string (enum[4])",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": [
+            "BORRADOR",
+            "PUBLICADO",
+            "FINALIZADO",
+            "CANCELADO"
+          ],
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "fecha_actualizacion",
+          "bson_type_raw": "date",
+          "type_display": "date",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "pk_inventario_id_evento",
+          "key": {
+            "id_evento": 1
+          },
+          "unique": true,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "idx_inventario_organizador",
+          "key": {
+            "id_usuario": 1,
+            "rol_usuario": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        }
+      ]
+    },
+    "reserva_entrada": {
+      "name": "reserva_entrada",
+      "doc_count": 7,
+      "additional_properties": false,
+      "required_count": 13,
+      "fields": [
+        {
+          "name": "_id",
+          "bson_type_raw": "objectId",
+          "type_display": "objectId",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "ID"
+          ],
+          "external_ref": null
+        },
+        {
+          "name": "id_reserva",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "PK"
+          ],
+          "external_ref": null
+        },
+        {
+          "name": "hold_id",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "id_evento",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "FK"
+          ],
+          "external_ref": null
+        },
+        {
+          "name": "id_usuario",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "EXT"
+          ],
+          "external_ref": "Auth (Usuario)"
+        },
+        {
+          "name": "nombre_usuario",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "rut_usuario",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "correo_usuario",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "rol_usuario",
+          "bson_type_raw": "string",
+          "type_display": "string (enum[6])",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": [
+            "USUARIO",
+            "STAFF",
+            "ORGANIZADOR",
+            "usuario",
+            "staff",
+            "organizador"
+          ],
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "cantidad_entrada",
+          "bson_type_raw": "int",
+          "type_display": "int (>=1)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 1,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "id_promocion",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": true,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "EXT"
+          ],
+          "external_ref": "Promociones"
+        },
+        {
+          "name": "nombre_codigo",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "porcentaje_descuento",
+          "bson_type_raw": "int",
+          "type_display": "int (0..100)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "monto_total",
+          "bson_type_raw": "int",
+          "type_display": "int (>=0)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 0,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "id_pago",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": true,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "EXT"
+          ],
+          "external_ref": "Pagos"
+        },
+        {
+          "name": "estado_reserva",
+          "bson_type_raw": "string",
+          "type_display": "string (enum[4])",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": [
+            "RESERVADO",
+            "CONSOLIDADO",
+            "EXPIRADO",
+            "CANCELADO"
+          ],
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "fecha_cancelacion",
+          "bson_type_raw": [
+            "date",
+            "null"
+          ],
+          "type_display": "date",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "Fecha de cancelación o expiración de la reserva",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "fecha_creacion",
+          "bson_type_raw": "date",
+          "type_display": "date",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "fecha_expiracion",
+          "bson_type_raw": [
+            "date",
+            "null"
+          ],
+          "type_display": "date",
+          "required": true,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "pk_reserva_id_reserva",
+          "key": {
+            "id_reserva": 1
+          },
+          "unique": true,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "fk_reserva_inventario_evento",
+          "key": {
+            "id_evento": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "idx_reserva_usuario_evento",
+          "key": {
+            "id_usuario": 1,
+            "id_evento": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "idx_reserva_estado_expiracion",
+          "key": {
+            "estado_reserva": 1,
+            "fecha_expiracion": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "idx_reserva_id_pago",
+          "key": {
+            "id_pago": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        }
+      ]
+    },
+    "entrada": {
+      "name": "entrada",
+      "doc_count": 3,
+      "additional_properties": false,
+      "required_count": 12,
+      "fields": [
+        {
+          "name": "_id",
+          "bson_type_raw": "objectId",
+          "type_display": "objectId",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "ID"
+          ],
+          "external_ref": null
+        },
+        {
+          "name": "id_entrada",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "PK",
+            "EXT"
+          ],
+          "external_ref": "Check-in (QR)"
+        },
+        {
+          "name": "id_reserva",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "FK"
+          ],
+          "external_ref": null
+        },
+        {
+          "name": "id_evento",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "FK"
+          ],
+          "external_ref": null
+        },
+        {
+          "name": "nombre_evento",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "id_usuario",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [
+            "EXT"
+          ],
+          "external_ref": "Auth (Titular)"
+        },
+        {
+          "name": "nombre_usuario",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "rut_usuario",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "correo_usuario",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "rol_usuario",
+          "bson_type_raw": "string",
+          "type_display": "string (enum[6])",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": [
+            "USUARIO",
+            "STAFF",
+            "ORGANIZADOR",
+            "usuario",
+            "staff",
+            "organizador"
+          ],
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "tipo_acceso",
+          "bson_type_raw": "string",
+          "type_display": "string (enum[1])",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": [
+            "GENERAL"
+          ],
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "lugar_ingreso",
+          "bson_type_raw": [
+            "string",
+            "null"
+          ],
+          "type_display": "string",
+          "required": false,
+          "nullable": true,
+          "nullability_label": "NULLABLE",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "precio_final_pagado",
+          "bson_type_raw": "int",
+          "type_display": "int (>=0)",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": 0,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "estado_entrada",
+          "bson_type_raw": "string",
+          "type_display": "string (enum[2])",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": [
+            "EMITIDA",
+            "ANULADA"
+          ],
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "nombre_archivo_qr",
+          "bson_type_raw": "string",
+          "type_display": "string",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "qr_data",
+          "bson_type_raw": "object",
+          "type_display": "object{url,hash}",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": {
+            "url": {
+              "bsonType": "string"
+            },
+            "hash": {
+              "bsonType": "string"
+            }
+          },
+          "badges": [],
+          "external_ref": null
+        },
+        {
+          "name": "fecha_emision",
+          "bson_type_raw": "date",
+          "type_display": "date",
+          "required": true,
+          "nullable": false,
+          "nullability_label": "NOT NULL",
+          "enum": null,
+          "minimum": null,
+          "maximum": null,
+          "description": "",
+          "subproperties": null,
+          "badges": [],
+          "external_ref": null
+        }
+      ],
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "pk_entrada_id_entrada",
+          "key": {
+            "id_entrada": 1
+          },
+          "unique": true,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "fk_entrada_reserva",
+          "key": {
+            "id_reserva": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "idx_entrada_evento",
+          "key": {
+            "id_evento": 1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        },
+        {
+          "name": "idx_entrada_usuario",
+          "key": {
+            "id_usuario": 1,
+            "fecha_emision": -1
+          },
+          "unique": false,
+          "expireAfterSeconds": null
+        }
+      ]
+    }
+  },
+  "internal_fks": [
+    {
+      "from_col": "reserva_entrada",
+      "from_field": "id_evento",
+      "to_col": "inventario_evento",
+      "to_field": "id_evento",
+      "cardinality": "1 : 0..N",
+      "index": "fk_reserva_inventario_evento",
+      "label": "1 : 0..N  (id_evento)"
+    },
+    {
+      "from_col": "entrada",
+      "from_field": "id_reserva",
+      "to_col": "reserva_entrada",
+      "to_field": "id_reserva",
+      "cardinality": "1 : 0..N",
+      "index": "fk_entrada_reserva",
+      "label": "1 : 0..N  (id_reserva)"
+    },
+    {
+      "from_col": "entrada",
+      "from_field": "id_evento",
+      "to_col": "inventario_evento",
+      "to_field": "id_evento",
+      "cardinality": "1 : 0..N",
+      "index": "idx_entrada_evento",
+      "label": "1 : 0..N  (id_evento · FK directa sin ciclos)"
+    }
+  ],
+  "dag_verification": {
+    "es_dag_aciclico": true,
+    "orden_topologico": [
+      "inventario_evento",
+      "reserva_entrada",
+      "entrada"
+    ],
+    "ciclos_detectados": 0,
+    "aristas_dirigidas": [
+      "inventario_evento -> reserva_entrada (id_evento)",
+      "reserva_entrada -> entrada (id_reserva)",
+      "inventario_evento -> entrada (id_evento)"
+    ]
+  }
+}

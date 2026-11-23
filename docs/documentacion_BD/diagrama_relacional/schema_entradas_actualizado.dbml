@@ -1,0 +1,90 @@
+// Generado automáticamente desde MongoDB 7.0.43 (ticketu_entradas_db)
+// Fecha extracción: 2026-11-23 19:10:16 UTC
+
+Project TicketuEntradas {
+  database_type: 'MongoDB 7.0'
+  Note: 'Microservicio de Entradas e Inventario (ticketu_entradas_db) - Esquema oficial workstation'
+}
+
+Table inventario_evento {
+  _id objectId [not null, note: 'Clave interna MongoDB']
+  id_evento string [pk, not null, note: 'PK negocio (unique index); Ref externa -> Panel / Catálogo']
+  nombre_evento string [null]
+  descripcion string [null]
+  fecha_evento string [null]
+  hora_evento string [null]
+  lugar_ingreso string [null]
+  id_usuario string [not null, note: 'Ref externa -> Auth (Organizador)']
+  rol_usuario string [not null, note: 'ENUM: ORGANIZADOR, organizador, STAFF, staff']
+  tipo_entrada string [not null, note: 'ENUM: PAGADA, GRATUITA']
+  precio_unitario int [not null, note: 'min=0']
+  stock_inicial int [not null, note: 'min=0']
+  stock_actual int [not null, note: 'min=0']
+  cantidad_entrada_reservada int [not null, note: 'min=0']
+  cantidad_entrada_comprada int [not null, note: 'min=0']
+  maximo_ticket int [not null, note: 'min=1']
+  estado_gestion string [not null, note: 'ENUM: BORRADOR, PUBLICADO, FINALIZADO, CANCELADO']
+  fecha_actualizacion date [not null]
+
+  indexes {
+    id_evento [name: 'pk_inventario_id_evento', unique]
+    (id_usuario, rol_usuario) [name: 'idx_inventario_organizador']
+  }
+}
+
+Table reserva_entrada {
+  _id objectId [not null, note: 'Clave interna MongoDB']
+  id_reserva string [pk, not null, note: 'PK negocio (unique index)']
+  hold_id string [null]
+  id_evento string [not null, ref: > inventario_evento.id_evento, note: 'FK interna -> inventario_evento.id_evento']
+  id_usuario string [not null, note: 'Ref externa -> Auth (Usuario)']
+  nombre_usuario string [not null]
+  rut_usuario string [null]
+  correo_usuario string [null]
+  rol_usuario string [not null, note: 'ENUM: USUARIO, STAFF, ORGANIZADOR, usuario, staff, organizador']
+  cantidad_entrada int [not null, note: 'min=1']
+  id_promocion string [null, note: 'Ref externa -> Promociones']
+  nombre_codigo string [null]
+  porcentaje_descuento int [not null, note: 'min=0; max=100']
+  monto_total int [not null, note: 'min=0']
+  id_pago string [null, note: 'Ref externa -> Pagos']
+  estado_reserva string [not null, note: 'ENUM: RESERVADO, CONSOLIDADO, EXPIRADO, CANCELADO']
+  fecha_cancelacion date [null]
+  fecha_creacion date [not null]
+  fecha_expiracion date [null]
+
+  indexes {
+    id_reserva [name: 'pk_reserva_id_reserva', unique]
+    id_evento [name: 'fk_reserva_inventario_evento']
+    (id_usuario, id_evento) [name: 'idx_reserva_usuario_evento']
+    (estado_reserva, fecha_expiracion) [name: 'idx_reserva_estado_expiracion']
+    id_pago [name: 'idx_reserva_id_pago']
+  }
+}
+
+Table entrada {
+  _id objectId [not null, note: 'Clave interna MongoDB']
+  id_entrada string [pk, not null, note: 'PK negocio (unique index); Ref externa -> Check-in (QR)']
+  id_reserva string [not null, ref: > reserva_entrada.id_reserva, note: 'FK interna -> reserva_entrada.id_reserva']
+  id_evento string [not null, ref: > inventario_evento.id_evento, note: 'FK interna -> inventario_evento.id_evento']
+  nombre_evento string [null]
+  id_usuario string [not null, note: 'Ref externa -> Auth (Titular)']
+  nombre_usuario string [not null]
+  rut_usuario string [null]
+  correo_usuario string [null]
+  rol_usuario string [not null, note: 'ENUM: USUARIO, STAFF, ORGANIZADOR, usuario, staff, organizador']
+  tipo_acceso string [not null, note: 'ENUM: GENERAL']
+  lugar_ingreso string [null]
+  precio_final_pagado int [not null, note: 'min=0']
+  estado_entrada string [not null, note: 'ENUM: EMITIDA, ANULADA']
+  nombre_archivo_qr string [not null]
+  qr_data object [not null]
+  fecha_emision date [not null]
+
+  indexes {
+    id_entrada [name: 'pk_entrada_id_entrada', unique]
+    id_reserva [name: 'fk_entrada_reserva']
+    id_evento [name: 'idx_entrada_evento']
+    (id_usuario, fecha_emision) [name: 'idx_entrada_usuario']
+  }
+}

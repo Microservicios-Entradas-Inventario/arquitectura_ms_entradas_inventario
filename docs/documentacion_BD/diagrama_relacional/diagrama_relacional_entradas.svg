@@ -1,0 +1,596 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="1297" viewBox="0 0 1960 1297">
+  <defs>
+    <filter id="cardShadow" x="-4%" y="-4%" width="108%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.10"/>
+    </filter>
+    <linearGradient id="bannerGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0F2942"/>
+      <stop offset="55%" stop-color="#1B365D"/>
+      <stop offset="100%" stop-color="#0D5C63"/>
+    </linearGradient>
+    <style>
+      .sans { font-family: 'Segoe UI', 'DejaVu Sans', Arial, sans-serif; }
+      .mono { font-family: 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', monospace; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1960" height="1297" fill="#F4F7FB"/>
+  <g stroke="#E2E8F0" stroke-width="0.6" opacity="0.55">
+    <line x1="40" y1="0" x2="40" y2="1297"/>
+    <line x1="80" y1="0" x2="80" y2="1297"/>
+    <line x1="120" y1="0" x2="120" y2="1297"/>
+    <line x1="160" y1="0" x2="160" y2="1297"/>
+    <line x1="200" y1="0" x2="200" y2="1297"/>
+    <line x1="240" y1="0" x2="240" y2="1297"/>
+    <line x1="280" y1="0" x2="280" y2="1297"/>
+    <line x1="320" y1="0" x2="320" y2="1297"/>
+    <line x1="360" y1="0" x2="360" y2="1297"/>
+    <line x1="400" y1="0" x2="400" y2="1297"/>
+    <line x1="440" y1="0" x2="440" y2="1297"/>
+    <line x1="480" y1="0" x2="480" y2="1297"/>
+    <line x1="520" y1="0" x2="520" y2="1297"/>
+    <line x1="560" y1="0" x2="560" y2="1297"/>
+    <line x1="600" y1="0" x2="600" y2="1297"/>
+    <line x1="640" y1="0" x2="640" y2="1297"/>
+    <line x1="680" y1="0" x2="680" y2="1297"/>
+    <line x1="720" y1="0" x2="720" y2="1297"/>
+    <line x1="760" y1="0" x2="760" y2="1297"/>
+    <line x1="800" y1="0" x2="800" y2="1297"/>
+    <line x1="840" y1="0" x2="840" y2="1297"/>
+    <line x1="880" y1="0" x2="880" y2="1297"/>
+    <line x1="920" y1="0" x2="920" y2="1297"/>
+    <line x1="960" y1="0" x2="960" y2="1297"/>
+    <line x1="1000" y1="0" x2="1000" y2="1297"/>
+    <line x1="1040" y1="0" x2="1040" y2="1297"/>
+    <line x1="1080" y1="0" x2="1080" y2="1297"/>
+    <line x1="1120" y1="0" x2="1120" y2="1297"/>
+    <line x1="1160" y1="0" x2="1160" y2="1297"/>
+    <line x1="1200" y1="0" x2="1200" y2="1297"/>
+    <line x1="1240" y1="0" x2="1240" y2="1297"/>
+    <line x1="1280" y1="0" x2="1280" y2="1297"/>
+    <line x1="1320" y1="0" x2="1320" y2="1297"/>
+    <line x1="1360" y1="0" x2="1360" y2="1297"/>
+    <line x1="1400" y1="0" x2="1400" y2="1297"/>
+    <line x1="1440" y1="0" x2="1440" y2="1297"/>
+    <line x1="1480" y1="0" x2="1480" y2="1297"/>
+    <line x1="1520" y1="0" x2="1520" y2="1297"/>
+    <line x1="1560" y1="0" x2="1560" y2="1297"/>
+    <line x1="1600" y1="0" x2="1600" y2="1297"/>
+    <line x1="1640" y1="0" x2="1640" y2="1297"/>
+    <line x1="1680" y1="0" x2="1680" y2="1297"/>
+    <line x1="1720" y1="0" x2="1720" y2="1297"/>
+    <line x1="1760" y1="0" x2="1760" y2="1297"/>
+    <line x1="1800" y1="0" x2="1800" y2="1297"/>
+    <line x1="1840" y1="0" x2="1840" y2="1297"/>
+    <line x1="1880" y1="0" x2="1880" y2="1297"/>
+    <line x1="1920" y1="0" x2="1920" y2="1297"/>
+    <line x1="0" y1="40" x2="1960" y2="40"/>
+    <line x1="0" y1="80" x2="1960" y2="80"/>
+    <line x1="0" y1="120" x2="1960" y2="120"/>
+    <line x1="0" y1="160" x2="1960" y2="160"/>
+    <line x1="0" y1="200" x2="1960" y2="200"/>
+    <line x1="0" y1="240" x2="1960" y2="240"/>
+    <line x1="0" y1="280" x2="1960" y2="280"/>
+    <line x1="0" y1="320" x2="1960" y2="320"/>
+    <line x1="0" y1="360" x2="1960" y2="360"/>
+    <line x1="0" y1="400" x2="1960" y2="400"/>
+    <line x1="0" y1="440" x2="1960" y2="440"/>
+    <line x1="0" y1="480" x2="1960" y2="480"/>
+    <line x1="0" y1="520" x2="1960" y2="520"/>
+    <line x1="0" y1="560" x2="1960" y2="560"/>
+    <line x1="0" y1="600" x2="1960" y2="600"/>
+    <line x1="0" y1="640" x2="1960" y2="640"/>
+    <line x1="0" y1="680" x2="1960" y2="680"/>
+    <line x1="0" y1="720" x2="1960" y2="720"/>
+    <line x1="0" y1="760" x2="1960" y2="760"/>
+    <line x1="0" y1="800" x2="1960" y2="800"/>
+    <line x1="0" y1="840" x2="1960" y2="840"/>
+    <line x1="0" y1="880" x2="1960" y2="880"/>
+    <line x1="0" y1="920" x2="1960" y2="920"/>
+    <line x1="0" y1="960" x2="1960" y2="960"/>
+    <line x1="0" y1="1000" x2="1960" y2="1000"/>
+    <line x1="0" y1="1040" x2="1960" y2="1040"/>
+    <line x1="0" y1="1080" x2="1960" y2="1080"/>
+    <line x1="0" y1="1120" x2="1960" y2="1120"/>
+    <line x1="0" y1="1160" x2="1960" y2="1160"/>
+    <line x1="0" y1="1200" x2="1960" y2="1200"/>
+    <line x1="0" y1="1240" x2="1960" y2="1240"/>
+    <line x1="0" y1="1280" x2="1960" y2="1280"/>
+  </g>
+  <rect x="24" y="18" width="1912" height="92" rx="12" fill="url(#bannerGrad)" filter="url(#cardShadow)"/>
+  <text x="50" y="55" class="sans" font-size="25" font-weight="700" fill="#FFFFFF">Diagrama Relacional Actualizado — Microservicio de Entradas e Inventario</text>
+  <text x="50" y="81" class="sans" font-size="13.5" fill="#CBD5E1">Base de datos: ticketu_entradas_db (MongoDB 7.0.43)  ·  Introspección directa de $jsonSchema e índices de workstation  ·  Extraído: 2026-11-23 19:10:16 UTC</text>
+  <rect x="1677.4" y="44" width="236.6" height="32" rx="16" fill="#FFFFFF" fill-opacity="0.14" stroke="#F59E0B" stroke-width="1.3"/>
+  <text x="1795.7" y="64.5" text-anchor="middle" class="sans" font-size="12" font-weight="600" fill="#FFFFFF">additionalProperties: false</text>
+  <rect x="1452.2" y="44" width="213.2" height="32" rx="16" fill="#FFFFFF" fill-opacity="0.14" stroke="#38BDF8" stroke-width="1.3"/>
+  <text x="1558.8" y="64.5" text-anchor="middle" class="sans" font-size="12" font-weight="600" fill="#FFFFFF">Ciclos: 0 (DAG Acíclico)</text>
+  <rect x="1305.0" y="44" width="135.2" height="32" rx="16" fill="#FFFFFF" fill-opacity="0.14" stroke="#10B981" stroke-width="1.3"/>
+  <text x="1372.6" y="64.5" text-anchor="middle" class="sans" font-size="12" font-weight="600" fill="#FFFFFF">Colecciones: 3</text>
+  <path d="M 610 322.0 L 655.0 322.0 L 655.0 378.0 L 700 378.0" fill="none" stroke="#1B365D" stroke-width="2.4"/>
+  <line x1="617" y1="314.0" x2="617" y2="330.0" stroke="#1B365D" stroke-width="2.2"/>
+  <line x1="623" y1="314.0" x2="623" y2="330.0" stroke="#1B365D" stroke-width="2.2"/>
+  <line x1="684" y1="378.0" x2="700" y2="369.0" stroke="#1B365D" stroke-width="2.2"/>
+  <line x1="684" y1="378.0" x2="700" y2="387.0" stroke="#1B365D" stroke-width="2.2"/>
+  <line x1="684" y1="378.0" x2="700" y2="378.0" stroke="#1B365D" stroke-width="2.2"/>
+  <circle cx="679" cy="378.0" r="4.5" fill="#F4F7FB" stroke="#1B365D" stroke-width="2.1"/>
+  <rect x="617.0" y="288.0" width="76" height="22" rx="6" fill="#FFFFFF" stroke="#1B365D" stroke-width="1.2"/>
+  <text x="655.0" y="303.0" text-anchor="middle" class="mono" font-size="11" font-weight="700" fill="#1B365D">1 : 0..N</text>
+  <path d="M 1260 322.0 L 1305.0 322.0 L 1305.0 350.0 L 1350 350.0" fill="none" stroke="#0D5C63" stroke-width="2.4"/>
+  <line x1="1267" y1="314.0" x2="1267" y2="330.0" stroke="#0D5C63" stroke-width="2.2"/>
+  <line x1="1273" y1="314.0" x2="1273" y2="330.0" stroke="#0D5C63" stroke-width="2.2"/>
+  <line x1="1334" y1="350.0" x2="1350" y2="341.0" stroke="#0D5C63" stroke-width="2.2"/>
+  <line x1="1334" y1="350.0" x2="1350" y2="359.0" stroke="#0D5C63" stroke-width="2.2"/>
+  <line x1="1334" y1="350.0" x2="1350" y2="350.0" stroke="#0D5C63" stroke-width="2.2"/>
+  <circle cx="1329" cy="350.0" r="4.5" fill="#F4F7FB" stroke="#0D5C63" stroke-width="2.1"/>
+  <rect x="1267.0" y="288.0" width="76" height="22" rx="6" fill="#FFFFFF" stroke="#0D5C63" stroke-width="1.2"/>
+  <text x="1305.0" y="303.0" text-anchor="middle" class="mono" font-size="11" font-weight="700" fill="#0D5C63">1 : 0..N</text>
+  <path d="M 453.2 178 L 453.2 142 L 1506.8 142 L 1506.8 178" fill="none" stroke="#393E8F" stroke-width="2.3" stroke-dasharray="7 4"/>
+  <line x1="445.2" y1="171" x2="461.2" y2="171" stroke="#393E8F" stroke-width="2.2"/>
+  <line x1="445.2" y1="165" x2="461.2" y2="165" stroke="#393E8F" stroke-width="2.2"/>
+  <line x1="1506.8" y1="163" x2="1497.8" y2="178" stroke="#393E8F" stroke-width="2.2"/>
+  <line x1="1506.8" y1="163" x2="1515.8" y2="178" stroke="#393E8F" stroke-width="2.2"/>
+  <circle cx="1506.8" cy="158" r="4.5" fill="#F4F7FB" stroke="#393E8F" stroke-width="2.1"/>
+  <rect x="725.0" y="129" width="510" height="26" rx="13" fill="#FFFFFF" stroke="#393E8F" stroke-width="1.3"/>
+  <text x="980.0" y="146" text-anchor="middle" class="sans" font-size="11.5" font-weight="600" fill="#393E8F">1 : 0..N  ·  entrada.id_evento → inventario_evento.id_evento (FK directa · DAG acíclico)</text>
+  <rect x="50" y="178" width="560" height="692" rx="10" fill="#FFFFFF" stroke="#1B365D" stroke-width="1.8" filter="url(#cardShadow)"/>
+  <path d="M 60 178 L 600 178 Q 610 178 610 188 L 610 252 L 50 252 L 50 188 Q 50 178 60 178 Z" fill="#1B365D"/>
+  <text x="66" y="207" class="mono" font-size="18" font-weight="700" fill="#FFFFFF">inventario_evento</text>
+  <text x="66" y="228" class="sans" font-size="11.5" fill="#E2E8F0">Control de cupos, tarifas y estado de venta</text>
+  <rect x="375.2" y="190" width="222.8" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.18"/>
+  <text x="486.6" y="204.5" text-anchor="middle" class="sans" font-size="10.5" font-weight="600" fill="#FFFFFF">Nivel 0 · Raíz (DAG)  ·  11 docs</text>
+  <rect x="51" y="252" width="558" height="28" fill="#E8EEF6"/>
+  <line x1="50" y1="280" x2="610" y2="280" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="64" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">LLAVE</text>
+  <text x="136" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">ATRIBUTO</text>
+  <text x="355" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">TIPO BSON / RESTRICCIÓN</text>
+  <text x="596" y="270" text-anchor="end" class="sans" font-size="10.5" font-weight="700" fill="#334155">NULABILIDAD</text>
+  <rect x="51" y="280" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="308" x2="609" y2="308" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="62" y="285.5" width="30" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="77.0" y="297.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#475569">ID</text>
+  <text x="136" y="298.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">_id</text>
+  <text x="355" y="298.5" class="mono" font-size="10.8" fill="#334155">objectId</text>
+  <rect x="532" y="285.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="297.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="308" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="336" x2="609" y2="336" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="62" y="313.5" width="30" height="17" rx="4" fill="#D97706"/>
+  <text x="77.0" y="325.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#FFFFFF">PK</text>
+  <rect x="96" y="313.5" width="34" height="17" rx="4" fill="#EDE9FE"/>
+  <text x="113.0" y="325.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#6D28D9">EXT</text>
+  <text x="136" y="326.5" class="mono" font-size="11.5" font-weight="700" fill="#0F172A">id_evento</text>
+  <text x="355" y="326.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="532" y="313.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="325.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="336" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="364" x2="609" y2="364" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="354.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">nombre_evento</text>
+  <text x="355" y="354.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="532" y="341.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="565.0" y="353.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="51" y="364" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="392" x2="609" y2="392" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="382.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">descripcion</text>
+  <text x="355" y="382.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="532" y="369.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="565.0" y="381.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="51" y="392" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="420" x2="609" y2="420" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="410.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">fecha_evento</text>
+  <text x="355" y="410.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="532" y="397.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="565.0" y="409.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="51" y="420" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="448" x2="609" y2="448" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="438.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">hora_evento</text>
+  <text x="355" y="438.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="532" y="425.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="565.0" y="437.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="51" y="448" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="476" x2="609" y2="476" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="466.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">lugar_ingreso</text>
+  <text x="355" y="466.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="532" y="453.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="565.0" y="465.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="51" y="476" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="504" x2="609" y2="504" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="62" y="481.5" width="34" height="17" rx="4" fill="#EDE9FE"/>
+  <text x="79.0" y="493.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#6D28D9">EXT</text>
+  <text x="136" y="494.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">id_usuario</text>
+  <text x="355" y="494.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="532" y="481.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="493.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="504" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="532" x2="609" y2="532" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="522.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">rol_usuario</text>
+  <text x="355" y="522.5" class="mono" font-size="10.8" fill="#334155">string (enum[4])</text>
+  <rect x="532" y="509.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="521.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="532" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="560" x2="609" y2="560" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="550.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">tipo_entrada</text>
+  <text x="355" y="550.5" class="mono" font-size="10.8" fill="#334155">string (enum[2])</text>
+  <rect x="532" y="537.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="549.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="560" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="588" x2="609" y2="588" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="578.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">precio_unitario</text>
+  <text x="355" y="578.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=0)</text>
+  <rect x="532" y="565.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="577.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="588" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="616" x2="609" y2="616" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="606.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">stock_inicial</text>
+  <text x="355" y="606.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=0)</text>
+  <rect x="532" y="593.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="605.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="616" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="644" x2="609" y2="644" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="634.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">stock_actual</text>
+  <text x="355" y="634.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=0)</text>
+  <rect x="532" y="621.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="633.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="644" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="672" x2="609" y2="672" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="662.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">cantidad_entrada_reservada</text>
+  <text x="355" y="662.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=0)</text>
+  <rect x="532" y="649.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="661.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="672" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="700" x2="609" y2="700" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="690.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">cantidad_entrada_comprada</text>
+  <text x="355" y="690.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=0)</text>
+  <rect x="532" y="677.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="689.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="700" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="728" x2="609" y2="728" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="718.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">maximo_ticket</text>
+  <text x="355" y="718.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=1)</text>
+  <rect x="532" y="705.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="717.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="728" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="51" y1="756" x2="609" y2="756" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="746.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">estado_gestion</text>
+  <text x="355" y="746.5" class="mono" font-size="10.8" fill="#334155">string (enum[4])</text>
+  <rect x="532" y="733.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="745.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="51" y="756" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="51" y1="784" x2="609" y2="784" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="136" y="774.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">fecha_actualizacion</text>
+  <text x="355" y="774.5" class="mono" font-size="10.8" fill="#334155">date</text>
+  <rect x="532" y="761.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="565.0" y="773.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <line x1="51" y1="790" x2="609" y2="790" stroke="#CBD5E1" stroke-width="1.2"/>
+  <text x="64" y="807" class="sans" font-size="10.5" font-weight="700" fill="#1B365D">ÍNDICES VERIFICADOS EN MONGODB (sin TTL destructivo):</text>
+  <text x="66" y="824" class="mono" font-size="10.2" fill="#334155">• pk_inventario_id_evento (id_evento:ASC) [UNIQUE]</text>
+  <text x="66" y="843" class="mono" font-size="10.2" fill="#334155">• idx_inventario_organizador (id_usuario:ASC, rol_usuario:ASC)</text>
+  <rect x="700" y="178" width="560" height="777" rx="10" fill="#FFFFFF" stroke="#0D5C63" stroke-width="1.8" filter="url(#cardShadow)"/>
+  <path d="M 710 178 L 1250 178 Q 1260 178 1260 188 L 1260 252 L 700 252 L 700 188 Q 700 178 710 178 Z" fill="#0D5C63"/>
+  <text x="716" y="207" class="mono" font-size="18" font-weight="700" fill="#FFFFFF">reserva_entrada</text>
+  <text x="716" y="228" class="sans" font-size="11.5" fill="#E2E8F0">Hold temporal (HU-03), descuentos y vínculo a Pagos</text>
+  <rect x="993.2" y="190" width="254.8" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.18"/>
+  <text x="1120.6" y="204.5" text-anchor="middle" class="sans" font-size="10.5" font-weight="600" fill="#FFFFFF">Nivel 1 · Intermedio (DAG)  ·  7 docs</text>
+  <rect x="701" y="252" width="558" height="28" fill="#E6F4F5"/>
+  <line x1="700" y1="280" x2="1260" y2="280" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="714" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">LLAVE</text>
+  <text x="786" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">ATRIBUTO</text>
+  <text x="1005" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">TIPO BSON / RESTRICCIÓN</text>
+  <text x="1246" y="270" text-anchor="end" class="sans" font-size="10.5" font-weight="700" fill="#334155">NULABILIDAD</text>
+  <rect x="701" y="280" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="308" x2="1259" y2="308" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="712" y="285.5" width="30" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="727.0" y="297.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#475569">ID</text>
+  <text x="786" y="298.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">_id</text>
+  <text x="1005" y="298.5" class="mono" font-size="10.8" fill="#334155">objectId</text>
+  <rect x="1182" y="285.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="297.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="308" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="336" x2="1259" y2="336" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="712" y="313.5" width="30" height="17" rx="4" fill="#D97706"/>
+  <text x="727.0" y="325.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#FFFFFF">PK</text>
+  <text x="786" y="326.5" class="mono" font-size="11.5" font-weight="700" fill="#0F172A">id_reserva</text>
+  <text x="1005" y="326.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="313.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="325.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="336" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="364" x2="1259" y2="364" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="354.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">hold_id</text>
+  <text x="1005" y="354.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="341.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1215.0" y="353.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="701" y="364" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="392" x2="1259" y2="392" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="712" y="369.5" width="30" height="17" rx="4" fill="#0284C7"/>
+  <text x="727.0" y="381.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#FFFFFF">FK</text>
+  <text x="786" y="382.5" class="mono" font-size="11.5" font-weight="700" fill="#0F172A">id_evento</text>
+  <text x="1005" y="382.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="369.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="381.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="392" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="420" x2="1259" y2="420" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="712" y="397.5" width="34" height="17" rx="4" fill="#EDE9FE"/>
+  <text x="729.0" y="409.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#6D28D9">EXT</text>
+  <text x="786" y="410.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">id_usuario</text>
+  <text x="1005" y="410.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="397.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="409.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="420" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="448" x2="1259" y2="448" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="438.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">nombre_usuario</text>
+  <text x="1005" y="438.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="425.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="437.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="448" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="476" x2="1259" y2="476" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="466.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">rut_usuario</text>
+  <text x="1005" y="466.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="453.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1215.0" y="465.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="701" y="476" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="504" x2="1259" y2="504" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="494.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">correo_usuario</text>
+  <text x="1005" y="494.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="481.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1215.0" y="493.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="701" y="504" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="532" x2="1259" y2="532" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="522.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">rol_usuario</text>
+  <text x="1005" y="522.5" class="mono" font-size="10.8" fill="#334155">string (enum[6])</text>
+  <rect x="1182" y="509.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="521.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="532" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="560" x2="1259" y2="560" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="550.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">cantidad_entrada</text>
+  <text x="1005" y="550.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=1)</text>
+  <rect x="1182" y="537.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="549.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="560" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="588" x2="1259" y2="588" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="712" y="565.5" width="34" height="17" rx="4" fill="#EDE9FE"/>
+  <text x="729.0" y="577.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#6D28D9">EXT</text>
+  <text x="786" y="578.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">id_promocion</text>
+  <text x="1005" y="578.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="565.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1215.0" y="577.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="701" y="588" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="616" x2="1259" y2="616" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="606.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">nombre_codigo</text>
+  <text x="1005" y="606.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="593.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1215.0" y="605.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="701" y="616" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="644" x2="1259" y2="644" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="634.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">porcentaje_descuento</text>
+  <text x="1005" y="634.5" class="mono" font-size="10.8" fill="#334155">int (0..100)</text>
+  <rect x="1182" y="621.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="633.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="644" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="672" x2="1259" y2="672" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="662.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">monto_total</text>
+  <text x="1005" y="662.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=0)</text>
+  <rect x="1182" y="649.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="661.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="672" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="700" x2="1259" y2="700" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="712" y="677.5" width="34" height="17" rx="4" fill="#EDE9FE"/>
+  <text x="729.0" y="689.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#6D28D9">EXT</text>
+  <text x="786" y="690.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">id_pago</text>
+  <text x="1005" y="690.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1182" y="677.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1215.0" y="689.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="701" y="700" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="728" x2="1259" y2="728" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="718.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">estado_reserva</text>
+  <text x="1005" y="718.5" class="mono" font-size="10.8" fill="#334155">string (enum[4])</text>
+  <rect x="1182" y="705.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="717.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="728" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="756" x2="1259" y2="756" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="746.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">fecha_cancelacion</text>
+  <text x="1005" y="746.5" class="mono" font-size="10.8" fill="#334155">date</text>
+  <rect x="1182" y="733.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1215.0" y="745.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="701" y="756" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="701" y1="784" x2="1259" y2="784" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="774.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">fecha_creacion</text>
+  <text x="1005" y="774.5" class="mono" font-size="10.8" fill="#334155">date</text>
+  <rect x="1182" y="761.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1215.0" y="773.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="701" y="784" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="701" y1="812" x2="1259" y2="812" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="786" y="802.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">fecha_expiracion</text>
+  <text x="1005" y="802.5" class="mono" font-size="10.8" fill="#334155">date</text>
+  <rect x="1182" y="789.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1215.0" y="801.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <line x1="701" y1="818" x2="1259" y2="818" stroke="#CBD5E1" stroke-width="1.2"/>
+  <text x="714" y="835" class="sans" font-size="10.5" font-weight="700" fill="#0D5C63">ÍNDICES VERIFICADOS EN MONGODB (sin TTL destructivo):</text>
+  <text x="716" y="852" class="mono" font-size="10.2" fill="#334155">• pk_reserva_id_reserva (id_reserva:ASC) [UNIQUE]</text>
+  <text x="716" y="871" class="mono" font-size="10.2" fill="#334155">• fk_reserva_inventario_evento (id_evento:ASC)</text>
+  <text x="716" y="890" class="mono" font-size="10.2" fill="#334155">• idx_reserva_usuario_evento (id_usuario:ASC, id_evento:ASC)</text>
+  <text x="716" y="909" class="mono" font-size="10.2" fill="#334155">• idx_reserva_estado_expiracion (estado_reserva:ASC, fecha_expiracion:ASC)</text>
+  <text x="716" y="928" class="mono" font-size="10.2" fill="#334155">• idx_reserva_id_pago (id_pago:ASC)</text>
+  <rect x="1350" y="178" width="560" height="702" rx="10" fill="#FFFFFF" stroke="#393E8F" stroke-width="1.8" filter="url(#cardShadow)"/>
+  <path d="M 1360 178 L 1900 178 Q 1910 178 1910 188 L 1910 252 L 1350 252 L 1350 188 Q 1350 178 1360 178 Z" fill="#393E8F"/>
+  <text x="1366" y="207" class="mono" font-size="18" font-weight="700" fill="#FFFFFF">entrada</text>
+  <text x="1366" y="228" class="sans" font-size="11.5" fill="#E2E8F0">Tickets inmutables emitidos y código QR (HU-04/05)</text>
+  <rect x="1681.6" y="190" width="216.4" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.18"/>
+  <text x="1789.8" y="204.5" text-anchor="middle" class="sans" font-size="10.5" font-weight="600" fill="#FFFFFF">Nivel 2 · Hoja (DAG)  ·  3 docs</text>
+  <rect x="1351" y="252" width="558" height="28" fill="#ECEEFB"/>
+  <line x1="1350" y1="280" x2="1910" y2="280" stroke="#CBD5E1" stroke-width="1"/>
+  <text x="1364" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">LLAVE</text>
+  <text x="1436" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">ATRIBUTO</text>
+  <text x="1655" y="270" class="sans" font-size="10.5" font-weight="700" fill="#334155">TIPO BSON / RESTRICCIÓN</text>
+  <text x="1896" y="270" text-anchor="end" class="sans" font-size="10.5" font-weight="700" fill="#334155">NULABILIDAD</text>
+  <rect x="1351" y="280" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="308" x2="1909" y2="308" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="1362" y="285.5" width="30" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1377.0" y="297.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#475569">ID</text>
+  <text x="1436" y="298.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">_id</text>
+  <text x="1655" y="298.5" class="mono" font-size="10.8" fill="#334155">objectId</text>
+  <rect x="1832" y="285.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="297.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="308" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="1351" y1="336" x2="1909" y2="336" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="1362" y="313.5" width="30" height="17" rx="4" fill="#D97706"/>
+  <text x="1377.0" y="325.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#FFFFFF">PK</text>
+  <rect x="1396" y="313.5" width="34" height="17" rx="4" fill="#EDE9FE"/>
+  <text x="1413.0" y="325.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#6D28D9">EXT</text>
+  <text x="1436" y="326.5" class="mono" font-size="11.5" font-weight="700" fill="#0F172A">id_entrada</text>
+  <text x="1655" y="326.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="313.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="325.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="336" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="364" x2="1909" y2="364" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="1362" y="341.5" width="30" height="17" rx="4" fill="#0284C7"/>
+  <text x="1377.0" y="353.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#FFFFFF">FK</text>
+  <text x="1436" y="354.5" class="mono" font-size="11.5" font-weight="700" fill="#0F172A">id_reserva</text>
+  <text x="1655" y="354.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="341.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="353.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="364" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="1351" y1="392" x2="1909" y2="392" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="1362" y="369.5" width="30" height="17" rx="4" fill="#0284C7"/>
+  <text x="1377.0" y="381.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#FFFFFF">FK</text>
+  <text x="1436" y="382.5" class="mono" font-size="11.5" font-weight="700" fill="#0F172A">id_evento</text>
+  <text x="1655" y="382.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="369.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="381.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="392" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="420" x2="1909" y2="420" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="410.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">nombre_evento</text>
+  <text x="1655" y="410.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="397.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1865.0" y="409.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="1351" y="420" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="1351" y1="448" x2="1909" y2="448" stroke="#EEF2F6" stroke-width="0.8"/>
+  <rect x="1362" y="425.5" width="34" height="17" rx="4" fill="#EDE9FE"/>
+  <text x="1379.0" y="437.5" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#6D28D9">EXT</text>
+  <text x="1436" y="438.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">id_usuario</text>
+  <text x="1655" y="438.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="425.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="437.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="448" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="476" x2="1909" y2="476" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="466.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">nombre_usuario</text>
+  <text x="1655" y="466.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="453.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="465.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="476" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="1351" y1="504" x2="1909" y2="504" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="494.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">rut_usuario</text>
+  <text x="1655" y="494.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="481.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1865.0" y="493.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="1351" y="504" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="532" x2="1909" y2="532" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="522.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">correo_usuario</text>
+  <text x="1655" y="522.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="509.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1865.0" y="521.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="1351" y="532" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="1351" y1="560" x2="1909" y2="560" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="550.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">rol_usuario</text>
+  <text x="1655" y="550.5" class="mono" font-size="10.8" fill="#334155">string (enum[6])</text>
+  <rect x="1832" y="537.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="549.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="560" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="588" x2="1909" y2="588" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="578.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">tipo_acceso</text>
+  <text x="1655" y="578.5" class="mono" font-size="10.8" fill="#334155">string (enum[1])</text>
+  <rect x="1832" y="565.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="577.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="588" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="1351" y1="616" x2="1909" y2="616" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="606.5" class="mono" font-size="11.5" font-weight="500" fill="#475569">lugar_ingreso</text>
+  <text x="1655" y="606.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="593.5" width="66" height="17" rx="4" fill="#F1F5F9"/>
+  <text x="1865.0" y="605.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#64748B">NULLABLE</text>
+  <rect x="1351" y="616" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="644" x2="1909" y2="644" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="634.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">precio_final_pagado</text>
+  <text x="1655" y="634.5" class="mono" font-size="10.8" fill="#334155">int (&gt;=0)</text>
+  <rect x="1832" y="621.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="633.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="644" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="1351" y1="672" x2="1909" y2="672" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="662.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">estado_entrada</text>
+  <text x="1655" y="662.5" class="mono" font-size="10.8" fill="#334155">string (enum[2])</text>
+  <rect x="1832" y="649.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="661.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="672" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="700" x2="1909" y2="700" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="690.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">nombre_archivo_qr</text>
+  <text x="1655" y="690.5" class="mono" font-size="10.8" fill="#334155">string</text>
+  <rect x="1832" y="677.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="689.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="700" width="558" height="28" fill="#F8FAFC"/>
+  <line x1="1351" y1="728" x2="1909" y2="728" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="718.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">qr_data</text>
+  <text x="1655" y="718.5" class="mono" font-size="10.8" fill="#334155">object{url,hash}</text>
+  <rect x="1832" y="705.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="717.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <rect x="1351" y="728" width="558" height="28" fill="#FFFFFF"/>
+  <line x1="1351" y1="756" x2="1909" y2="756" stroke="#EEF2F6" stroke-width="0.8"/>
+  <text x="1436" y="746.5" class="mono" font-size="11.5" font-weight="500" fill="#0F172A">fecha_emision</text>
+  <text x="1655" y="746.5" class="mono" font-size="10.8" fill="#334155">date</text>
+  <rect x="1832" y="733.5" width="66" height="17" rx="4" fill="#FEE2E2"/>
+  <text x="1865.0" y="745.5" text-anchor="middle" class="mono" font-size="9.2" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <line x1="1351" y1="762" x2="1909" y2="762" stroke="#CBD5E1" stroke-width="1.2"/>
+  <text x="1364" y="779" class="sans" font-size="10.5" font-weight="700" fill="#393E8F">ÍNDICES VERIFICADOS EN MONGODB (sin TTL destructivo):</text>
+  <text x="1366" y="796" class="mono" font-size="10.2" fill="#334155">• pk_entrada_id_entrada (id_entrada:ASC) [UNIQUE]</text>
+  <text x="1366" y="815" class="mono" font-size="10.2" fill="#334155">• fk_entrada_reserva (id_reserva:ASC)</text>
+  <text x="1366" y="834" class="mono" font-size="10.2" fill="#334155">• idx_entrada_evento (id_evento:ASC)</text>
+  <text x="1366" y="853" class="mono" font-size="10.2" fill="#334155">• idx_entrada_usuario (id_usuario:ASC, fecha_emision:DESC)</text>
+  <rect x="50" y="1009" width="1860" height="122" rx="10" fill="#FFFFFF" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="7 4" filter="url(#cardShadow)"/>
+  <text x="70" y="1033" class="sans" font-size="13" font-weight="700" fill="#5B21B6">REFERENCIAS EXTERNAS A OTROS MICROSERVICIOS (AISLAMIENTO DATABASE-PER-SERVICE · BD2 — SIN COLECCIONES REPLICADAS)</text>
+  <rect x="70.0" y="1045" width="351.2" height="74" rx="8" fill="#FAF5FF" stroke="#1B365D" stroke-width="1.2"/>
+  <text x="82.0" y="1065" class="sans" font-size="11.8" font-weight="700" fill="#1B365D">Panel Organizador &amp; Catálogo</text>
+  <text x="82.0" y="1082" class="mono" font-size="10.5" font-weight="700" fill="#1E293B">Ref: id_evento</text>
+  <text x="82.0" y="1098" class="sans" font-size="9.8" fill="#475569">Consume panel.evento.entradas.v1</text>
+  <text x="82.0" y="1112" class="sans" font-size="9.8" fill="#475569">Expone /disponibilidad y /stock</text>
+  <rect x="437.2" y="1045" width="351.2" height="74" rx="8" fill="#FAF5FF" stroke="#0F766E" stroke-width="1.2"/>
+  <text x="449.2" y="1065" class="sans" font-size="11.8" font-weight="700" fill="#0F766E">Auth (auth-service)</text>
+  <text x="449.2" y="1082" class="mono" font-size="10.5" font-weight="700" fill="#1E293B">Ref: id_usuario</text>
+  <text x="449.2" y="1098" class="sans" font-size="9.8" fill="#475569">Introspección HTTP /internal/validar-sesion</text>
+  <text x="449.2" y="1112" class="sans" font-size="9.8" fill="#475569">No persiste JWT ni credenciales</text>
+  <rect x="804.4" y="1045" width="351.2" height="74" rx="8" fill="#FAF5FF" stroke="#B45309" stroke-width="1.2"/>
+  <text x="816.4" y="1065" class="sans" font-size="11.8" font-weight="700" fill="#B45309">Promociones</text>
+  <text x="816.4" y="1082" class="mono" font-size="10.5" font-weight="700" fill="#1E293B">Ref: id_promocion</text>
+  <text x="816.4" y="1098" class="sans" font-size="9.8" fill="#475569">Revalidación HTTP POST /api/promociones/evaluar</text>
+  <text x="816.4" y="1112" class="sans" font-size="9.8" fill="#475569">Solo guarda ID y resultado aplicado</text>
+  <rect x="1171.6" y="1045" width="351.2" height="74" rx="8" fill="#FAF5FF" stroke="#BE123C" stroke-width="1.2"/>
+  <text x="1183.6" y="1065" class="sans" font-size="11.8" font-weight="700" fill="#BE123C">Pasarela de Pagos</text>
+  <text x="1183.6" y="1082" class="mono" font-size="10.5" font-weight="700" fill="#1E293B">Ref: id_pago / id_reserva</text>
+  <text x="1183.6" y="1098" class="sans" font-size="9.8" fill="#475569">HTTP INT-01 + RabbitMQ pago.*</text>
+  <text x="1183.6" y="1112" class="sans" font-size="9.8" fill="#475569">No persiste client_secret ni tarjetas</text>
+  <rect x="1538.8" y="1045" width="351.2" height="74" rx="8" fill="#FAF5FF" stroke="#4338CA" stroke-width="1.2"/>
+  <text x="1550.8" y="1065" class="sans" font-size="11.8" font-weight="700" fill="#4338CA">Check-in &amp; Notificaciones</text>
+  <text x="1550.8" y="1082" class="mono" font-size="10.5" font-weight="700" fill="#1E293B">Ref: id_entrada / qr_data</text>
+  <text x="1550.8" y="1098" class="sans" font-size="9.8" fill="#475569">POST /api/checkin/tickets (JSON QR)</text>
+  <text x="1550.8" y="1112" class="sans" font-size="9.8" fill="#475569">RabbitMQ entradas.events (entradas_emitidas)</text>
+  <rect x="50" y="1155" width="1860" height="114" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.3"/>
+  <text x="70" y="1179" class="sans" font-size="12.5" font-weight="700" fill="#0F172A">LEYENDA DE NOTACIÓN Y DOMINIOS ENUM ($jsonSchema)</text>
+  <rect x="70" y="1193" width="38" height="19" rx="4" fill="#D97706"/>
+  <text x="89.0" y="1206" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#FFFFFF">PK</text>
+  <text x="116" y="1206.5" class="sans" font-size="11" fill="#334155">Llave primaria de negocio (índice unique)</text>
+  <rect x="405" y="1193" width="38" height="19" rx="4" fill="#F1F5F9"/>
+  <text x="424.0" y="1206" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#475569">ID</text>
+  <text x="451" y="1206.5" class="sans" font-size="11" fill="#334155">Identificador interno MongoDB (_id: ObjectId)</text>
+  <rect x="740" y="1193" width="38" height="19" rx="4" fill="#0284C7"/>
+  <text x="759.0" y="1206" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#FFFFFF">FK</text>
+  <text x="786" y="1206.5" class="sans" font-size="11" fill="#334155">Llave foránea interna verificada</text>
+  <rect x="70" y="1223" width="38" height="19" rx="4" fill="#EDE9FE"/>
+  <text x="89.0" y="1236" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#6D28D9">EXT</text>
+  <text x="116" y="1236.5" class="sans" font-size="11" fill="#334155">Identificador de referencia a otro squad</text>
+  <rect x="405" y="1223" width="68" height="19" rx="4" fill="#FEE2E2"/>
+  <text x="439.0" y="1236" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#991B1B">NOT NULL</text>
+  <text x="481" y="1236.5" class="sans" font-size="11" fill="#334155">Campo obligatorio (required y sin null)</text>
+  <rect x="740" y="1223" width="68" height="19" rx="4" fill="#F1F5F9"/>
+  <text x="774.0" y="1236" text-anchor="middle" class="mono" font-size="9.5" font-weight="700" fill="#64748B">NULLABLE</text>
+  <text x="816" y="1236.5" class="sans" font-size="11" fill="#334155">Campo opcional o bsonType incluye null</text>
+  <line x1="1070" y1="1169" x2="1070" y2="1255" stroke="#E2E8F0" stroke-width="1.2"/>
+  <text x="1090" y="1197" class="mono" font-size="10.8" fill="#1E293B">tipo_entrada:    PAGADA | GRATUITA</text>
+  <text x="1090" y="1215" class="mono" font-size="10.8" fill="#1E293B">estado_gestion:  BORRADOR | PUBLICADO | FINALIZADO | CANCELADO</text>
+  <text x="1090" y="1233" class="mono" font-size="10.8" fill="#1E293B">estado_reserva:  RESERVADO | CONSOLIDADO | EXPIRADO | CANCELADO</text>
+  <text x="1090" y="1251" class="mono" font-size="10.8" fill="#1E293B">estado_entrada:  EMITIDA | ANULADA   ·   tipo_acceso: GENERAL</text>
+</svg>

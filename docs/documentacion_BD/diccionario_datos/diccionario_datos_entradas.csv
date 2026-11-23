@@ -1,0 +1,55 @@
+﻿coleccion,atributo,tipo_bson,required_en_schema,nulabilidad,llave_referencia,restricciones,origen,descripcion
+inventario_evento,_id,objectId,SI,NOT NULL,ID (PK interna),—,MongoDB (Entradas),Identificador interno autogenerado por MongoDB (`ObjectId`).
+inventario_evento,id_evento,string,SI,NOT NULL,"PK / FK Ext (Panel, Catálogo)",—,Referencia externa → Panel Organizador / Catálogo,Identificador único de negocio del evento. Índice único `pk_inventario_id_evento`. Referenciado desde `reserva_entrada` y `entrada`.
+inventario_evento,nombre_evento,string,NO,NULLABLE,-,—,Sincronización Panel (snapshot operativo),Título descriptivo del evento sincronizado para visualización de inventario y comprobante de emisión.
+inventario_evento,descripcion,string,NO,NULLABLE,-,—,Sincronización Panel (snapshot operativo),Descripción resumida del evento recibida en eventos `panel.evento.entradas.v1`.
+inventario_evento,fecha_evento,string,NO,NULLABLE,-,—,Sincronización Panel (snapshot operativo),"Fecha programada del evento en formato `YYYY-MM-DD`, requerida también para el payload del evento `entradas_emitidas` hacia Notificaciones."
+inventario_evento,hora_evento,string,NO,NULLABLE,-,—,Sincronización Panel (snapshot operativo),"Hora de inicio del evento en formato `HH:MM`, requerida para detalle de entrada (HU-04) y Notificaciones."
+inventario_evento,lugar_ingreso,string,NO,NULLABLE,-,—,Sincronización Panel (snapshot operativo),Ubicación o punto de acceso al recinto para mostrar en la entrada adquirida (HU-04/HU-05).
+inventario_evento,id_usuario,string,SI,NOT NULL,FK Ext (Auth),—,Referencia externa → Auth,Identificador de referencia del organizador o staff responsable de gestionar el inventario del evento.
+inventario_evento,rol_usuario,string,SI,NOT NULL,IDX compuesto,"ENUM: ORGANIZADOR, organizador, STAFF, staff",Referencia rol Auth,Rol autorizado del gestor del inventario (`ORGANIZADOR` / `STAFF`). Parte del índice `idx_inventario_organizador`.
+inventario_evento,tipo_entrada,string,SI,NOT NULL,-,"ENUM: PAGADA, GRATUITA",Entradas (Dominio propio),Modalidad comercial del inventario: `PAGADA` (requiere Hold + Pagos) o `GRATUITA` (emisión directa `$0`).
+inventario_evento,precio_unitario,int,SI,NOT NULL,-,>= 0,Entradas (Dominio propio),Valor unitario en pesos chilenos (CLP entero `>= 0`). Para eventos `GRATUITA` es `0`.
+inventario_evento,stock_inicial,int,SI,NOT NULL,-,>= 0,Entradas (Dominio propio),Capacidad total de entradas asignadas inicialmente al evento (`>= 0`).
+inventario_evento,stock_actual,int,SI,NOT NULL,-,>= 0,Entradas (Dominio propio),Cupos disponibles en tiempo real (`>= 0`). Cumple invariante: `stock_inicial = stock_actual + cantidad_entrada_reservada + cantidad_entrada_comprada`.
+inventario_evento,cantidad_entrada_reservada,int,SI,NOT NULL,-,>= 0,Entradas (Dominio propio),Cupos retenidos temporalmente en reservas activas (`estado_reserva = RESERVADO`).
+inventario_evento,cantidad_entrada_comprada,int,SI,NOT NULL,-,>= 0,Entradas (Dominio propio),Total acumulado de entradas vendidas/emitidas definitivamente (`CONSOLIDADO`).
+inventario_evento,maximo_ticket,int,SI,NOT NULL,-,>= 1,Entradas (Dominio propio),Límite máximo de entradas permitidas por transacción o solicitud (`>= 1`).
+inventario_evento,estado_gestion,string,SI,NOT NULL,-,"ENUM: BORRADOR, PUBLICADO, FINALIZADO, CANCELADO",Entradas / Sincronización Panel,"Estado del ciclo de vida del inventario: `BORRADOR`, `PUBLICADO`, `FINALIZADO` o `CANCELADO`. Solo `PUBLICADO` admite compras/reservas."
+inventario_evento,fecha_actualizacion,date,SI,NOT NULL,-,—,Entradas (Auditoría),Marca de tiempo UTC (`ISODate`) de la última sincronización o actualización del inventario.
+reserva_entrada,_id,objectId,SI,NOT NULL,ID (PK interna),—,MongoDB (Entradas),Identificador interno autogenerado por MongoDB (`ObjectId`).
+reserva_entrada,id_reserva,string,SI,NOT NULL,PK,—,Entradas (Dominio propio),Identificador único de negocio de la reserva (`res-*` o `hold-*`). Índice único `pk_reserva_id_reserva`. Consultado por Pagos en INT-01.
+reserva_entrada,hold_id,string,NO,NULLABLE,-,—,Entradas (Dominio propio),Alias opcional de reserva temporal (HU-03) para trazabilidad con el frontend y Pagos.
+reserva_entrada,id_evento,string,SI,NOT NULL,FK → inventario_evento.id_evento,—,Referencia interna y externa (Panel/Catálogo),Llave foránea hacia `inventario_evento.id_evento`. Indexada mediante `fk_reserva_inventario_evento` e `idx_reserva_usuario_evento`.
+reserva_entrada,id_usuario,string,SI,NOT NULL,FK Ext (Auth),—,Referencia externa → Auth,Identificador de referencia del comprador obtenido exclusivamente mediante introspección de sesión en Auth (`/internal/validar-sesion`).
+reserva_entrada,nombre_usuario,string,SI,NOT NULL,-,—,Proyección sesión Auth (comprobante/Check-in),"Nombre del asistente titular al momento de la reserva para emisión de ticket, registro en Check-in y correo de Notificaciones."
+reserva_entrada,rut_usuario,string,NO,NULLABLE,-,—,Proyección sesión Auth (opcional),RUT referencial del asistente si fue informado por Auth en la introspección de sesión.
+reserva_entrada,correo_usuario,string,NO,NULLABLE,-,—,Proyección sesión Auth (Notificaciones),Correo electrónico de entrega utilizado para publicar el evento `entradas_emitidas` hacia Notificaciones.
+reserva_entrada,rol_usuario,string,SI,NOT NULL,-,"ENUM: USUARIO, STAFF, ORGANIZADOR, usuario, staff, organizador",Referencia rol Auth,"Rol del usuario que realiza la reserva (`usuario`, `staff`, `organizador` y variantes en mayúsculas)."
+reserva_entrada,cantidad_entrada,int,SI,NOT NULL,-,>= 1,Entradas (Dominio propio),"Número de cupos reservados en la orden (`>= 1`, máximo según `maximo_ticket` y contrato Pagos `<= 100`)."
+reserva_entrada,id_promocion,string,SI,NULLABLE,FK Ext (Promociones),—,Referencia externa → Promociones,Identificador de referencia de la promoción validada por `POST /api/promociones/evaluar` (`null` si no aplica descuento).
+reserva_entrada,nombre_codigo,string,NO,NULLABLE,-,—,Referencia contrato Pagos/Promociones,Código promocional validado (ej. `ESTUDIANTE15`) expuesto a Pagos en `GET /api/entradas/reservas/{id_reserva}` (INT-01) para propagación a `pago.completado`.
+reserva_entrada,porcentaje_descuento,int,SI,NOT NULL,-,>= 0; <= 100,Entradas (Cálculo validado server-side),Porcentaje de descuento entero (`0..100`) revalidado server-side con Promociones (`0` si no aplica).
+reserva_entrada,monto_total,int,SI,NOT NULL,-,>= 0,Entradas (Dominio propio),"Monto total final a pagar en CLP (`>= 0`), calculado como `precio_unitario * cantidad_entrada * (1 - porcentaje_descuento/100)`. Validado por Pagos en INT-01."
+reserva_entrada,id_pago,string,SI,NULLABLE,FK Ext (Pagos),—,Referencia externa → Pasarela de Pagos,Identificador de referencia de la transacción en Pagos (`pay-*`). `null` en reservas gratuitas o antes de iniciar pago. Indexado por `idx_reserva_id_pago`.
+reserva_entrada,estado_reserva,string,SI,NOT NULL,IDX compuesto,"ENUM: RESERVADO, CONSOLIDADO, EXPIRADO, CANCELADO",Entradas (Máquina de estados),"Estado de la reserva: `RESERVADO` (hold activo), `CONSOLIDADO` (pagada/emitida), `EXPIRADO` (vencida/rechazada) o `CANCELADO` (cancelada por usuario/reembolso)."
+reserva_entrada,fecha_cancelacion,date,NO,NULLABLE,-,—,Entradas (Auditoría),Marca de tiempo UTC de cancelación manual o expiración automática por el worker de liberación.
+reserva_entrada,fecha_creacion,date,SI,NOT NULL,-,—,Entradas (Auditoría),Marca de tiempo UTC de creación de la reserva.
+reserva_entrada,fecha_expiracion,date,SI,NULLABLE,IDX compuesto,—,Entradas (Control Hold HU-03),Fecha límite UTC del Hold temporal (`null` cuando la reserva ya está `CONSOLIDADO`). Monitoreada por el worker en segundo plano usando `idx_reserva_estado_expiracion` (sin TTL destructivo).
+entrada,_id,objectId,SI,NOT NULL,ID (PK interna),—,MongoDB (Entradas),Identificador interno autogenerado por MongoDB (`ObjectId`).
+entrada,id_entrada,string,SI,NOT NULL,PK / FK Ext (Check-in),—,Entradas (Dominio propio),Código único e inmutable del ticket emitido (`tk-*`). Índice único `pk_entrada_id_entrada`. Referenciado por Check-in para validación en torniquete.
+entrada,id_reserva,string,SI,NOT NULL,FK → reserva_entrada.id_reserva,—,Entradas (Integridad referencial),Llave foránea hacia la reserva consolidada que originó el ticket. Indexada por `fk_entrada_reserva`.
+entrada,id_evento,string,SI,NOT NULL,FK → inventario_evento.id_evento,—,Referencia interna y externa (Panel/Check-in),"Llave foránea directa hacia `inventario_evento.id_evento` (misma dirección topológica del DAG, sin ciclos). Indexada por `idx_entrada_evento`."
+entrada,nombre_evento,string,NO,NULLABLE,-,—,Snapshot inmutable de comprobante (HU-04),Título del evento congelado al instante de emisión del ticket para consulta histórica inmutable.
+entrada,id_usuario,string,SI,NOT NULL,FK Ext (Auth),—,Referencia externa → Auth,"Identificador de referencia del titular de la entrada. Parte del índice `idx_entrada_usuario` (`{id_usuario: 1, fecha_emision: -1}`)."
+entrada,nombre_usuario,string,SI,NOT NULL,-,—,Snapshot inmutable de comprobante / Check-in,Nombre del asistente acreditado en el comprobante inmutable y devuelto en el contrato HTTP hacia Check-in (`GET /api/entradas/{id_ticket}`).
+entrada,rut_usuario,string,NO,NULLABLE,-,—,Snapshot inmutable de comprobante (opcional),RUT del asistente titular capturado al momento de emitir el comprobante.
+entrada,correo_usuario,string,NO,NULLABLE,-,—,Snapshot inmutable de comprobante (opcional),Correo del asistente titular utilizado en la notificación de emisión.
+entrada,rol_usuario,string,SI,NOT NULL,-,"ENUM: USUARIO, STAFF, ORGANIZADOR, usuario, staff, organizador",Referencia rol Auth,"Rol del titular acreditado devuelto a Check-in (`usuario`, `staff`, `organizador`)."
+entrada,tipo_acceso,string,SI,NOT NULL,-,ENUM: GENERAL,Entradas (Dominio propio),Categoría de acceso físico del ticket. Valor permitido actual: `GENERAL`.
+entrada,lugar_ingreso,string,NO,NULLABLE,-,—,Snapshot inmutable de comprobante (HU-04/05),Puerta o sector de ingreso al recinto mostrado en el pase digital.
+entrada,precio_final_pagado,int,SI,NOT NULL,-,>= 0,Entradas (Inmutable financiero),"Precio unitario final efectivamente pagado en CLP (`>= 0`), persistido de forma inmutable al emitir el ticket."
+entrada,estado_entrada,string,SI,NOT NULL,-,"ENUM: EMITIDA, ANULADA",Entradas (Ciclo de vida ticket),Estado operativo de la entrada: `EMITIDA` (habilitada para QR/Check-in) o `ANULADA` (inhabilitada).
+entrada,nombre_archivo_qr,string,SI,NOT NULL,-,—,Entradas (Dominio propio),Nombre de archivo asociado a la representación gráfica del QR (`<id_entrada>.png`).
+entrada,qr_data,object,SI,NOT NULL,-,"Subdocumento (url: string, hash: string; required: url, hash)",Entradas / Contrato Check-in (HU-05),"Subdocumento BSON obligatorio con `url` (URL del código QR que codifica JSON `{id_entrada, id_evento}`) y `hash` (huella de verificación)."
+entrada,fecha_emision,date,SI,NOT NULL,IDX compuesto,—,Entradas (Auditoría),Marca de tiempo UTC de emisión definitiva del ticket. Usada para orden descendente en `idx_entrada_usuario`.
