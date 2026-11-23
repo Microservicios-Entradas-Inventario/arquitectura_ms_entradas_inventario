@@ -1,5 +1,5 @@
 {
-  "executed_at_utc": "2026-11-23 19:25:22 UTC",
+  "executed_at_utc": "2026-11-23 20:11:08 UTC",
   "database": "ticketu_entradas_db",
   "mongodb_version": "7.0.43",
   "mongo_queries": {
@@ -15,7 +15,7 @@
           },
           {
             "nombre": "config",
-            "tamano_bytes": 110592
+            "tamano_bytes": 61440
           },
           {
             "nombre": "local",
@@ -686,7 +686,7 @@
       "respuesta": {
         "status": "UP",
         "service": "entradas-service",
-        "timestamp": "2026-11-23T19:25:47.504834"
+        "timestamp": "2026-11-23T20:11:30.867012"
       }
     },
     {
@@ -781,8 +781,8 @@
         "id_pago": null,
         "estado_reserva": "RESERVADO",
         "estado": "RESERVADO",
-        "fecha_expiracion": "2026-11-30T19:02:13.379000",
-        "tiempo_restante_segundos": 603385,
+        "fecha_expiracion": "2026-11-30T20:05:42.498000",
+        "tiempo_restante_segundos": 604451,
         "expirada": false
       }
     },
@@ -827,7 +827,7 @@
         "estado_entrada": "EMITIDA",
         "nombre_archivo_qr": "tk-998877.png",
         "qr_data": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-998877%22%2C%22id_evento%22%3A%22evt-77889%22%7D",
-        "fecha_emision": "2026-11-23T19:02:13.379000"
+        "fecha_emision": "2026-11-23T20:05:42.498000"
       }
     },
     {

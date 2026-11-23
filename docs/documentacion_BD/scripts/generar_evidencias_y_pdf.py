@@ -45,7 +45,7 @@ MONGO_EVIDENCE_BLOCKS: List[Dict[str, str]] = [
         "filename": "01_aislamiento_bd_y_colecciones_BD2.png",
         "title": "Evidencia 01 — Aislamiento Database-per-Service y Colecciones Propias",
         "criteria": "BD2 · Sin datos de negocio de otros squads",
-        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"...Q1_aislamiento_bd...\"",
+        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"/* Q1: aislamiento BD2 */ ...\"",
         "js": r"""
 const mdb = db.getSiblingDB("ticketu_entradas_db");
 const dbs = db.adminCommand({ listDatabases: 1 }).databases.map(d => ({ nombre: d.name, tamano_bytes: Number(d.sizeOnDisk) }));
@@ -72,7 +72,7 @@ print(JSON.stringify({
         "filename": "02_validadores_indices_y_esquema_BD3_BD4.png",
         "title": "Evidencia 02 — Validadores $jsonSchema, additionalProperties: false e Índices PK/FK",
         "criteria": "BD3 · BD4 · Diseño técnico y documentación",
-        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"...Q2_validadores_e_indices...\"",
+        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"/* Q2: validadores e indices */ ...\"",
         "js": r"""
 const mdb = db.getSiblingDB("ticketu_entradas_db");
 const orden = ["inventario_evento", "reserva_entrada", "entrada"];
@@ -103,7 +103,7 @@ print(JSON.stringify({
         "filename": "03_inventario_y_consistencia_stock_BD1_BD4.png",
         "title": "Evidencia 03 — Invariante Aritmética de Stock sobre inventario_evento (11 eventos)",
         "criteria": "BD1 · BD4 · Persistencia de inventario y consistencia",
-        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"...Q3_invariante_stock...\"",
+        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"/* Q3: invariante de stock */ ...\"",
         "js": r"""
 const mdb = db.getSiblingDB("ticketu_entradas_db");
 const rows = mdb.inventario_evento.aggregate([
@@ -132,7 +132,7 @@ print(JSON.stringify({
         "filename": "04_integridad_referencial_y_join_3_niveles_BD1_BD4.png",
         "title": "Evidencia 04 — Integridad Referencial (0 Huérfanos) y Join $lookup 3 Niveles",
         "criteria": "BD1 · BD4 · Llaves foráneas e integridad",
-        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"...Q4_Q5_integridad_y_lookup...\"",
+        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"/* Q4-Q5: huerfanos y lookup 3 niveles */ ...\"",
         "js": r"""
 const mdb = db.getSiblingDB("ticketu_entradas_db");
 const rSinEvt = mdb.reserva_entrada.aggregate([
@@ -183,7 +183,7 @@ print(JSON.stringify({
         "filename": "05_referencias_externas_y_rechazo_datos_ajenos_BD2.png",
         "title": "Evidencia 05 — Referencias Externas por Squad y Rechazo $jsonSchema (Error 121)",
         "criteria": "BD2 · BD4 · Solo referencias y bloqueo de campos ajenos",
-        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"...Q6_Q7_referencias_y_rechazo_bd2...\"",
+        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"/* Q6-Q7: referencias BD2 y rechazo Error 121 */ ...\"",
         "js": r"""
 const mdb = db.getSiblingDB("ticketu_entradas_db");
 const prohibidos = ["password","password_hash","jwt","cookie","cookie_header","token_sesion","client_secret","stripe_token","numero_tarjeta","cvv","reglas_cupon","estado_checkin"];
@@ -233,7 +233,7 @@ print(JSON.stringify({
         "filename": "06_consultas_integraciones_pagos_promociones_checkin_BD1.png",
         "title": "Evidencia 06 — Consultas Operativas de Integración (Pagos, Promociones, Check-in, Panel/Catálogo)",
         "criteria": "BD1 · Soporte a integraciones I2, I3, I4, I5, I7",
-        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"...Q8_consultas_integraciones...\"",
+        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"/* Q8: consultas operativas por integracion */ ...\"",
         "js": r"""
 const mdb = db.getSiblingDB("ticketu_entradas_db");
 const pagosPromos = mdb.reserva_entrada.find({}, {
@@ -266,7 +266,7 @@ print(JSON.stringify({
         "filename": "08_auditoria_nomenclatura_y_grafo_aciclico_BD3_BD4.png",
         "title": "Evidencia 08 — Auditoría Automatizada de Nomenclatura (snake_case) y Grafo Acíclico (DAG)",
         "criteria": "BD3 · BD4 · Estándares y ausencia de ciclos",
-        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"...Q9_nomenclatura_y_dag...\"",
+        "command_display": "docker exec ticketu_entradas_mongo mongosh ticketu_entradas_db --quiet --eval \"/* Q9: nomenclatura snake_case y verificacion DAG */ ...\"",
         "js": r"""
 const mdb = db.getSiblingDB("ticketu_entradas_db");
 const rxSnake = /^_?[a-z][a-z0-9_]*$/;
@@ -487,20 +487,22 @@ def render_terminal_capture_png(
     criteria: str,
     command_line: str,
     output_text: str,
-    status_badge: str = "EXIT 0 · VERIFICADO EN VIVO",
+    status_badge: str = "EXIT 0",
     timestamp_str: str = "",
 ) -> None:
-    """Renderiza una captura visual de terminal de alta nitidez (2x DPI) con el resultado real."""
-    lines = output_text.splitlines()
-    width = 1480
-    max_len = max((len(ln) for ln in lines), default=80)
-    font_size = 10.6 if max_len > 175 else (11.4 if max_len > 135 else 12.2)
-    chars_per_line = int((width - 76) / (font_size * 0.605))
-    visual_lines = sum(max(1, (len(ln) + chars_per_line - 1) // chars_per_line) for ln in lines)
-    line_h = font_size * 1.46
-    exact_h = int(162 + visual_lines * line_h + 44)
+    """Renderiza una captura fiel de consola Windows PowerShell clásica (sin adornos)."""
+    ps_cwd = r"D:\Usuario\Desktop\TITEC\TICKETUV\microservicios\entradas"
+    full_lines = [f"PS {ps_cwd}> {command_line}"] + output_text.splitlines() + [f"PS {ps_cwd}> "]
 
-    highlighted = syntax_highlight_json(output_text)
+    width = 1360
+    max_len = max((len(ln) for ln in full_lines), default=80)
+    font_size = 11.5 if max_len > 170 else (12.5 if max_len > 130 else 13.5)
+    chars_per_line = int((width - 56) / (font_size * 0.59))
+    visual_lines = sum(max(1, (len(ln) + chars_per_line - 1) // chars_per_line) for ln in full_lines)
+    line_h = font_size * 1.38
+    exact_h = int(42 + visual_lines * line_h + 24)
+
+    body_escaped = html.escape(output_text)
 
     doc_html = f"""<!doctype html>
 <html lang="es">
@@ -509,69 +511,81 @@ def render_terminal_capture_png(
 <style>
   * {{ box-sizing: border-box; }}
   html, body {{
-    margin: 0; padding: 0; width: {width}px; background: #0B1220;
-    font-family: 'Segoe UI', Arial, sans-serif; color: #E2E8F0;
+    margin: 0; padding: 0; width: {width}px; height: {exact_h}px;
+    background: #0C0C0C; overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
   }}
-  .frame {{
-    margin: 16px; border-radius: 12px; overflow: hidden;
-    border: 1px solid #1E293B; background: #0F172A;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+  .win-window {{
+    width: {width}px; height: {exact_h}px;
+    border: 1px solid #3F3F46;
+    background: #0C0C0C;
+    display: flex; flex-direction: column;
   }}
-  .titlebar {{
-    background: linear-gradient(90deg, #1E293B 0%, #172554 100%);
-    padding: 12px 18px; display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid #334155;
+  .win-titlebar {{
+    height: 30px; min-height: 30px;
+    background: #FFFFFF; color: #000000;
+    border-bottom: 1px solid #D4D4D4;
+    display: flex; align-items: center; justify-content: space-between;
+    padding-left: 8px;
+    font-size: 12px;
   }}
-  .tb-left {{ display: flex; align-items: center; gap: 10px; }}
-  .dots {{ display: flex; gap: 6px; margin-right: 6px; }}
-  .dot {{ width: 11px; height: 11px; border-radius: 50%; }}
-  .d1 {{ background: #EF4444; }} .d2 {{ background: #F59E0B; }} .d3 {{ background: #10B981; }}
-  .title {{ font-size: 14px; font-weight: 700; color: #F8FAFC; }}
-  .badges {{ display: flex; gap: 8px; align-items: center; }}
-  .badge {{
-    font-size: 10.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
-    letter-spacing: 0.2px;
+  .win-left {{ display: flex; align-items: center; gap: 7px; }}
+  .ps-icon {{
+    width: 16px; height: 14px; background: #012456; color: #FFFFFF;
+    font-family: Consolas, monospace; font-size: 9px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid #00183B;
   }}
-  .b-crit {{ background: rgba(56, 189, 248, 0.16); color: #7DD3FC; border: 1px solid #0284C7; }}
-  .b-ok {{ background: rgba(16, 185, 129, 0.18); color: #6EE7B7; border: 1px solid #059669; }}
-  .cmdbar {{
-    background: #0B1120; padding: 10px 18px; border-bottom: 1px solid #1E293B;
-    font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px; color: #94A3B8;
-    display: flex; justify-content: space-between; gap: 12px;
+  .win-title {{ color: #111111; font-weight: 400; }}
+  .win-btns {{ display: flex; height: 100%; }}
+  .win-btn {{
+    width: 44px; height: 100%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #111111; font-family: 'Segoe UI Symbol', Arial, sans-serif;
   }}
-  .prompt {{ color: #38BDF8; font-weight: 700; }}
-  .cmd {{ color: #F8FAFC; word-break: break-all; }}
-  .ts {{ color: #64748B; white-space: nowrap; font-size: 11px; }}
-  pre {{
-    margin: 0; padding: 14px 18px 18px 18px;
-    font-family: 'Cascadia Code', 'Consolas', 'DejaVu Sans Mono', monospace;
-    font-size: {font_size}px; line-height: 1.44;
-    white-space: pre-wrap; word-break: break-word; color: #E2E8F0;
+  .win-body-wrap {{
+    flex: 1; display: flex; background: #0C0C0C; overflow: hidden;
   }}
-  .jk {{ color: #7DD3FC; font-weight: 600; }}
-  .js {{ color: #86EFAC; }}
-  .jn {{ color: #FCD34D; }}
-  .jb {{ color: #C4B5FD; font-weight: 700; }}
-  .jnull {{ color: #FCA5A5; font-style: italic; }}
+  .win-console {{
+    flex: 1; padding: 8px 10px 10px 10px;
+    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
+    font-size: {font_size}px; line-height: 1.38; color: #CCCCCC;
+    white-space: pre-wrap; word-break: break-word;
+  }}
+  .ps-prompt {{ color: #CCCCCC; }}
+  .ps-cmd {{ color: #F9F1A5; }}
+  .win-scroll {{
+    width: 16px; background: #1E1E1E; border-left: 1px solid #2A2A2A;
+    display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+    padding: 2px 0; color: #888888; font-size: 9px;
+  }}
+  .win-thumb {{
+    width: 10px; flex: 1; margin: 4px 0; background: #4D4D4D;
+  }}
 </style>
 </head>
 <body>
-  <div class="frame">
-    <div class="titlebar">
-      <div class="tb-left">
-        <div class="dots"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span></div>
-        <div class="title">{html.escape(title)}</div>
+  <div class="win-window">
+    <div class="win-titlebar">
+      <div class="win-left">
+        <span class="ps-icon">&gt;_</span>
+        <span class="win-title">Windows PowerShell</span>
       </div>
-      <div class="badges">
-        <span class="badge b-crit">{html.escape(criteria)}</span>
-        <span class="badge b-ok">{html.escape(status_badge)}</span>
+      <div class="win-btns">
+        <span class="win-btn">&#x2500;</span>
+        <span class="win-btn">&#x25A1;</span>
+        <span class="win-btn">&#x2715;</span>
       </div>
     </div>
-    <div class="cmdbar">
-      <div><span class="prompt">PS workstation&gt;</span> <span class="cmd">{html.escape(command_line)}</span></div>
-      <div class="ts">{html.escape(timestamp_str)}</div>
+    <div class="win-body-wrap">
+      <div class="win-console"><span class="ps-prompt">PS {html.escape(ps_cwd)}&gt; </span><span class="ps-cmd">{html.escape(command_line)}</span>
+{body_escaped}
+<span class="ps-prompt">PS {html.escape(ps_cwd)}&gt; </span></div>
+      <div class="win-scroll">
+        <span>&#x25B2;</span>
+        <div class="win-thumb"></div>
+        <span>&#x25BC;</span>
+      </div>
     </div>
-    <pre>{highlighted}</pre>
   </div>
 </body>
 </html>"""
@@ -600,40 +614,37 @@ def render_api_capture_png(
     api_results: List[Dict[str, Any]],
     timestamp_str: str,
 ) -> None:
-    """Renderiza captura visual dedicada con las respuestas HTTP reales de entradas-service."""
-    width = 1400
-    cards_html: List[str] = []
-    row_heights: List[int] = []
-    for idx_i, item in enumerate(api_results):
-        st = item["http_status"]
-        st_cls = "st-ok" if 200 <= st < 300 else "st-auth"
-        body_pretty = json.dumps(item["respuesta"], indent=2, ensure_ascii=False)
-        n_lines = sum(max(1, (len(ln) + 90) // 91) for ln in body_pretty.splitlines())
-        row_heights.append(88 + n_lines * 14)
-        cards_html.append(
-            f"""
-            <div class="api-card">
-              <div class="api-head">
-                <div>
-                  <span class="method">{html.escape(item['metodo'])}</span>
-                  <span class="route">{html.escape(item['ruta'])}</span>
-                </div>
-                <div class="api-right">
-                  <span class="tag">{html.escape(item['integracion'])}</span>
-                  <span class="status {st_cls}">HTTP {st}</span>
-                </div>
-              </div>
-              <div class="api-desc">{html.escape(item['descripcion'])}</div>
-              <pre>{syntax_highlight_json(body_pretty)}</pre>
-            </div>
-            """
-        )
+    """Renderiza captura fiel en consola Windows PowerShell ejecutando curl.exe sobre los endpoints reales."""
+    ps_cwd = r"D:\Usuario\Desktop\TITEC\TICKETUV\microservicios\entradas"
+    blocks: List[str] = []
+    plain_lines: List[str] = []
 
-    total_rows_h = 0
-    for r in range(0, len(row_heights), 2):
-        pair = row_heights[r : r + 2]
-        total_rows_h += max(pair) + 14
-    height = 130 + total_rows_h + 24
+    for item in api_results:
+        ruta = item["ruta"]
+        st = item["http_status"]
+        cmd_txt = f'curl.exe -s -w " [HTTP %{{http_code}}]" http://localhost:8080{ruta}'
+        body_raw = json.dumps(item["respuesta"], ensure_ascii=False)
+        resp_line = f"{body_raw} [HTTP {st}]"
+        blocks.append(
+            f'<span class="ps-prompt">PS {html.escape(ps_cwd)}&gt; </span>'
+            f'<span class="ps-cmd">{html.escape(cmd_txt)}</span>\n'
+            f'{html.escape(resp_line)}'
+        )
+        plain_lines.append(f"PS {ps_cwd}> {cmd_txt}")
+        plain_lines.append(resp_line)
+
+    blocks.append(f'<span class="ps-prompt">PS {html.escape(ps_cwd)}&gt; </span>')
+    plain_lines.append(f"PS {ps_cwd}> ")
+
+    width = 1360
+    font_size = 12.2
+    chars_per_line = int((width - 56) / (font_size * 0.59))
+    visual_lines = sum(max(1, (len(ln) + chars_per_line - 1) // chars_per_line) for ln in plain_lines)
+    line_h = font_size * 1.40
+    exact_h = int(44 + visual_lines * line_h + 26)
+
+    console_html = "\n".join(blocks)
+
     doc_html = f"""<!doctype html>
 <html lang="es">
 <head>
@@ -641,63 +652,75 @@ def render_api_capture_png(
 <style>
   * {{ box-sizing: border-box; }}
   html, body {{
-    margin: 0; padding: 0; width: {width}px; background: #0B1220;
-    font-family: 'Segoe UI', Arial, sans-serif; color: #E2E8F0;
+    margin: 0; padding: 0; width: {width}px; height: {exact_h}px;
+    background: #0C0C0C; overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
   }}
-  .frame {{
-    margin: 16px; border-radius: 12px; overflow: hidden;
-    border: 1px solid #1E293B; background: #0F172A;
+  .win-window {{
+    width: {width}px; height: {exact_h}px;
+    border: 1px solid #3F3F46; background: #0C0C0C;
+    display: flex; flex-direction: column;
   }}
-  .titlebar {{
-    background: linear-gradient(90deg, #1E293B 0%, #0D5C63 100%);
-    padding: 12px 18px; display: flex; align-items: center; justify-content: space-between;
-    border-bottom: 1px solid #334155;
+  .win-titlebar {{
+    height: 30px; min-height: 30px;
+    background: #FFFFFF; color: #000000; border-bottom: 1px solid #D4D4D4;
+    display: flex; align-items: center; justify-content: space-between;
+    padding-left: 8px; font-size: 12px;
   }}
-  .title {{ font-size: 14.5px; font-weight: 700; color: #F8FAFC; }}
-  .sub {{ font-size: 11px; color: #CBD5E1; }}
-  .grid {{
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px;
+  .win-left {{ display: flex; align-items: center; gap: 7px; }}
+  .ps-icon {{
+    width: 16px; height: 14px; background: #012456; color: #FFFFFF;
+    font-family: Consolas, monospace; font-size: 9px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid #00183B;
   }}
-  .api-card {{
-    background: #0B1120; border: 1px solid #1E293B; border-radius: 8px; overflow: hidden;
+  .win-title {{ color: #111111; font-weight: 400; }}
+  .win-btns {{ display: flex; height: 100%; }}
+  .win-btn {{
+    width: 44px; height: 100%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #111111; font-family: 'Segoe UI Symbol', Arial, sans-serif;
   }}
-  .api-head {{
-    background: #131C31; padding: 8px 11px; display: flex; justify-content: space-between;
-    align-items: center; gap: 8px; border-bottom: 1px solid #1E293B;
+  .win-body-wrap {{
+    flex: 1; display: flex; background: #0C0C0C; overflow: hidden;
   }}
-  .method {{
-    background: #0284C7; color: #FFF; font-family: Consolas, monospace;
-    font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 6px;
+  .win-console {{
+    flex: 1; padding: 8px 10px 10px 10px;
+    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
+    font-size: {font_size}px; line-height: 1.40; color: #CCCCCC;
+    white-space: pre-wrap; word-break: break-all;
   }}
-  .route {{ font-family: Consolas, monospace; font-size: 10.8px; color: #F8FAFC; font-weight: 600; }}
-  .api-right {{ display: flex; gap: 6px; align-items: center; white-space: nowrap; }}
-  .tag {{ font-size: 9.5px; color: #93C5FD; background: rgba(59,130,246,0.16); padding: 2px 7px; border-radius: 999px; }}
-  .status {{ font-family: Consolas, monospace; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }}
-  .st-ok {{ background: rgba(16,185,129,0.2); color: #6EE7B7; border: 1px solid #059669; }}
-  .st-auth {{ background: rgba(245,158,11,0.2); color: #FCD34D; border: 1px solid #D97706; }}
-  .api-desc {{ padding: 5px 11px 0 11px; font-size: 10.5px; color: #94A3B8; }}
-  pre {{
-    margin: 0; padding: 7px 10px 9px 10px; font-family: 'Cascadia Code', Consolas, monospace;
-    font-size: 9.6px; line-height: 1.36; white-space: pre-wrap; word-break: break-all; color: #E2E8F0;
+  .ps-prompt {{ color: #CCCCCC; }}
+  .ps-cmd {{ color: #F9F1A5; }}
+  .win-scroll {{
+    width: 16px; background: #1E1E1E; border-left: 1px solid #2A2A2A;
+    display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+    padding: 2px 0; color: #888888; font-size: 9px;
   }}
-  .jk {{ color: #7DD3FC; font-weight: 600; }}
-  .js {{ color: #86EFAC; }}
-  .jn {{ color: #FCD34D; }}
-  .jb {{ color: #C4B5FD; font-weight: 700; }}
-  .jnull {{ color: #FCA5A5; font-style: italic; }}
+  .win-thumb {{
+    width: 10px; flex: 1; margin: 4px 0; background: #4D4D4D;
+  }}
 </style>
 </head>
 <body>
-  <div class="frame">
-    <div class="titlebar">
-      <div>
-        <div class="title">Evidencia 07 — Respuestas HTTP Reales del Microservicio entradas-service sobre ticketu_entradas_db</div>
-        <div class="sub">Validación en vivo de endpoints propios (BE1) y provistos por contrato (BE3: Catálogo, Panel, Pagos INT-01, Promociones, Check-in y Auth fail-secure)</div>
+  <div class="win-window">
+    <div class="win-titlebar">
+      <div class="win-left">
+        <span class="ps-icon">&gt;_</span>
+        <span class="win-title">Windows PowerShell</span>
       </div>
-      <div class="sub">{html.escape(timestamp_str)}</div>
+      <div class="win-btns">
+        <span class="win-btn">&#x2500;</span>
+        <span class="win-btn">&#x25A1;</span>
+        <span class="win-btn">&#x2715;</span>
+      </div>
     </div>
-    <div class="grid">
-      {"".join(cards_html)}
+    <div class="win-body-wrap">
+      <div class="win-console">{console_html}</div>
+      <div class="win-scroll">
+        <span>&#x25B2;</span>
+        <div class="win-thumb"></div>
+        <span>&#x25BC;</span>
+      </div>
     </div>
   </div>
 </body>
@@ -712,7 +735,7 @@ def render_api_capture_png(
             "--disable-gpu",
             "--hide-scrollbars",
             "--force-device-scale-factor=2",
-            f"--window-size={width},{height}",
+            f"--window-size={width},{exact_h}",
             f"--screenshot={str(out_png)}",
             html_path.as_uri(),
         ]
