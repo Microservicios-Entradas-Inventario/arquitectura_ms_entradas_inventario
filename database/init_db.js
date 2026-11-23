@@ -47,7 +47,7 @@ dbRef.createCollection("inventario_evento", {
         maximo_ticket: { bsonType: "int", minimum: 1 },
         estado_gestion: {
           bsonType: "string",
-          enum: ["BORRADOR", "PUBLICADO", "FINALIZADO", "CANCELADO", "AGOTADO"]
+          enum: ["BORRADOR", "PUBLICADO", "FINALIZADO", "CANCELADO"]
         },
         fecha_actualizacion: { bsonType: "date" }
       }
@@ -59,6 +59,9 @@ dbRef.inventario_evento.createIndex({ id_evento: 1 }, { unique: true, name: "pk_
 dbRef.inventario_evento.createIndex({ id_usuario: 1, rol_usuario: 1 }, { name: "idx_inventario_organizador" });
 
 // 2. COLECCIÓN: reserva_entrada
+// Nota técnica: no se crea índice TTL destructivo sobre fecha_expiracion para preservar el historial
+// y asegurar que el worker de liberación devuelva siempre el stock antes de marcar EXPIRADO.
+// Tampoco se persisten cookies JWT ni tokens de sesión en la base de datos.
 dbRef.createCollection("reserva_entrada", {
   validator: {
     $jsonSchema: {
@@ -90,7 +93,7 @@ dbRef.createCollection("reserva_entrada", {
         correo_usuario: { bsonType: ["string", "null"] },
         rol_usuario: {
           bsonType: "string",
-          enum: ["CLIENTE", "USUARIO", "STAFF", "ORGANIZADOR", "cliente", "usuario", "staff", "organizador"]
+          enum: ["USUARIO", "STAFF", "ORGANIZADOR", "usuario", "staff", "organizador"]
         },
         cantidad_entrada: { bsonType: "int", minimum: 1 },
         id_promocion: { bsonType: ["string", "null"] },
@@ -98,15 +101,13 @@ dbRef.createCollection("reserva_entrada", {
         porcentaje_descuento: { bsonType: "int", minimum: 0, maximum: 100 },
         monto_total: { bsonType: "int", minimum: 0 },
         id_pago: { bsonType: ["string", "null"] },
-        cookie_header: { bsonType: ["string", "null"] },
-        token_sesion: { bsonType: ["string", "null"] },
         estado_reserva: {
           bsonType: "string",
-          enum: ["RESERVADO", "CONSOLIDADO", "EXPIRADO", "RECHAZADO", "CANCELADO"]
+          enum: ["RESERVADO", "CONSOLIDADO", "EXPIRADO", "CANCELADO"]
         },
         fecha_cancelacion: {
           bsonType: ["date", "null"],
-          description: "Fecha de cancelación manual de la reserva"
+          description: "Fecha de cancelación o expiración de la reserva"
         },
         fecha_creacion: { bsonType: "date" },
         fecha_expiracion: { bsonType: ["date", "null"] }
@@ -118,7 +119,8 @@ dbRef.createCollection("reserva_entrada", {
 dbRef.reserva_entrada.createIndex({ id_reserva: 1 }, { unique: true, name: "pk_reserva_id_reserva" });
 dbRef.reserva_entrada.createIndex({ id_evento: 1 }, { name: "fk_reserva_inventario_evento" });
 dbRef.reserva_entrada.createIndex({ id_usuario: 1, id_evento: 1 }, { name: "idx_reserva_usuario_evento" });
-dbRef.reserva_entrada.createIndex({ fecha_expiracion: 1 }, { expireAfterSeconds: 0, name: "ttl_reserva_expiracion" });
+dbRef.reserva_entrada.createIndex({ estado_reserva: 1, fecha_expiracion: 1 }, { name: "idx_reserva_estado_expiracion" });
+dbRef.reserva_entrada.createIndex({ id_pago: 1 }, { name: "idx_reserva_id_pago" });
 
 // 3. COLECCIÓN: entrada
 dbRef.createCollection("entrada", {
@@ -128,6 +130,7 @@ dbRef.createCollection("entrada", {
       required: [
         "id_entrada",
         "id_reserva",
+        "id_evento",
         "id_usuario",
         "nombre_usuario",
         "rol_usuario",
@@ -143,7 +146,7 @@ dbRef.createCollection("entrada", {
         _id: { bsonType: "objectId" },
         id_entrada: { bsonType: "string" },
         id_reserva: { bsonType: "string" },
-        id_evento: { bsonType: ["string", "null"] },
+        id_evento: { bsonType: "string" },
         nombre_evento: { bsonType: ["string", "null"] },
         id_usuario: { bsonType: "string" },
         nombre_usuario: { bsonType: "string" },
@@ -151,14 +154,21 @@ dbRef.createCollection("entrada", {
         correo_usuario: { bsonType: ["string", "null"] },
         rol_usuario: {
           bsonType: "string",
-          enum: ["CLIENTE", "USUARIO", "STAFF", "ORGANIZADOR", "cliente", "usuario", "staff", "organizador"]
+          enum: ["USUARIO", "STAFF", "ORGANIZADOR", "usuario", "staff", "organizador"]
         },
         tipo_acceso: { bsonType: "string", enum: ["GENERAL"] },
         lugar_ingreso: { bsonType: ["string", "null"] },
         precio_final_pagado: { bsonType: "int", minimum: 0 },
         estado_entrada: { bsonType: "string", enum: ["EMITIDA", "ANULADA"] },
         nombre_archivo_qr: { bsonType: "string" },
-        qr_data: { bsonType: ["object", "string"] },
+        qr_data: {
+          bsonType: "object",
+          required: ["url", "hash"],
+          properties: {
+            url: { bsonType: "string" },
+            hash: { bsonType: "string" }
+          }
+        },
         fecha_emision: { bsonType: "date" }
       }
     }
@@ -167,8 +177,10 @@ dbRef.createCollection("entrada", {
 
 dbRef.entrada.createIndex({ id_entrada: 1 }, { unique: true, name: "pk_entrada_id_entrada" });
 dbRef.entrada.createIndex({ id_reserva: 1 }, { name: "fk_entrada_reserva" });
+dbRef.entrada.createIndex({ id_evento: 1 }, { name: "idx_entrada_evento" });
+dbRef.entrada.createIndex({ id_usuario: 1, fecha_emision: -1 }, { name: "idx_entrada_usuario" });
 
-// 4. DATOS SEMILLA PARA DEMOSTRACIÓN E INTEGRACIÓN E2E (FRONTEND + ENTRADAS + CHECKIN)
+// 4. DATOS SEMILLA CON INTEGRIDAD REFERENCIAL CONSISTENTE
 const ahora = new Date();
 const expiraEn7Dias = new Date(ahora.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -177,11 +189,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-001",
     nombre_evento: "Gala Aniversario Civil Informatica UV 2026",
     descripcion: "Cena de camaraderia, balance del ano y fiesta de clausura para la comunidad de informatica.",
-    fecha_evento: "18 de Noviembre, 2026",
-    hora_evento: "20:00 hrs",
+    fecha_evento: "2026-11-18",
+    hora_evento: "20:00",
     lugar_ingreso: "Salon de Honor, Sede Central UV",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "PAGADA",
     precio_unitario: NumberInt(6000),
     stock_inicial: NumberInt(200),
@@ -196,11 +208,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-002",
     nombre_evento: "Torneo eSports Inter-Carreras UV 2026",
     descripcion: "Competencia oficial de videojuegos universitarios. Acceso gratuito para toda la comunidad.",
-    fecha_evento: "25 de Noviembre, 2026",
-    hora_evento: "14:00 hrs",
+    fecha_evento: "2026-11-25",
+    hora_evento: "14:00",
     lugar_ingreso: "Laboratorio Central de Computacion, Facultad de Ingenieria",
     id_usuario: "usr-org-002",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "GRATUITA",
     precio_unitario: NumberInt(0),
     stock_inicial: NumberInt(100),
@@ -215,11 +227,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-003",
     nombre_evento: "Workshop: Inteligencia Artificial en Microservicios",
     descripcion: "Taller practico intensivo con despliegue de modelos en contenedores Docker.",
-    fecha_evento: "05 de Diciembre, 2026",
-    hora_evento: "10:30 hrs",
+    fecha_evento: "2026-12-05",
+    hora_evento: "10:30",
     lugar_ingreso: "Auditorio de Postgrado, Campus Playa Ancha",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "GRATUITA",
     precio_unitario: NumberInt(0),
     stock_inicial: NumberInt(50),
@@ -234,11 +246,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-004",
     nombre_evento: "Fiesta Mechona Info 2026",
     descripcion: "Bienvenida oficial a la nueva generacion de estudiantes de ingenieria.",
-    fecha_evento: "20 de Noviembre, 2026",
-    hora_evento: "22:00 hrs",
+    fecha_evento: "2026-11-20",
+    hora_evento: "22:00",
     lugar_ingreso: "Centro de Eventos El Canelo",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "PAGADA",
     precio_unitario: NumberInt(4500),
     stock_inicial: NumberInt(300),
@@ -253,11 +265,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-77889",
     nombre_evento: "Concierto Sinfonico TicketU",
     descripcion: "Presentacion sinfonica anual en el Teatro Municipal.",
-    fecha_evento: "20 de Noviembre, 2026",
-    hora_evento: "20:00 hrs",
+    fecha_evento: "2026-11-20",
+    hora_evento: "20:00",
     lugar_ingreso: "Puerta Principal - Acceso General",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "PAGADA",
     precio_unitario: NumberInt(10000),
     stock_inicial: NumberInt(150),
@@ -272,11 +284,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-101",
     nombre_evento: "Feria de Innovacion TITEC",
     descripcion: "Muestra anual de proyectos de ingenieria y tecnologia.",
-    fecha_evento: "15 de Diciembre, 2026",
-    hora_evento: "10:00 hrs",
+    fecha_evento: "2026-12-15",
+    hora_evento: "10:00",
     lugar_ingreso: "Auditorio Principal UV",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "GRATUITA",
     precio_unitario: NumberInt(0),
     stock_inicial: NumberInt(150),
@@ -291,11 +303,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-102",
     nombre_evento: "Fiesta de Generacion Informatica",
     descripcion: "Fiesta de fin de semestre para estudiantes y egresados.",
-    fecha_evento: "18 de Diciembre, 2026",
-    hora_evento: "22:00 hrs",
+    fecha_evento: "2026-12-18",
+    hora_evento: "22:00",
     lugar_ingreso: "Centro de Eventos El Huevo",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "PAGADA",
     precio_unitario: NumberInt(5000),
     stock_inicial: NumberInt(300),
@@ -310,11 +322,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-103",
     nombre_evento: "Torneo Interescuelas Valorant",
     descripcion: "Campeonato oficial universitario de deportes electronicos.",
-    fecha_evento: "22 de Diciembre, 2026",
-    hora_evento: "15:00 hrs",
+    fecha_evento: "2026-12-22",
+    hora_evento: "15:00",
     lugar_ingreso: "Laboratorios de Computacion UV",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "PAGADA",
     precio_unitario: NumberInt(2000),
     stock_inicial: NumberInt(100),
@@ -322,18 +334,18 @@ dbRef.inventario_evento.insertMany([
     cantidad_entrada_reservada: NumberInt(0),
     cantidad_entrada_comprada: NumberInt(100),
     maximo_ticket: NumberInt(4),
-    estado_gestion: "AGOTADO",
+    estado_gestion: "PUBLICADO",
     fecha_actualizacion: ahora
   },
   {
     id_evento: "evt-104",
     nombre_evento: "Charla: IA y Etica",
     descripcion: "Conversatorio con academicos invitados sobre IA responsable.",
-    fecha_evento: "12 de Diciembre, 2026",
-    hora_evento: "17:30 hrs",
+    fecha_evento: "2026-12-12",
+    hora_evento: "17:30",
     lugar_ingreso: "Sala 204, Edificio de Ingenieria",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "GRATUITA",
     precio_unitario: NumberInt(0),
     stock_inicial: NumberInt(8),
@@ -348,11 +360,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-105",
     nombre_evento: "Congreso de Ciencias Sociales",
     descripcion: "Ponencias y mesas de trabajo sobre investigacion social.",
-    fecha_evento: "10 de Septiembre, 2026",
-    hora_evento: "09:00 hrs",
+    fecha_evento: "2026-09-10",
+    hora_evento: "09:00",
     lugar_ingreso: "Aula Magna UV",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "PAGADA",
     precio_unitario: NumberInt(3000),
     stock_inicial: NumberInt(100),
@@ -367,11 +379,11 @@ dbRef.inventario_evento.insertMany([
     id_evento: "evt-109",
     nombre_evento: "Charla de Innovacion",
     descripcion: "Innovacion en startups.",
-    fecha_evento: "19 de Diciembre, 2026",
-    hora_evento: "10:00 hrs",
+    fecha_evento: "2026-12-19",
+    hora_evento: "10:00",
     lugar_ingreso: "Auditorio C",
     id_usuario: "usr-org-001",
-    rol_usuario: "ORGANIZADOR",
+    rol_usuario: "organizador",
     tipo_entrada: "PAGADA",
     precio_unitario: NumberInt(2000),
     stock_inicial: NumberInt(60),
@@ -392,12 +404,49 @@ dbRef.reserva_entrada.insertMany([
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
-    rol_usuario: "CLIENTE",
+    rol_usuario: "usuario",
     cantidad_entrada: NumberInt(1),
     id_promocion: "promo-estudiante-2026",
+    nombre_codigo: "ESTUDIANTE15",
     porcentaje_descuento: NumberInt(15),
     monto_total: NumberInt(8500),
     id_pago: "pay-112233",
+    estado_reserva: "CONSOLIDADO",
+    fecha_creacion: ahora,
+    fecha_expiracion: null
+  },
+  {
+    id_reserva: "res-demo-001",
+    id_evento: "evt-002",
+    id_usuario: "usr-12345",
+    nombre_usuario: "Sebastian Fuentes",
+    rut_usuario: "20.123.456-7",
+    correo_usuario: "sebastian.fuentes@ticketu.cl",
+    rol_usuario: "usuario",
+    cantidad_entrada: NumberInt(1),
+    id_promocion: null,
+    nombre_codigo: null,
+    porcentaje_descuento: NumberInt(0),
+    monto_total: NumberInt(0),
+    id_pago: null,
+    estado_reserva: "CONSOLIDADO",
+    fecha_creacion: ahora,
+    fecha_expiracion: null
+  },
+  {
+    id_reserva: "res-demo-002",
+    id_evento: "evt-001",
+    id_usuario: "usr-12345",
+    nombre_usuario: "Sebastian Fuentes",
+    rut_usuario: "20.123.456-7",
+    correo_usuario: "sebastian.fuentes@ticketu.cl",
+    rol_usuario: "usuario",
+    cantidad_entrada: NumberInt(1),
+    id_promocion: null,
+    nombre_codigo: null,
+    porcentaje_descuento: NumberInt(0),
+    monto_total: NumberInt(6000),
+    id_pago: "pay-demo-002",
     estado_reserva: "CONSOLIDADO",
     fecha_creacion: ahora,
     fecha_expiracion: null
@@ -409,9 +458,10 @@ dbRef.reserva_entrada.insertMany([
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
-    rol_usuario: "CLIENTE",
+    rol_usuario: "usuario",
     cantidad_entrada: NumberInt(1),
     id_promocion: null,
+    nombre_codigo: null,
     porcentaje_descuento: NumberInt(0),
     monto_total: NumberInt(10000),
     id_pago: "pay-112234",
@@ -426,9 +476,10 @@ dbRef.reserva_entrada.insertMany([
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
-    rol_usuario: "CLIENTE",
+    rol_usuario: "usuario",
     cantidad_entrada: NumberInt(1),
     id_promocion: null,
+    nombre_codigo: null,
     porcentaje_descuento: NumberInt(0),
     monto_total: NumberInt(10000),
     id_pago: "pay-demo-checkin",
@@ -443,9 +494,10 @@ dbRef.reserva_entrada.insertMany([
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
-    rol_usuario: "CLIENTE",
+    rol_usuario: "usuario",
     cantidad_entrada: NumberInt(2),
     id_promocion: null,
+    nombre_codigo: null,
     porcentaje_descuento: NumberInt(0),
     monto_total: NumberInt(20000),
     id_pago: null,
@@ -460,9 +512,10 @@ dbRef.reserva_entrada.insertMany([
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
-    rol_usuario: "CLIENTE",
+    rol_usuario: "usuario",
     cantidad_entrada: NumberInt(1),
     id_promocion: null,
+    nombre_codigo: null,
     porcentaje_descuento: NumberInt(0),
     monto_total: NumberInt(10000),
     id_pago: "pay-demo-cancel",
@@ -482,56 +535,56 @@ dbRef.entrada.insertMany([
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
-    rol_usuario: "CLIENTE",
+    rol_usuario: "usuario",
     tipo_acceso: "GENERAL",
     lugar_ingreso: "Puerta Principal - Acceso General",
     precio_final_pagado: NumberInt(8500),
     estado_entrada: "EMITIDA",
     nombre_archivo_qr: "tk-998877.png",
     qr_data: {
-      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=tk-998877",
+      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-998877%22%2C%22id_evento%22%3A%22evt-77889%22%7D",
       hash: "abc1234"
     },
     fecha_emision: ahora
   },
   {
     id_entrada: "tk-demo-001",
-    id_reserva: "res-98765",
+    id_reserva: "res-demo-001",
     id_evento: "evt-002",
     nombre_evento: "Torneo eSports Inter-Carreras UV 2026",
     id_usuario: "usr-12345",
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
-    rol_usuario: "CLIENTE",
+    rol_usuario: "usuario",
     tipo_acceso: "GENERAL",
     lugar_ingreso: "Laboratorio Central de Computacion, Facultad de Ingenieria",
     precio_final_pagado: NumberInt(0),
     estado_entrada: "EMITIDA",
     nombre_archivo_qr: "tk-demo-001.png",
     qr_data: {
-      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=tk-demo-001",
+      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-demo-001%22%2C%22id_evento%22%3A%22evt-002%22%7D",
       hash: "def5678"
     },
     fecha_emision: ahora
   },
   {
     id_entrada: "tk-DEMO-2026",
-    id_reserva: "res-98765",
+    id_reserva: "res-demo-002",
     id_evento: "evt-001",
     nombre_evento: "Gala Aniversario Civil Informatica UV 2026",
     id_usuario: "usr-12345",
     nombre_usuario: "Sebastian Fuentes",
     rut_usuario: "20.123.456-7",
     correo_usuario: "sebastian.fuentes@ticketu.cl",
-    rol_usuario: "CLIENTE",
+    rol_usuario: "usuario",
     tipo_acceso: "GENERAL",
     lugar_ingreso: "Salon de Honor, Sede Central UV",
     precio_final_pagado: NumberInt(6000),
     estado_entrada: "EMITIDA",
     nombre_archivo_qr: "tk-DEMO-2026.png",
     qr_data: {
-      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=tk-DEMO-2026",
+      url: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=%7B%22id_entrada%22%3A%22tk-DEMO-2026%22%2C%22id_evento%22%3A%22evt-001%22%7D",
       hash: "ghi9012"
     },
     fecha_emision: ahora
