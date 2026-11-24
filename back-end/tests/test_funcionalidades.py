@@ -570,3 +570,51 @@ async def test_pagos_reintento_idempotente_503_auth_no_disponible():
         )
         assert mock_post.call_count == 2
         assert resultado["estado_pago"] == "PENDIENTE"
+
+
+@pytest.mark.anyio
+async def test_broker_panel_ignora_topicos_catalogo_y_checkin_sin_sobrescribir_stock(fake_db):
+    id_evt = "6b046f8a776147b586753c38"
+    with patch("services.broker_service.get_database", return_value=fake_db):
+        # 1. Mensaje oficial dirigido a Entradas con 77 cupos
+        await BrokerService._handle_event(
+            "panel.evento.entradas.v1",
+            {
+                "envelope": {"tipo": "evento_publicado", "id_evento": id_evt},
+                "payload": {
+                    "id_evento": id_evt,
+                    "id_usuario": "org-panel-01",
+                    "nombre_evento": "Evento Panel 77",
+                    "fecha_evento": "2026-12-05",
+                    "hora_evento": "18:00",
+                    "cantidad_entradas": 77,
+                    "tipo_entrada": "GRATUITA",
+                    "estado_gestion": "PUBLICADO",
+                    "precio": None,
+                },
+            },
+        )
+        # 2. Mensajes de otros microservicios (sin cantidad_entradas) NO deben sobrescribir 77 -> 100
+        await BrokerService._handle_event(
+            "panel.evento.catalogo.v1",
+            {
+                "id_evento": id_evt,
+                "nombre_evento": "Evento Panel 77",
+                "estado_gestion": "PUBLICADO",
+            },
+        )
+        await BrokerService._handle_event(
+            "panel.evento.checkin.v1",
+            {
+                "id_evento": id_evt,
+                "nombre_evento": "Evento Panel 77",
+                "estado_gestion": "PUBLICADO",
+            },
+        )
+    doc = await fake_db.inventario_evento.find_one({"id_evento": id_evt})
+    assert doc is not None
+    assert doc["stock_inicial"] == 77
+    assert doc["stock_actual"] == 77
+    assert doc["tipo_entrada"] == "GRATUITA"
+    assert doc["precio_unitario"] == 0
+
