@@ -1,30 +1,26 @@
 // ============================================================================
 // modules/entradas/components/EntradasPlaceholder.tsx
-// ----------------------------------------------------------------------------
-// Entradas / Inventario — Grupo 3.
-// Componente interactivo principal de la ruta /entradas.
-//
-// Nomenclatura 100% en camelCase.
-// Soporta:
-// - Integración con Promociones (Grupo 9) para cálculo de descuentos (HU-02).
-// - Reserva temporal de cupos con Hold de 15 minutos (HU-03).
-// - Emisión y apertura de ticket con código QR en nueva pestaña (HU-04, HU-05, HU-09).
-// - Redirección a Pagos (Grupo 4).
-// - Mitigación de acaparamiento en entradas gratuitas (HU-08).
+// Vista principal del módulo de Entradas:
+//   - Selección y adquisición de entradas (gratuitas y pagadas con reserva temporal)
+//   - Aplicación de códigos promocionales
+//   - Historial "Mis Entradas" con acceso directo al pase QR
 // ============================================================================
 
 "use client";
 
 import { useEffect, useState } from "react";
-import { GATEWAY_URL } from "@/lib/env";
-import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import DisponibilidadPlaceholder from "./DisponibilidadPlaceholder";
+import ModalReservaHold from "./ModalReservaHold";
+import { getSession, type SessionProfile } from "@/modules/auth/api";
 import {
   obtenerEventos,
   obtenerEventoPorId,
   crearReservaTemporal,
   emitirEntradaDirecta,
   evaluarPromocion,
-  liberarReservaTemporal,
+  obtenerMisEntradas,
 } from "../api";
 import {
   EventoEntradas,
@@ -36,41 +32,60 @@ import styles from "../styles/entradas.module.css";
 import { THEME } from "../styles/theme";
 
 export default function EntradasPlaceholder() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const eventoIdParam = searchParams.get("eventoId");
+  const tabParam = searchParams.get("tab");
 
-  // Estado general de eventos
+  const [vistaActiva, setVistaActiva] = useState<"adquirir" | "mis-entradas">(
+    tabParam === "mis-entradas" ? "mis-entradas" : "adquirir"
+  );
+
   const [eventos, setEventos] = useState<EventoEntradas[]>([]);
   const [eventoActivo, setEventoActivo] = useState<EventoEntradas | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
-  // Cantidad de entradas seleccionadas
   const [cantidad, setCantidad] = useState<number>(1);
   const [procesando, setProcesando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null);
 
-  // Integración con Promociones (Grupo 9)
   const [codigoDescuento, setCodigoDescuento] = useState("");
   const [promocionActiva, setPromocionActiva] = useState<PromocionAplicada | null>(null);
   const [mensajePromo, setMensajePromo] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
+  const [validandoPromo, setValidandoPromo] = useState(false);
 
-  // Estados de Reserva Temporal (HU-03) y Notificación Agotado (HU-07)
   const [reservaActiva, setReservaActiva] = useState<ReservaTemporal | null>(null);
   const [ultimoTicketEmitido, setUltimoTicketEmitido] = useState<EntradaEmitida | null>(null);
-  const [correoNotificacion, setCorreoNotificacion] = useState("");
-  const [notificacionEnviada, setNotificacionEnviada] = useState(false);
+  const [usuarioSesion, setUsuarioSesion] = useState<SessionProfile["usuario"] | null>(null);
 
-  // Temporizador para el Hold de 10 minutos (HU-03)
-  const [segundosRestantes, setSegundosRestantes] = useState(10 * 60);
+  const [misEntradas, setMisEntradas] = useState<EntradaEmitida[]>([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
 
-  // Cargar eventos al montar
+  useEffect(() => {
+    if (tabParam === "mis-entradas") {
+      setVistaActiva("mis-entradas");
+    }
+  }, [tabParam]);
+
   useEffect(() => {
     async function inicializar() {
       setCargando(true);
+      setErrorCarga(null);
       try {
-        const lista = await obtenerEventos();
+        const [lista, sesion] = await Promise.all([
+          obtenerEventos(),
+          getSession().catch(() => null),
+        ]);
         setEventos(lista);
+
+        if (sesion?.valido && sesion.usuario) {
+          setUsuarioSesion(sesion.usuario);
+          setCargandoHistorial(true);
+          obtenerMisEntradas()
+            .then((historial) => setMisEntradas(historial))
+            .catch(() => setMisEntradas([]))
+            .finally(() => setCargandoHistorial(false));
+        }
 
         const seleccionado = eventoIdParam
           ? lista.find((e) => e.id === eventoIdParam) || lista[0]
@@ -81,7 +96,11 @@ export default function EntradasPlaceholder() {
           setCantidad(seleccionado.stockDisponible > 0 ? 1 : 0);
         }
       } catch (err) {
-        console.error("Error al cargar eventos:", err);
+        setErrorCarga(
+          err instanceof Error
+            ? err.message
+            : "No fue posible cargar los eventos disponibles en este momento."
+        );
       } finally {
         setCargando(false);
       }
@@ -89,33 +108,27 @@ export default function EntradasPlaceholder() {
     inicializar();
   }, [eventoIdParam]);
 
-  // Temporizador regresivo para la reserva temporal (liberación al llegar a 0)
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (reservaActiva && segundosRestantes > 0) {
-      timer = setInterval(() => {
-        setSegundosRestantes((prev) => {
-          if (prev <= 1) {
-            // Tiempo expirado: liberar stock reservado
-            liberarReservaTemporal(reservaActiva.idEvento, reservaActiva.cantidadEntradas, reservaActiva.idReserva);
-            if (eventoActivo && eventoActivo.id === reservaActiva.idEvento) {
-              setEventoActivo({
-                ...eventoActivo,
-                stockDisponible: eventoActivo.stockDisponible + reservaActiva.cantidadEntradas,
-              });
-            }
-            setReservaActiva(null);
-            setErrorValidacion("El tiempo límite de 10 minutos ha expirado. Tu cupo reservado ha sido liberado automáticamente.");
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  const recargarEventoActivo = async (id: string) => {
+    const actualizado = await obtenerEventoPorId(id);
+    if (actualizado) {
+      setEventoActivo(actualizado);
+      setEventos((prev) => prev.map((e) => (e.id === id ? actualizado : e)));
     }
-    return () => clearInterval(timer);
-  }, [reservaActiva, segundosRestantes, eventoActivo]);
+  };
 
-  // Cambiar evento en el selector interactivo
+  const recargarMisEntradas = async () => {
+    if (!usuarioSesion) return;
+    setCargandoHistorial(true);
+    try {
+      const historial = await obtenerMisEntradas();
+      setMisEntradas(historial);
+    } catch {
+      // Mantener estado actual
+    } finally {
+      setCargandoHistorial(false);
+    }
+  };
+
   const handleCambiarEvento = async (nuevoId: string) => {
     const nuevo = await obtenerEventoPorId(nuevoId);
     if (nuevo) {
@@ -124,38 +137,34 @@ export default function EntradasPlaceholder() {
       setErrorValidacion(null);
       setPromocionActiva(null);
       setMensajePromo(null);
-      setNotificacionEnviada(false);
+      setCodigoDescuento("");
       setReservaActiva(null);
     }
   };
 
-  // Modificar cantidad con el Stepper (+/-)
   const handleCambiarCantidad = (delta: number) => {
     if (!eventoActivo) return;
 
     const nueva = cantidad + delta;
     if (nueva < 1) return;
 
-    // Validación de stock disponible
     if (nueva > eventoActivo.stockDisponible) {
-      setErrorValidacion(`No hay suficiente stock. Solo quedan ${eventoActivo.stockDisponible} entradas.`);
+      setErrorValidacion(`Solo quedan ${eventoActivo.stockDisponible} entrada(s) disponibles.`);
       return;
     }
 
-    // Validación de entradas gratuitas (HU-08)
     if (eventoActivo.tipoEntrada === "GRATUITA" && eventoActivo.limiteGratuitoUsuario) {
       if (nueva > eventoActivo.limiteGratuitoUsuario) {
         setErrorValidacion(
-          `Límite de entradas gratuitas excedido: según HU-08 solo puedes solicitar hasta ${eventoActivo.limiteGratuitoUsuario} entrada(s) por usuario (mitigación de acaparamiento).`
+          `Puedes solicitar hasta ${eventoActivo.limiteGratuitoUsuario} entrada(s) gratuita(s) por persona.`
         );
         return;
       }
     }
 
-    // Validación de límite por transacción para pagadas (HU-02)
     if (eventoActivo.tipoEntrada === "PAGADA" && nueva > eventoActivo.maxTickets) {
       setErrorValidacion(
-        `Límite por compra excedido: máximo ${eventoActivo.maxTickets} entradas por transacción.`
+        `El máximo permitido por compra es de ${eventoActivo.maxTickets} entradas.`
       );
       return;
     }
@@ -164,47 +173,67 @@ export default function EntradasPlaceholder() {
     setCantidad(nueva);
   };
 
-  // Aplicar código de descuento de Promociones (Grupo 9)
   const handleAplicarPromocion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventoActivo || !codigoDescuento.trim()) return;
 
     if (eventoActivo.tipoEntrada === "GRATUITA") {
-      setMensajePromo({ tipo: "error", texto: "Las entradas gratuitas ya tienen costo $0." });
+      setMensajePromo({ tipo: "error", texto: "Las entradas gratuitas ya tienen valor $0." });
       return;
     }
 
-    const resultado = await evaluarPromocion({
-      idEvento: eventoActivo.id,
-      idUsuario: "usr-alumno-uv",
-      cantidadEntradas: cantidad,
-      codigoPromocion: codigoDescuento,
-    });
+    if (!usuarioSesion) {
+      setMensajePromo({ tipo: "error", texto: "Inicia sesión para aplicar un código promocional." });
+      return;
+    }
 
-    if (resultado) {
-      setPromocionActiva(resultado);
-      setMensajePromo({ tipo: "exito", texto: `¡${resultado.descripcion}!` });
-      setErrorValidacion(null);
-    } else {
-      setPromocionActiva(null);
-      setMensajePromo({ tipo: "error", texto: "Código de promoción no válido o expirado." });
+    setValidandoPromo(true);
+    try {
+      const resultado = await evaluarPromocion({
+        idEvento: eventoActivo.id,
+        idUsuario: usuarioSesion.id_usuario,
+        cantidadEntradas: cantidad,
+        codigoPromocion: codigoDescuento,
+      });
+
+      if (resultado.promocion) {
+        setPromocionActiva(resultado.promocion);
+        setMensajePromo({ tipo: "exito", texto: resultado.promocion.descripcion });
+        setErrorValidacion(null);
+      } else {
+        setPromocionActiva(null);
+        setMensajePromo({
+          tipo: "error",
+          texto: resultado.mensaje || "Código de promoción no válido o expirado.",
+        });
+      }
+    } finally {
+      setValidandoPromo(false);
     }
   };
 
   const esEventoGratuito = eventoActivo?.tipoEntrada === "GRATUITA";
+  const estadoEvento = eventoActivo?.estadoGestion || "PUBLICADO";
+  const eventoNoDisponible = estadoEvento !== "PUBLICADO";
   const estaAgotado = (eventoActivo?.stockDisponible ?? 0) <= 0;
   const precioUnitario = eventoActivo?.precio ?? 0;
 
-  // Cálculos financieros con descuento
   const subtotal = precioUnitario * cantidad;
   const porcentajeDescuento = promocionActiva ? promocionActiva.porcentajeDescuento : 0;
   const montoDescuento = Math.round(subtotal * (porcentajeDescuento / 100));
   const totalFinal = Math.max(0, subtotal - montoDescuento);
 
-  // Acción principal: Crear Reserva (Pagado) o Emisión Directa (Gratis)
   const handleContinuarAdquisicion = async () => {
     if (!eventoActivo) return;
-    if (cantidad === 0) {
+    if (!usuarioSesion) {
+      setErrorValidacion("Debes iniciar sesión para adquirir o reservar entradas.");
+      return;
+    }
+    if (eventoNoDisponible) {
+      setErrorValidacion("Este evento no se encuentra disponible para la venta.");
+      return;
+    }
+    if (cantidad <= 0) {
       setErrorValidacion("Debes seleccionar al menos una entrada.");
       return;
     }
@@ -214,605 +243,696 @@ export default function EntradasPlaceholder() {
 
     try {
       if (esEventoGratuito) {
-        // Flujo Gratuito (HU-05 y HU-08): Emisión directa inmediata
         const emitida = await emitirEntradaDirecta({
           idEvento: eventoActivo.id,
-          idUsuario: "usr-alumno-uv",
-          nombreComprador: "Patricio Carlos",
-          correoComprador: "patricio.carlos@estudiantes.uv.cl",
           cantidadEntradas: cantidad,
-          precioFinal: 0,
         });
 
-        setEventoActivo({
-          ...eventoActivo,
-          stockDisponible: Math.max(0, eventoActivo.stockDisponible - cantidad),
-        });
-
+        await Promise.all([recargarEventoActivo(eventoActivo.id), recargarMisEntradas()]);
         setUltimoTicketEmitido(emitida);
 
-        // Abrir ticket y QR en nueva pestaña (como solicitó el usuario)
         if (typeof window !== "undefined") {
-          window.open(`/entradas/confirmacion?idEntrada=${emitida.idEntrada}`, "_blank");
+          window.open(`/entradas/confirmacion?idEntrada=${encodeURIComponent(emitida.idEntrada)}`, "_blank");
         }
       } else {
-        // Flujo Pagado (HU-03): Reserva temporal de cupos (Hold de 10 minutos)
         const reserva = await crearReservaTemporal({
           idEvento: eventoActivo.id,
-          idUsuario: "usr-alumno-uv",
+          idUsuario: usuarioSesion.id_usuario,
+          nombreUsuario: usuarioSesion.nombre_completo,
+          correoUsuario: usuarioSesion.correo_electronico,
           cantidadEntradas: cantidad,
-          subtotal: subtotal,
+          subtotal,
           descuento: montoDescuento,
           total: totalFinal,
+          nombreCodigo: promocionActiva?.codigo,
+          idPromocion: promocionActiva?.idPromocion,
+          porcentajeDescuento: promocionActiva?.porcentajeDescuento ?? 0,
         });
 
-        // Restar temporalmente en el estado visual para que pase de 74 a 73
-        setEventoActivo({
-          ...eventoActivo,
-          stockDisponible: Math.max(0, eventoActivo.stockDisponible - cantidad),
-        });
-
+        await recargarEventoActivo(eventoActivo.id);
         setReservaActiva(reserva);
-        setSegundosRestantes(reserva.segundosRestantes ?? 10 * 60);
       }
     } catch (err: unknown) {
-      setErrorValidacion(err instanceof Error ? err.message : "Error al procesar la solicitud.");
+      setErrorValidacion(err instanceof Error ? err.message : "No fue posible procesar tu solicitud.");
     } finally {
       setProcesando(false);
     }
-  };
-
-  // Simular la confirmación bancaria (HU-09) y abrir ticket con QR en nueva pestaña
-  const handleSimularPagoAprobado = async () => {
-    if (!eventoActivo || !reservaActiva) return;
-    setProcesando(true);
-    try {
-      // Simular webhook de pago aprobado en el backend si está activo
-      try {
-        await fetch(`${GATEWAY_URL}/api/entradas/reservas/${reservaActiva.idReserva}/webhook-pago`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(1500),
-        });
-      } catch {
-        // Fallback local
-      }
-
-      const emitida = await emitirEntradaDirecta({
-        idEvento: eventoActivo.id,
-        idUsuario: reservaActiva.idUsuario,
-        nombreComprador: "Patricio Carlos",
-        correoComprador: "patricio.carlos@estudiantes.uv.cl",
-        cantidadEntradas: reservaActiva.cantidadEntradas,
-        precioFinal: reservaActiva.total,
-      });
-
-      setUltimoTicketEmitido(emitida);
-      setReservaActiva(null);
-
-      // Abrir en nueva pestaña
-      if (typeof window !== "undefined") {
-        window.open(`/entradas/confirmacion?idEntrada=${emitida.idEntrada}`, "_blank");
-      }
-    } finally {
-      setProcesando(false);
-    }
-  };
-
-  // Redirigir a Pagos (Grupo 4)
-  const handleRedirigirAPagos = () => {
-    if (!reservaActiva) return;
-    router.push(`/pagos?idReserva=${reservaActiva.idReserva}&total=${reservaActiva.total}&cantidad=${reservaActiva.cantidadEntradas}`);
-  };
-
-  // Formato para el reloj de expiración (MM:SS)
-  const formatoTiempo = (totalSegundos: number) => {
-    const mins = Math.floor(totalSegundos / 60);
-    const segs = totalSegundos % 60;
-    return `${mins.toString().padStart(2, "0")}:${segs.toString().padStart(2, "0")}`;
   };
 
   if (cargando) {
     return (
       <div className={styles.entradasModuleScope}>
         <div className={styles.container} style={{ textAlign: "center", padding: "48px 0" }}>
-          <div style={{ fontSize: "36px", marginBottom: "16px" }}>🎟️</div>
-          <h2 className={styles.titleH2}>Cargando información del aforo...</h2>
-          <p className={styles.textMuted}>Conectando con el microservicio de Entradas e Inventario</p>
+          <h2 className={styles.titleH2}>Cargando entradas disponibles...</h2>
+          <p className={styles.textMuted}>Estamos obteniendo la disponibilidad actualizada de los eventos.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.entradasModuleScope}>
+    <div className={styles.entradasModuleScope} style={{ minHeight: "80vh", padding: "24px 0 48px 0" }}>
       <div className={styles.container}>
-        {/* Banner de Contexto Superior acordado en Design System */}
+        {/* Encabezado y navegación de pestañas */}
         <div className={styles.bannerContext}>
           <div>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: THEME.colors.secondary, textTransform: "uppercase" }}>
-              Módulo de Entradas e Inventario · Grupo 3
-            </span>
-            <h1 className={styles.titleH1} style={{ margin: "4px 0 0 0" }}>
-              Adquisición y Reserva de Entradas
+            <h1 className={styles.titleH1} style={{ margin: "0 0 4px 0" }}>
+              Entradas
             </h1>
+            <p className={styles.textMuted}>
+              Selecciona tu evento para reservar entradas o revisa los pases QR ya adquiridos.
+            </p>
           </div>
 
-          {/* Selector de Evento para pruebas en vivo */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <label htmlFor="select-evento" style={{ fontSize: "14px", fontWeight: 600, color: THEME.colors.primary }}>
-              Probar Evento:
-            </label>
-            <select
-              id="select-evento"
-              value={eventoActivo?.id || ""}
-              onChange={(e) => handleCambiarEvento(e.target.value)}
-              style={{
-                height: "40px",
-                padding: "0 12px",
-                borderRadius: THEME.radius.input,
-                border: `1px solid ${THEME.colors.border}`,
-                backgroundColor: "#FFFFFF",
-                color: THEME.colors.primary,
-                fontFamily: THEME.fonts.body,
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setVistaActiva("adquirir")}
+              className={vistaActiva === "adquirir" ? styles.buttonPrimary : styles.buttonSecondary}
             >
-              {eventos.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {ev.titulo} ({ev.tipoEntrada})
-                </option>
-              ))}
-            </select>
+              Adquirir entradas
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setVistaActiva("mis-entradas");
+                void recargarMisEntradas();
+              }}
+              className={vistaActiva === "mis-entradas" ? styles.buttonPrimary : styles.buttonSecondary}
+            >
+              Mis entradas {usuarioSesion && misEntradas.length > 0 ? `(${misEntradas.length})` : ""}
+            </button>
+            <Link
+              href={eventoActivo ? `/catalogo/${encodeURIComponent(eventoActivo.id)}` : "/catalogo"}
+              className={styles.buttonSecondary}
+            >
+              Ver catálogo
+            </Link>
           </div>
         </div>
 
-        {/* Tarjeta de Información General del Evento Activo */}
-        {eventoActivo && (
-          <div className={styles.card} style={{ marginBottom: "24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
-              <div style={{ flex: "1 1 300px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                  <span
-                    className={`${styles.badge} ${
-                      estaAgotado ? styles.badgeDanger : esEventoGratuito ? styles.badgeSuccess : styles.badgeInfo
-                    }`}
-                  >
-                    {estaAgotado ? "Agotado" : esEventoGratuito ? "Evento Gratuito" : "Evento Pagado"}
-                  </span>
-                  <span style={{ fontSize: "13px", color: THEME.colors.secondary, fontWeight: 500 }}>
-                    Estado de Gestión: <strong>{eventoActivo.estadoGestion}</strong>
-                  </span>
-                </div>
-
-                <h2 className={styles.titleH2} style={{ margin: "0 0 8px 0" }}>
-                  {eventoActivo.titulo}
-                </h2>
-                {eventoActivo.descripcion && (
-                  <p className={styles.textMuted} style={{ marginBottom: "12px", fontSize: "14px" }}>
-                    {eventoActivo.descripcion}
-                  </p>
-                )}
-
-                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", fontSize: "14px", color: THEME.colors.secondary }}>
-                  <span>📅 {eventoActivo.fecha}</span>
-                  <span>⏰ {eventoActivo.hora}</span>
-                  <span>📍 {eventoActivo.lugar}</span>
-                </div>
-              </div>
-
-              {/* Indicador de Stock Restante */}
-              <div
-                style={{
-                  backgroundColor: THEME.colors.bgPanel,
-                  padding: "16px 20px",
-                  borderRadius: THEME.radius.card,
-                  border: `1px solid ${THEME.colors.border}`,
-                  textAlign: "right",
-                  minWidth: "180px",
-                }}
-              >
-                <div style={{ fontSize: "12px", color: THEME.colors.secondary, fontWeight: 600 }}>Aforo Disponible:</div>
-                <div
-                  style={{
-                    fontSize: "24px",
-                    fontWeight: 700,
-                    fontFamily: THEME.fonts.titles,
-                    color: estaAgotado ? THEME.colors.danger.text : THEME.colors.primary,
-                  }}
-                >
-                  {eventoActivo.stockDisponible} / {eventoActivo.stockTotal}
-                </div>
-                <span style={{ fontSize: "12px", color: THEME.colors.secondary }}>entradas restantes</span>
-              </div>
+        {/* Aviso claro si no hay sesión iniciada */}
+        {!usuarioSesion && (
+          <div
+            className={`${styles.alert} ${styles.alertInfo}`}
+            style={{ marginTop: 0, marginBottom: "20px", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}
+          >
+            <div>
+              <strong>Inicia sesión para continuar:</strong> necesitas una cuenta activa en TicketU para adquirir entradas o consultar tus pases QR.
             </div>
+            <Link href="/auth" className={styles.buttonPrimary} style={{ height: "36px", padding: "0 16px" }}>
+              Iniciar sesión
+            </Link>
           </div>
         )}
 
-        {/* Mensaje de Error de Validación */}
-        {errorValidacion && (
-          <div className={`${styles.alert} ${styles.alertDanger}`} style={{ marginBottom: "20px" }}>
-            <span>⚠️</span>
-            <div>{errorValidacion}</div>
+        {errorCarga && (
+          <div className={`${styles.alert} ${styles.alertDanger}`} style={{ marginTop: 0, marginBottom: "20px" }}>
+            <span>{errorCarga}</span>
           </div>
         )}
 
-        {/* Caso: Evento Agotado con Solicitud de Notificación (HU-07) */}
-        {estaAgotado ? (
-          <div className={styles.card} style={{ textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>🚫</div>
-            <h2 className={styles.titleH2} style={{ color: THEME.colors.danger.text }}>
-              Entradas Agotadas para este Evento
-            </h2>
-            <p className={styles.textMuted} style={{ maxWidth: "560px", margin: "0 auto 24px auto" }}>
-              El aforo llegó a cero (HU-07). Si algún cupo se libera por expiración de reserva o cancelación,
-              podemos notificarte inmediatamente al correo.
-            </p>
-
-            {notificacionEnviada ? (
-              <div className={`${styles.alert} ${styles.alertSuccess}`} style={{ maxWidth: "480px", margin: "0 auto" }}>
-                <span>✅</span>
-                <span>¡Suscripción registrada! Te avisaremos al correo si se libera stock.</span>
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (correoNotificacion) setNotificacionEnviada(true);
-                }}
-                style={{ display: "flex", justifyContent: "center", gap: "8px", maxWidth: "420px", margin: "0 auto", flexWrap: "wrap" }}
-              >
-                <input
-                  type="email"
-                  required
-                  placeholder="tu.correo@alumnos.uv.cl"
-                  value={correoNotificacion}
-                  onChange={(e) => setCorreoNotificacion(e.target.value)}
-                  style={{
-                    height: "40px",
-                    padding: "0 12px",
-                    borderRadius: THEME.radius.input,
-                    border: `1px solid ${THEME.colors.border}`,
-                    fontFamily: THEME.fonts.body,
-                    fontSize: "14px",
-                    flex: "1 1 200px",
-                  }}
-                />
-                <button type="submit" className={styles.buttonPrimary}>
-                  Avisarme si hay cupos
-                </button>
-              </form>
-            )}
-          </div>
-        ) : (
-          /* Cuadrícula Principal: Selección a la izquierda, Resumen y Descuento a la derecha */
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
-            {/* Columna Izquierda: Selección de Entradas y Promociones */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              <div className={styles.card}>
-                <h3 className={styles.titleH3}>1. Selección de Entradas</h3>
-                <p className={styles.textMuted} style={{ fontSize: "13px", marginBottom: "20px" }}>
-                  {esEventoGratuito
-                    ? "Evento de acceso gratuito para la comunidad universitaria."
-                    : "Selecciona cuántas entradas deseas adquirir para este evento."}
+        {/* ==================== PESTAÑA: MIS ENTRADAS (HU-04 / HU-05) ==================== */}
+        {vistaActiva === "mis-entradas" ? (
+          <div className={styles.card}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "12px",
+                marginBottom: "20px",
+              }}
+            >
+              <div>
+                <h2 className={styles.titleH2} style={{ margin: 0 }}>
+                  Mis entradas adquiridas
+                </h2>
+                <p className={styles.textMuted} style={{ fontSize: "13px", marginTop: "4px" }}>
+                  Accede al detalle y código QR de cada una de tus entradas confirmadas.
                 </p>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "16px",
-                    backgroundColor: THEME.colors.bgPanel,
-                    borderRadius: THEME.radius.card,
-                    border: `1px solid ${THEME.colors.border}`,
-                    marginBottom: "16px",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600, color: THEME.colors.primary, fontSize: "16px" }}>
-                      {esEventoGratuito ? "Pase Gratuito Oficial" : "Entrada General Oficial"}
-                    </div>
-                    <div style={{ fontSize: "13px", color: THEME.colors.secondary, marginTop: "2px" }}>
-                      {esEventoGratuito
-                        ? `Límite: Máx ${eventoActivo?.limiteGratuitoUsuario || 1} por persona (HU-08)`
-                        : `Límite: Máx ${eventoActivo?.maxTickets} por transacción (HU-02)`}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "20px", fontWeight: 700, fontFamily: THEME.fonts.titles, color: THEME.colors.primary }}>
-                      {esEventoGratuito ? "Gratis" : `$${precioUnitario.toLocaleString("es-CL")}`}
-                    </div>
-                    <span style={{ fontSize: "12px", color: THEME.colors.secondary }}>c/u</span>
-                  </div>
-                </div>
-
-                {/* Control Stepper de Cantidad */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
-                  <span style={{ fontWeight: 600, color: THEME.colors.primary }}>Cantidad de Entradas:</span>
-
-                  <div className={styles.stepperContainer}>
-                    <button
-                      type="button"
-                      className={styles.stepperBtn}
-                      disabled={cantidad <= 1 || procesando}
-                      onClick={() => handleCambiarCantidad(-1)}
-                      aria-label="Restar una entrada"
-                    >
-                      -
-                    </button>
-                    <span className={styles.stepperValue}>{cantidad}</span>
-                    <button
-                      type="button"
-                      className={styles.stepperBtn}
-                      disabled={
-                        cantidad >= (eventoActivo?.stockDisponible ?? 0) ||
-                        (esEventoGratuito && cantidad >= (eventoActivo?.limiteGratuitoUsuario ?? 1)) ||
-                        (!esEventoGratuito && cantidad >= (eventoActivo?.maxTickets ?? 6)) ||
-                        procesando
-                      }
-                      onClick={() => handleCambiarCantidad(1)}
-                      aria-label="Sumar una entrada"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
               </div>
-
-              {/* Formulario de Código de Descuento (Integración Promociones Grupo 9) */}
-              {!esEventoGratuito && (
-                <div className={styles.card}>
-                  <h3 className={styles.titleH3}>¿Tienes un Código de Promoción?</h3>
-                  <p className={styles.textMuted} style={{ fontSize: "13px", marginBottom: "16px" }}>
-                    Prueba con <strong>INFO2026</strong> (-15%) o <strong>TITEC20</strong> (-20%).
-                  </p>
-
-                  <form onSubmit={handleAplicarPromocion} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    <input
-                      type="text"
-                      placeholder="Código de descuento"
-                      value={codigoDescuento}
-                      onChange={(e) => setCodigoDescuento(e.target.value.toUpperCase())}
-                      style={{
-                        height: "40px",
-                        padding: "0 12px",
-                        borderRadius: THEME.radius.input,
-                        border: `1px solid ${THEME.colors.border}`,
-                        fontFamily: THEME.fonts.body,
-                        fontSize: "14px",
-                        flex: "1 1 180px",
-                        textTransform: "uppercase",
-                      }}
-                    />
-                    <button type="submit" className={styles.buttonSecondary} style={{ height: "40px" }}>
-                      Aplicar Descuento
-                    </button>
-                  </form>
-
-                  {mensajePromo && (
-                    <div
-                      className={`${styles.alert} ${mensajePromo.tipo === "exito" ? styles.alertSuccess : styles.alertDanger}`}
-                      style={{ marginTop: "12px", padding: "10px 14px", fontSize: "13px" }}
-                    >
-                      <span>{mensajePromo.tipo === "exito" ? "🎉" : "⚠️"}</span>
-                      <span>{mensajePromo.texto}</span>
-                    </div>
-                  )}
-                </div>
+              {usuarioSesion && (
+                <button
+                  type="button"
+                  onClick={() => void recargarMisEntradas()}
+                  className={styles.buttonSecondary}
+                  disabled={cargandoHistorial}
+                >
+                  {cargandoHistorial ? "Actualizando..." : "Actualizar lista"}
+                </button>
               )}
             </div>
 
-            {/* Columna Derecha: Resumen de Compra / Adquisición */}
-            <div>
-              <div className={styles.card} style={{ position: "sticky", top: "24px" }}>
-                <h3 className={styles.titleH3}>2. Resumen de Adquisición</h3>
-                <p className={styles.textMuted} style={{ fontSize: "13px", marginBottom: "16px" }}>
-                  Verifica el desglose antes de proceder.
+            {!usuarioSesion ? (
+              <div style={{ textAlign: "center", padding: "32px 16px" }}>
+                <p className={styles.textMuted} style={{ marginBottom: "16px" }}>
+                  Debes iniciar sesión para consultar tu historial de entradas.
                 </p>
+                <Link href="/auth" className={styles.buttonPrimary}>
+                  Ir a iniciar sesión
+                </Link>
+              </div>
+            ) : cargandoHistorial ? (
+              <p className={styles.textMuted}>Cargando tus entradas...</p>
+            ) : misEntradas.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "32px 16px" }}>
+                <p className={styles.textMuted} style={{ marginBottom: "16px" }}>
+                  Aún no tienes entradas emitidas en tu cuenta.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setVistaActiva("adquirir")}
+                  className={styles.buttonPrimary}
+                >
+                  Explorar eventos disponibles
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "16px" }}>
+                {misEntradas.map((ent) => (
+                  <div
+                    key={ent.idEntrada}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "16px",
+                      padding: "16px 20px",
+                      borderRadius: THEME.radius.card,
+                      border: `1px solid ${THEME.colors.border}`,
+                      backgroundColor: THEME.colors.bgPanel,
+                    }}
+                  >
+                    <div style={{ flex: "1 1 260px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                        <span
+                          className={`${styles.badge} ${
+                            ent.estadoEntrada === "ANULADA" ? styles.badgeDanger : styles.badgeSuccess
+                          }`}
+                        >
+                          {ent.estadoEntrada === "ANULADA" ? "Anulada" : "Emitida"}
+                        </span>
+                        <span style={{ fontSize: "12px", color: THEME.colors.secondary }}>
+                          Código: <strong>{ent.idEntrada}</strong>
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "16px", fontWeight: 700, color: THEME.colors.primary }}>
+                        {ent.nombreEvento}
+                      </div>
+                      <div style={{ fontSize: "13px", color: THEME.colors.secondary, marginTop: "4px" }}>
+                        Fecha: {ent.fechaEvento} · Hora: {ent.horaEvento} · Lugar: {ent.lugarEvento}
+                      </div>
+                      <div style={{ fontSize: "13px", color: THEME.colors.secondary, marginTop: "2px" }}>
+                        Acceso: {ent.tipoAcceso} · Valor:{" "}
+                        <strong>
+                          {ent.precioFinal === 0 ? "Gratis ($0)" : `$${ent.precioFinal.toLocaleString("es-CL")}`}
+                        </strong>
+                      </div>
+                    </div>
 
-                {/* Desglose */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", paddingBottom: "8px", borderBottom: `1px solid ${THEME.colors.border}` }}>
-                    <span>Evento:</span>
-                    <strong>{eventoActivo?.titulo}</strong>
+                    <Link
+                      href={`/entradas/confirmacion?idEntrada=${encodeURIComponent(ent.idEntrada)}`}
+                      className={styles.buttonPrimary}
+                    >
+                      Ver pase QR
+                    </Link>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", paddingBottom: "8px", borderBottom: `1px solid ${THEME.colors.border}` }}>
-                    <span>Cantidad:</span>
-                    <strong>{cantidad} entrada(s)</strong>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : !eventoActivo ? (
+          <div className={styles.card} style={{ textAlign: "center", padding: "40px 20px" }}>
+            <h2 className={styles.titleH2}>No hay eventos publicados disponibles</h2>
+            <p className={styles.textMuted} style={{ maxWidth: "520px", margin: "0 auto 20px auto" }}>
+              En este momento no existen eventos publicados desde el Panel Organizador. Cuando se publique un evento aparecerá automáticamente aquí.
+            </p>
+            <Link href="/catalogo" className={styles.buttonPrimary}>
+              Ir al catálogo
+            </Link>
+          </div>
+        ) : (
+          /* ==================== PESTAÑA: ADQUIRIR ENTRADAS ==================== */
+          <>
+            {/* Selector de evento */}
+            {eventos.length > 0 && (
+              <div
+                className={styles.card}
+                style={{
+                  marginBottom: "20px",
+                  padding: "16px 20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", flex: "1 1 320px" }}>
+                  <label htmlFor="select-evento" style={{ fontSize: "14px", fontWeight: 600, color: THEME.colors.primary }}>
+                    Evento seleccionado:
+                  </label>
+                  <select
+                    id="select-evento"
+                    value={eventoActivo?.id || ""}
+                    onChange={(e) => void handleCambiarEvento(e.target.value)}
+                    style={{
+                      height: "40px",
+                      padding: "0 12px",
+                      borderRadius: THEME.radius.input,
+                      border: `1px solid ${THEME.colors.border}`,
+                      backgroundColor: "#FFFFFF",
+                      color: THEME.colors.primary,
+                      fontFamily: THEME.fonts.body,
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    {eventos.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.titulo} ({ev.tipoEntrada === "GRATUITA" ? "Gratuita" : `$${ev.precio.toLocaleString("es-CL")}`})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {eventoActivo && (
+                  <Link href={`/catalogo/${encodeURIComponent(eventoActivo.id)}`} className={styles.buttonSecondary}>
+                    Ver detalle del evento
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {/* Confirmación tras emitir entradas gratuitas */}
+            {ultimoTicketEmitido && (
+              <div
+                className={`${styles.alert} ${styles.alertSuccess}`}
+                style={{ marginTop: 0, marginBottom: "20px", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}
+              >
+                <div>
+                  <strong>¡Listo! Tus entradas fueron emitidas correctamente.</strong>
+                  <div style={{ fontSize: "13px", marginTop: "4px" }}>
+                    Ya puedes abrir tu pase QR y revisarlo en cualquier momento desde la pestaña Mis Entradas.
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", paddingBottom: "8px", borderBottom: `1px solid ${THEME.colors.border}` }}>
-                    <span>Subtotal:</span>
-                    <strong>{esEventoGratuito ? "Gratis ($0)" : `$${subtotal.toLocaleString("es-CL")}`}</strong>
+                </div>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {(ultimoTicketEmitido.entradasEmitidas && ultimoTicketEmitido.entradasEmitidas.length > 0
+                    ? ultimoTicketEmitido.entradasEmitidas
+                    : [ultimoTicketEmitido.idEntrada]
+                  ).map((idTk, index) => (
+                    <Link
+                      key={idTk}
+                      href={`/entradas/confirmacion?idEntrada=${encodeURIComponent(idTk)}`}
+                      target="_blank"
+                      className={styles.buttonPrimary}
+                      style={{ height: "36px", padding: "0 14px", fontSize: "13px" }}
+                    >
+                      Ver pase QR {ultimoTicketEmitido.cantidadEntradas > 1 ? `#${index + 1}` : ""}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Resumen de disponibilidad */}
+            {eventoActivo && (
+              <div style={{ marginBottom: "24px" }}>
+                <DisponibilidadPlaceholder
+                  key={`${eventoActivo.id}-${eventoActivo.stockDisponible}`}
+                  eventoId={eventoActivo.id}
+                  mostrarBotonAccion={false}
+                />
+              </div>
+            )}
+
+            {/* Tarjeta de información del evento */}
+            {eventoActivo && (
+              <div className={styles.card} style={{ marginBottom: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+                  <div style={{ flex: "1 1 300px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                      <span
+                        className={`${styles.badge} ${
+                          eventoNoDisponible || estaAgotado
+                            ? styles.badgeDanger
+                            : esEventoGratuito
+                            ? styles.badgeSuccess
+                            : styles.badgeInfo
+                        }`}
+                      >
+                        {estadoEvento === "CANCELADO"
+                          ? "Cancelado"
+                          : estadoEvento === "FINALIZADO"
+                          ? "Finalizado"
+                          : estaAgotado
+                          ? "Agotado"
+                          : esEventoGratuito
+                          ? "Evento gratuito"
+                          : "Evento pagado"}
+                      </span>
+                    </div>
+
+                    <h2 className={styles.titleH2} style={{ margin: "0 0 8px 0" }}>
+                      {eventoActivo.titulo}
+                    </h2>
+                    {eventoActivo.descripcion && (
+                      <p className={styles.textMuted} style={{ marginBottom: "12px", fontSize: "14px" }}>
+                        {eventoActivo.descripcion}
+                      </p>
+                    )}
+
+                    <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", fontSize: "14px", color: THEME.colors.secondary }}>
+                      <span>Fecha: {eventoActivo.fecha}</span>
+                      <span>Hora: {eventoActivo.hora}</span>
+                      <span>Lugar: {eventoActivo.lugar}</span>
+                    </div>
                   </div>
 
-                  {/* Fila de Descuento si está activo */}
-                  {promocionActiva && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: THEME.colors.success.text, paddingBottom: "8px", borderBottom: `1px solid ${THEME.colors.border}` }}>
-                      <span>Descuento Promociones (-{promocionActiva.porcentajeDescuento}%):</span>
-                      <strong>-${montoDescuento.toLocaleString("es-CL")}</strong>
+                  <div
+                    style={{
+                      backgroundColor: THEME.colors.bgPanel,
+                      padding: "16px 20px",
+                      borderRadius: THEME.radius.card,
+                      border: `1px solid ${THEME.colors.border}`,
+                      textAlign: "right",
+                      minWidth: "180px",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", color: THEME.colors.secondary, fontWeight: 600 }}>
+                      Entradas disponibles
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "24px",
+                        fontWeight: 700,
+                        fontFamily: THEME.fonts.titles,
+                        color: eventoNoDisponible || estaAgotado ? THEME.colors.danger.text : THEME.colors.primary,
+                      }}
+                    >
+                      {eventoActivo.stockDisponible} / {eventoActivo.stockTotal}
+                    </div>
+                    <span style={{ fontSize: "12px", color: THEME.colors.secondary }}>cupos restantes</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {errorValidacion && (
+              <div className={`${styles.alert} ${styles.alertDanger}`} style={{ marginTop: 0, marginBottom: "20px" }}>
+                <span>{errorValidacion}</span>
+              </div>
+            )}
+
+            {eventoNoDisponible ? (
+              <div className={styles.card} style={{ textAlign: "center", padding: "40px 20px" }}>
+                <h2 className={styles.titleH2} style={{ color: THEME.colors.danger.text }}>
+                  {estadoEvento === "CANCELADO"
+                    ? "Este evento fue cancelado"
+                    : estadoEvento === "FINALIZADO"
+                    ? "Este evento ya finalizó"
+                    : "Este evento aún no está disponible para la venta"}
+                </h2>
+                <p className={styles.textMuted} style={{ maxWidth: "520px", margin: "0 auto 20px auto" }}>
+                  No es posible reservar ni emitir entradas para este evento. Puedes explorar otros eventos activos en el catálogo.
+                </p>
+                <Link href="/catalogo" className={styles.buttonPrimary}>
+                  Explorar otros eventos
+                </Link>
+              </div>
+            ) : estaAgotado ? (
+              <div className={styles.card} style={{ textAlign: "center", padding: "40px 20px" }}>
+                <h2 className={styles.titleH2} style={{ color: THEME.colors.danger.text }}>
+                  Entradas agotadas
+                </h2>
+                <p className={styles.textMuted} style={{ maxWidth: "520px", margin: "0 auto 20px auto" }}>
+                  Actualmente no quedan cupos disponibles para este evento. Si alguna reserva temporal vence sin completarse, el stock volverá a estar disponible aquí.
+                </p>
+                <Link href="/catalogo" className={styles.buttonPrimary}>
+                  Explorar otros eventos
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <div className={styles.card}>
+                    <h3 className={styles.titleH3}>1. Selección de entradas</h3>
+                    <p className={styles.textMuted} style={{ fontSize: "13px", marginBottom: "20px" }}>
+                      {esEventoGratuito
+                        ? "Evento de acceso gratuito: recibirás tu pase con código QR al confirmar."
+                        : "Selecciona cuántas entradas deseas reservar para continuar al pago."}
+                    </p>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "16px",
+                        backgroundColor: THEME.colors.bgPanel,
+                        borderRadius: THEME.radius.card,
+                        border: `1px solid ${THEME.colors.border}`,
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, color: THEME.colors.primary, fontSize: "16px" }}>
+                          {esEventoGratuito ? "Entrada general gratuita" : "Entrada general"}
+                        </div>
+                        <div style={{ fontSize: "13px", color: THEME.colors.secondary, marginTop: "2px" }}>
+                          {esEventoGratuito
+                            ? `Máximo ${eventoActivo?.limiteGratuitoUsuario || 2} entrada(s) por persona`
+                            : `Máximo ${eventoActivo?.maxTickets} entradas por compra`}
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: "right" }}>
+                        <div
+                          style={{
+                            fontSize: "20px",
+                            fontWeight: 700,
+                            fontFamily: THEME.fonts.titles,
+                            color: THEME.colors.primary,
+                          }}
+                        >
+                          {esEventoGratuito ? "Gratis" : `$${precioUnitario.toLocaleString("es-CL")}`}
+                        </div>
+                        <span style={{ fontSize: "12px", color: THEME.colors.secondary }}>c/u</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px" }}>
+                      <span style={{ fontWeight: 600, color: THEME.colors.primary }}>Cantidad de entradas:</span>
+
+                      <div className={styles.stepperContainer}>
+                        <button
+                          type="button"
+                          className={styles.stepperBtn}
+                          disabled={cantidad <= 1 || procesando}
+                          onClick={() => handleCambiarCantidad(-1)}
+                          aria-label="Restar una entrada"
+                        >
+                          -
+                        </button>
+                        <span className={styles.stepperValue}>{cantidad}</span>
+                        <button
+                          type="button"
+                          className={styles.stepperBtn}
+                          disabled={
+                            cantidad >= (eventoActivo?.stockDisponible ?? 0) ||
+                            (esEventoGratuito && cantidad >= (eventoActivo?.limiteGratuitoUsuario ?? 2)) ||
+                            (!esEventoGratuito && cantidad >= (eventoActivo?.maxTickets ?? 6)) ||
+                            procesando
+                          }
+                          onClick={() => handleCambiarCantidad(1)}
+                          aria-label="Sumar una entrada"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!esEventoGratuito && (
+                    <div className={styles.card}>
+                      <h3 className={styles.titleH3}>¿Tienes un código de descuento?</h3>
+                      <p className={styles.textMuted} style={{ fontSize: "13px", marginBottom: "16px" }}>
+                        Ingresa un código promocional vigente para este evento.
+                      </p>
+
+                      <form onSubmit={handleAplicarPromocion} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        <input
+                          type="text"
+                          placeholder="Código promocional"
+                          value={codigoDescuento}
+                          onChange={(e) => setCodigoDescuento(e.target.value.toUpperCase())}
+                          style={{
+                            height: "40px",
+                            padding: "0 12px",
+                            borderRadius: THEME.radius.input,
+                            border: `1px solid ${THEME.colors.border}`,
+                            fontFamily: THEME.fonts.body,
+                            fontSize: "14px",
+                            flex: "1 1 180px",
+                            textTransform: "uppercase",
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          disabled={validandoPromo || !codigoDescuento.trim()}
+                          className={styles.buttonSecondary}
+                          style={{ height: "40px" }}
+                        >
+                          {validandoPromo ? "Validando..." : "Aplicar descuento"}
+                        </button>
+                      </form>
+
+                      {mensajePromo && (
+                        <div
+                          className={`${styles.alert} ${
+                            mensajePromo.tipo === "exito" ? styles.alertSuccess : styles.alertDanger
+                          }`}
+                          style={{ marginTop: "12px", padding: "10px 14px", fontSize: "13px" }}
+                        >
+                          <span>{mensajePromo.texto}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Total Final */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: "18px",
-                    fontWeight: 700,
-                    color: THEME.colors.primary,
-                    fontFamily: THEME.fonts.titles,
-                    marginBottom: "16px",
-                  }}
-                >
-                  <span>Total Final:</span>
-                  <span style={{ fontSize: "22px" }}>
-                    {totalFinal === 0 ? "$0 (Gratis)" : `$${totalFinal.toLocaleString("es-CL")}`}
-                  </span>
-                </div>
+                <div>
+                  <div className={styles.card} style={{ position: "sticky", top: "24px" }}>
+                    <h3 className={styles.titleH3}>2. Resumen de solicitud</h3>
+                    <p className={styles.textMuted} style={{ fontSize: "13px", marginBottom: "16px" }}>
+                      Revisa el detalle antes de continuar.
+                    </p>
 
-                {/* Alerta explicativa del tipo de flujo */}
-                <div
-                  className={`${styles.alert} ${esEventoGratuito ? styles.alertSuccess : styles.alertInfo}`}
-                  style={{ marginTop: 0, marginBottom: "20px", fontSize: "13px" }}
-                >
-                  <span>{esEventoGratuito ? "🎁" : "⏱️"}</span>
-                  <div>
-                    {esEventoGratuito ? (
-                      <strong>Flujo Gratuito: Tu entrada y código QR se abrirán en una nueva pestaña sin costo.</strong>
-                    ) : (
-                      <span>
-                        <strong>Reserva Temporal (HU-03):</strong> Congelamos tus cupos por 10 minutos mientras se efectúa el pago.
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "14px",
+                          paddingBottom: "8px",
+                          borderBottom: `1px solid ${THEME.colors.border}`,
+                        }}
+                      >
+                        <span>Evento:</span>
+                        <strong>{eventoActivo?.titulo}</strong>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "14px",
+                          paddingBottom: "8px",
+                          borderBottom: `1px solid ${THEME.colors.border}`,
+                        }}
+                      >
+                        <span>Cantidad:</span>
+                        <strong>{cantidad} entrada(s)</strong>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "14px",
+                          paddingBottom: "8px",
+                          borderBottom: `1px solid ${THEME.colors.border}`,
+                        }}
+                      >
+                        <span>Subtotal:</span>
+                        <strong>{esEventoGratuito ? "Gratis ($0)" : `$${subtotal.toLocaleString("es-CL")}`}</strong>
+                      </div>
+
+                      {promocionActiva && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            fontSize: "14px",
+                            color: THEME.colors.success.text,
+                            paddingBottom: "8px",
+                            borderBottom: `1px solid ${THEME.colors.border}`,
+                          }}
+                        >
+                          <span>Descuento ({promocionActiva.porcentajeDescuento}%):</span>
+                          <strong>-${montoDescuento.toLocaleString("es-CL")}</strong>
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "18px",
+                        fontWeight: 700,
+                        color: THEME.colors.primary,
+                        fontFamily: THEME.fonts.titles,
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <span>Total final:</span>
+                      <span style={{ fontSize: "22px" }}>
+                        {totalFinal === 0 ? "$0 (Gratis)" : `$${totalFinal.toLocaleString("es-CL")}`}
                       </span>
-                    )}
+                    </div>
+
+                    <div
+                      className={`${styles.alert} ${esEventoGratuito ? styles.alertSuccess : styles.alertInfo}`}
+                      style={{ marginTop: 0, marginBottom: "20px", fontSize: "13px" }}
+                    >
+                      <div>
+                        {esEventoGratuito ? (
+                          <span>Emisión inmediata: al confirmar obtendrás tu pase de acceso con código QR.</span>
+                        ) : (
+                          <span>
+                            Tus entradas quedarán reservadas temporalmente por 15 minutos mientras completas el pago.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={procesando || cantidad === 0 || !usuarioSesion}
+                      onClick={() => void handleContinuarAdquisicion()}
+                      className={styles.buttonPrimary}
+                      style={{ width: "100%", height: "48px", fontSize: "15px" }}
+                    >
+                      {procesando
+                        ? "Procesando..."
+                        : !usuarioSesion
+                        ? "Inicia sesión para continuar"
+                        : esEventoGratuito
+                        ? "Obtener entrada gratuita"
+                        : `Reservar y continuar al pago ($${totalFinal.toLocaleString("es-CL")})`}
+                    </button>
                   </div>
                 </div>
-
-                {/* Botón de Acción Principal */}
-                <button
-                  type="button"
-                  disabled={procesando || cantidad === 0}
-                  onClick={handleContinuarAdquisicion}
-                  className={styles.buttonPrimary}
-                  style={{ width: "100%", height: "48px", fontSize: "15px" }}
-                >
-                  {procesando
-                    ? "Procesando solicitud..."
-                    : esEventoGratuito
-                    ? "Obtener Entrada Gratuita Directa (Abrir QR) ➔"
-                    : `Continuar a Reserva ($${totalFinal.toLocaleString("es-CL")}) ➔`}
-                </button>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* ====================================================================
-            MODAL: RESERVA TEMPORAL GENERADA (HU-03 - Flujo Pagado)
-            ==================================================================== */}
-        {reservaActiva && (
-          <div className={styles.modalOverlay}>
-            <div className={styles.modalContent}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                <span className={`${styles.badge} ${styles.badgeInfo}`}>Hold Activo · 10 Minutos</span>
-                <span
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: 700,
-                    color: segundosRestantes < 180 ? THEME.colors.danger.text : THEME.colors.primary,
-                    fontFamily: THEME.fonts.titles,
-                  }}
-                >
-                  ⏳ {formatoTiempo(segundosRestantes)}
-                </span>
-              </div>
-
-              <h2 className={styles.titleH2} style={{ margin: "0 0 8px 0" }}>
-                Cupo Reservado Temporalmente
-              </h2>
-              <p className={styles.textMuted} style={{ fontSize: "14px", marginBottom: "16px" }}>
-                Hemos descontado temporalmente del inventario {reservaActiva.cantidadEntradas} entrada(s) para evitar que se agoten mientras completas el pago.
-              </p>
-
-              {/* Ficha de la Reserva */}
-              <div
-                style={{
-                  backgroundColor: THEME.colors.bgPanel,
-                  border: `1px solid ${THEME.colors.border}`,
-                  borderRadius: THEME.radius.card,
-                  padding: "16px",
-                  fontSize: "13px",
-                  marginBottom: "20px",
+            {reservaActiva && (
+              <ModalReservaHold
+                reserva={reservaActiva}
+                nombreEvento={eventoActivo?.titulo}
+                onClose={() => setReservaActiva(null)}
+                onExpirada={async () => {
+                  if (eventoActivo) await recargarEventoActivo(eventoActivo.id);
+                  setReservaActiva(null);
                 }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <span style={{ color: THEME.colors.secondary }}>Identificador de Reserva (holdId):</span>
-                  <strong>{reservaActiva.idReserva}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <span style={{ color: THEME.colors.secondary }}>Evento:</span>
-                  <strong>{eventoActivo?.titulo}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <span style={{ color: THEME.colors.secondary }}>Cantidad:</span>
-                  <strong>{reservaActiva.cantidadEntradas} entrada(s)</strong>
-                </div>
-                {reservaActiva.descuento > 0 && (
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", color: THEME.colors.success.text }}>
-                    <span>Descuento aplicado:</span>
-                    <strong>-${reservaActiva.descuento.toLocaleString("es-CL")}</strong>
-                  </div>
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <span style={{ color: THEME.colors.secondary }}>Monto a Cobrar:</span>
-                  <strong style={{ fontSize: "16px", color: THEME.colors.primary }}>
-                    ${reservaActiva.total.toLocaleString("es-CL")}
-                  </strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: THEME.colors.secondary }}>Estado del Pago:</span>
-                  <span className={`${styles.badge} ${styles.badgeMuted}`}>Pendiente de Cobro</span>
-                </div>
-              </div>
-
-              {/* Acciones de la Reserva */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {/* Opción A: Simulación de Pago y Apertura en Pestaña Nueva */}
-                <button
-                  type="button"
-                  disabled={procesando}
-                  onClick={handleSimularPagoAprobado}
-                  className={styles.buttonPrimary}
-                  style={{ width: "100%", height: "46px" }}
-                >
-                  {procesando ? "Consolidando..." : "💳 Simular Pago Aprobado y Abrir Entrada con QR ➔"}
-                </button>
-
-                {/* Opción B: Redirigir a la URL oficial de Pagos */}
-                <button
-                  type="button"
-                  onClick={handleRedirigirAPagos}
-                  className={styles.buttonSecondary}
-                  style={{ width: "100%", height: "40px" }}
-                >
-                  🔗 Ir a Pasarela de Pagos (Grupo 4)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (reservaActiva) {
-                      await liberarReservaTemporal(reservaActiva.idEvento, reservaActiva.cantidadEntradas, reservaActiva.idReserva);
-                      if (eventoActivo && eventoActivo.id === reservaActiva.idEvento) {
-                        setEventoActivo({
-                          ...eventoActivo,
-                          stockDisponible: eventoActivo.stockDisponible + reservaActiva.cantidadEntradas,
-                        });
-                      }
-                      setReservaActiva(null);
-                    }
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: THEME.colors.secondary,
-                    fontSize: "13px",
-                    cursor: "pointer",
-                    padding: "8px",
-                    textDecoration: "underline",
-                  }}
-                >
-                  Liberar cupo y modificar pedido
-                </button>
-              </div>
-            </div>
-          </div>
+              />
+            )}
+          </>
         )}
       </div>
     </div>

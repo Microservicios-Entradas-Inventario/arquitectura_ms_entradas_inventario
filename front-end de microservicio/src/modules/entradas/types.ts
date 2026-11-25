@@ -1,21 +1,12 @@
 // ============================================================================
 // modules/entradas/types.ts
-// ----------------------------------------------------------------------------
-// Modelos y tipos de datos del Microservicio de Entradas e Inventario
-// Alineados con los Contratos de Interfaz (Catálogo, Pagos, Panel, Promociones)
-// y con nomenclatura estandarizada en camelCase.
+// Modelos y tipos de datos del módulo de Entradas e Inventario
 // ============================================================================
 
-/**
- * Glosario homologado estricto con Panel Organizador y Catálogo
- */
 export type TipoEntrada = "PAGADA" | "GRATUITA";
 
 export type EstadoGestionEvento = "BORRADOR" | "PUBLICADO" | "FINALIZADO" | "CANCELADO";
 
-/**
- * Información de aforo y stock de un evento (HU-01 y Contrato con Panel)
- */
 export interface EventoEntradas {
   id: string;
   titulo: string;
@@ -24,28 +15,27 @@ export interface EventoEntradas {
   lugar: string;
   descripcion?: string;
   tipoEntrada: TipoEntrada;
-  precio: number;                      // 0 si es GRATUITA
+  precio: number;
   stockTotal: number;
   stockDisponible: number;
-  maxTickets: number;                 // Máximo de tickets por transacción (HU-02 y tabla dependencias)
-  limiteGratuitoUsuario?: number;    // HU-08: Límite por usuario para entradas gratuitas
+  maxTickets: number;
+  limiteGratuitoUsuario?: number;
   estadoGestion: EstadoGestionEvento;
+  origen?: "PANEL" | "CATALOGO";
 }
 
-/**
- * Contrato con Promociones (Grupo 9):
- * Permite aplicar reglas de descuento a una compra antes de emitir la reserva.
- */
 export interface PromocionAplicada {
   codigo: string;
   idPromocion: string;
-  porcentajeDescuento: number;        // Porcentaje entre 1 y 100
+  porcentajeDescuento: number;
   descripcion: string;
 }
 
-/**
- * Desglose financiero con cálculo de descuentos
- */
+export interface ResultadoEvaluacionPromocion {
+  promocion: PromocionAplicada | null;
+  mensaje?: string;
+}
+
 export interface ResumenCalculo {
   cantidad: number;
   precioUnitario: number;
@@ -56,28 +46,24 @@ export interface ResumenCalculo {
   promocion?: PromocionAplicada;
 }
 
-/**
- * Reserva temporal de cupo (HU-03 y Contrato con Pagos)
- */
 export interface ReservaTemporal {
-  idReserva: string;                  // holdId único
+  idReserva: string;
   idEvento: string;
   idUsuario: string;
   cantidadEntradas: number;
   subtotal: number;
   descuento: number;
   total: number;
-  estado: "PENDIENTE" | "RESERVADO" | "APROBADO" | "CANCELADO" | "EXPIRADO" | string;
-  expiraEnMinutos: number;             // TTL de retención (10-15 minutos)
-  segundosRestantes?: number;          // Segundos restantes devueltos por el backend
+  avisoPromocion?: string;
+  estado: "PENDIENTE" | "RESERVADO" | "CONSOLIDADO" | "CANCELADO" | "EXPIRADO" | string;
+  expiraEnMinutos: number;
+  segundosRestantes?: number;
   fechaCreacion: string;
 }
 
-/**
- * Entrada consolidada con QR de acceso (HU-04, HU-05 y Contrato Check-in / Notificaciones)
- */
 export interface EntradaEmitida {
-  idEntrada: string;                  // Identificador único (tk-...)
+  idEntrada: string;
+  entradasEmitidas?: string[];
   idEvento: string;
   nombreEvento: string;
   nombreComprador: string;
@@ -85,9 +71,10 @@ export interface EntradaEmitida {
   tipoAcceso: string;
   precioFinal: number;
   cantidadEntradas: number;
-  qrData: string;                     // URL o hash de acceso para escaneo en puerta
+  qrData: string;
   fechaEvento: string;
   horaEvento: string;
   lugarEvento: string;
   fechaEmision: string;
+  estadoEntrada?: string;
 }
