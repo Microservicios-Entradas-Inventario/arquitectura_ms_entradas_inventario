@@ -1,11 +1,6 @@
 // ============================================================================
 // modules/entradas/components/DisponibilidadPlaceholder.tsx
-// ----------------------------------------------------------------------------
-// Grupo 3 — Entradas / Inventario.
-//
-// Componente RESUMEN chico (solo lectura) que Catálogo (Grupo 2)
-// incrusta en el detalle de un evento (DetalleEventoPlaceholder.tsx).
-// Muestra aforo en tiempo real, tipo de entrada y botón de acción.
+// Bloque resumen de disponibilidad y precio incrustado en el detalle de Catálogo.
 // ============================================================================
 
 "use client";
@@ -13,6 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { obtenerDisponibilidad } from "../api";
+import { EstadoGestionEvento } from "../types";
 import styles from "../styles/entradas.module.css";
 import { THEME } from "../styles/theme";
 
@@ -22,6 +18,7 @@ interface DisponibilidadData {
   stockTotal: number;
   tipoEntrada: "PAGADA" | "GRATUITA";
   precio: number;
+  estadoGestion?: EstadoGestionEvento;
 }
 
 export default function DisponibilidadPlaceholder({
@@ -33,16 +30,21 @@ export default function DisponibilidadPlaceholder({
 }) {
   const [data, setData] = useState<DisponibilidadData | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(false);
 
   useEffect(() => {
     let activo = true;
     async function cargar() {
       setCargando(true);
+      setErrorCarga(false);
       try {
         const res = await obtenerDisponibilidad(eventoId);
         if (activo) setData(res);
-      } catch (err) {
-        console.error("Error al obtener disponibilidad:", err);
+      } catch {
+        if (activo) {
+          setData(null);
+          setErrorCarga(true);
+        }
       } finally {
         if (activo) setCargando(false);
       }
@@ -56,7 +58,7 @@ export default function DisponibilidadPlaceholder({
   if (cargando) {
     return (
       <div
-        className={styles.card}
+        className={`${styles.entradasModuleScope} ${styles.card}`}
         style={{
           padding: "16px 20px",
           display: "flex",
@@ -65,33 +67,68 @@ export default function DisponibilidadPlaceholder({
           backgroundColor: THEME.colors.bgPanel,
         }}
       >
-        <span style={{ fontSize: "18px" }}>🎟️</span>
         <span style={{ fontSize: "14px", color: THEME.colors.secondary }}>
-          Consultando aforo disponible...
+          Consultando disponibilidad de entradas...
         </span>
       </div>
     );
   }
 
-  const stockDisponible = data?.stockDisponible ?? 0;
-  const stockTotal = data?.stockTotal ?? 1;
-  const esGratuito = data?.tipoEntrada === "GRATUITA";
-  const estaAgotado = stockDisponible <= 0;
+  if (errorCarga || !data) {
+    return (
+      <div
+        className={`${styles.entradasModuleScope} ${styles.card}`}
+        style={{
+          padding: "18px 22px",
+          backgroundColor: THEME.colors.bgPanel,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 600, color: THEME.colors.primary, fontSize: "15px" }}>
+            Disponibilidad en sincronización
+          </div>
+          <div style={{ fontSize: "13px", color: THEME.colors.secondary, marginTop: "2px" }}>
+            No pudimos obtener el aforo en este instante. Puedes revisar el evento directamente en Entradas.
+          </div>
+        </div>
+        {mostrarBotonAccion && (
+          <Link
+            href={`/entradas?eventoId=${encodeURIComponent(eventoId)}`}
+            className={styles.buttonPrimary}
+            style={{ height: "40px", padding: "0 18px", textDecoration: "none" }}
+          >
+            Ver entradas
+          </Link>
+        )}
+      </div>
+    );
+  }
 
-  // Porcentaje de stock restante para indicador visual
+  const stockDisponible = data.stockDisponible;
+  const stockTotal = Math.max(1, data.stockTotal);
+  const esGratuito = data.tipoEntrada === "GRATUITA";
+  const estado = data.estadoGestion || "PUBLICADO";
+  const noDisponiblePorEstado = estado !== "PUBLICADO";
+  const estaAgotado = stockDisponible <= 0;
   const porcentaje = Math.max(0, Math.min(100, Math.round((stockDisponible / stockTotal) * 100)));
 
   return (
     <div
-      className={styles.card}
+      className={`${styles.entradasModuleScope} ${styles.card}`}
       style={{
         padding: "20px 24px",
-        borderLeft: `4px solid ${estaAgotado
+        borderLeft: `4px solid ${
+          noDisponiblePorEstado || estaAgotado
             ? THEME.colors.danger.text
             : esGratuito
-              ? THEME.colors.success.text
-              : THEME.colors.primary
-          }`,
+            ? THEME.colors.success.text
+            : THEME.colors.primary
+        }`,
       }}
     >
       <div
@@ -103,22 +140,26 @@ export default function DisponibilidadPlaceholder({
           gap: "16px",
         }}
       >
-        {/* Información de Aforo y Tipo */}
         <div style={{ flex: "1 1 240px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
             <span
-              className={`${styles.badge} ${estaAgotado
+              className={`${styles.badge} ${
+                noDisponiblePorEstado || estaAgotado
                   ? styles.badgeDanger
                   : esGratuito
-                    ? styles.badgeSuccess
-                    : styles.badgeInfo
-                }`}
+                  ? styles.badgeSuccess
+                  : styles.badgeInfo
+              }`}
             >
-              {estaAgotado ? "Agotado" : esGratuito ? "Entrada Gratuita" : "Entrada Pagada"}
-            </span>
-
-            <span style={{ fontSize: "12px", color: THEME.colors.secondary, fontWeight: 500 }}>
-              Inventario oficial · Grupo 3
+              {estado === "CANCELADO"
+                ? "Evento cancelado"
+                : estado === "FINALIZADO"
+                ? "Evento finalizado"
+                : estaAgotado
+                ? "Agotado"
+                : esGratuito
+                ? "Entrada gratuita"
+                : "Entrada pagada"}
             </span>
           </div>
 
@@ -127,22 +168,30 @@ export default function DisponibilidadPlaceholder({
               fontSize: "18px",
               fontWeight: 700,
               fontFamily: THEME.fonts.titles,
-              color: estaAgotado ? THEME.colors.danger.text : THEME.colors.primary,
+              color: noDisponiblePorEstado || estaAgotado ? THEME.colors.danger.text : THEME.colors.primary,
               display: "flex",
               alignItems: "center",
               gap: "8px",
+              flexWrap: "wrap",
             }}
           >
-            <span>{estaAgotado ? "🚫 Sin cupos disponibles" : `🎟️ ${stockDisponible} entradas disponibles`}</span>
-            {!estaAgotado && (
+            <span>
+              {estado === "CANCELADO"
+                ? "Venta suspendida por cancelación"
+                : estado === "FINALIZADO"
+                ? "Este evento ya finalizó"
+                : estaAgotado
+                ? "Sin cupos disponibles"
+                : `${stockDisponible} entradas disponibles`}
+            </span>
+            {!noDisponiblePorEstado && !estaAgotado && (
               <span style={{ fontSize: "13px", fontWeight: 400, color: THEME.colors.secondary }}>
-                (de {stockTotal} aforo total)
+                (de {data.stockTotal} cupos totales)
               </span>
             )}
           </div>
 
-          {/* Barra sutil de aforo restante */}
-          {!estaAgotado && (
+          {!noDisponiblePorEstado && !estaAgotado && (
             <div
               style={{
                 width: "100%",
@@ -166,37 +215,37 @@ export default function DisponibilidadPlaceholder({
           )}
 
           <div style={{ marginTop: "6px", fontSize: "13px", color: THEME.colors.secondary }}>
-            {estaAgotado ? (
-              <span>Puedes registrar tu correo para recibir alerta si se libera stock.</span>
+            {noDisponiblePorEstado ? (
+              <span>No es posible adquirir entradas para este evento.</span>
+            ) : estaAgotado ? (
+              <span>Todas las entradas de este evento fueron adquiridas o reservadas.</span>
             ) : esGratuito ? (
               <span style={{ color: THEME.colors.success.text, fontWeight: 600 }}>
-                Acceso 100% gratuito (emisión directa con QR)
+                Acceso gratuito con emisión inmediata de código QR
               </span>
             ) : (
               <span>
-                Precio de entrada:{" "}
+                Valor por entrada:{" "}
                 <strong style={{ color: THEME.colors.primary, fontSize: "15px" }}>
-                  ${data?.precio ? data.precio.toLocaleString("es-CL") : "0"}
+                  ${data.precio.toLocaleString("es-CL")}
                 </strong>
               </span>
             )}
           </div>
         </div>
 
-        {/* Botón de Llamado a la Acción hacia el Módulo de Entradas (solo visible en Catálogo) */}
-        {mostrarBotonAccion && (
+        {mostrarBotonAccion && !noDisponiblePorEstado && !estaAgotado && (
           <div>
             <Link
-              href={`/entradas?eventoId=${eventoId}`}
+              href={`/entradas?eventoId=${encodeURIComponent(eventoId)}`}
               className={styles.buttonPrimary}
               style={{
                 height: "42px",
                 padding: "0 22px",
                 textDecoration: "none",
-                backgroundColor: estaAgotado ? THEME.colors.secondary : THEME.colors.primary,
               }}
             >
-              {estaAgotado ? "Ver Evento / Avisarme ➔" : "Adquirir Entradas ➔"}
+              {esGratuito ? "Obtener entradas" : "Adquirir entradas"}
             </Link>
           </div>
         )}

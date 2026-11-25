@@ -1,11 +1,12 @@
 // ============================================================================
 // modules/entradas/components/ConfirmacionTicket.tsx
-// ----------------------------------------------------------------------------
-
+// Vista de confirmación y Pase de Acceso Oficial con código QR imprimible.
+// ============================================================================
 
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { obtenerEntradaEmitida } from "../api";
 import { EntradaEmitida } from "../types";
@@ -14,19 +15,24 @@ import { THEME } from "../styles/theme";
 
 export default function ConfirmacionTicket() {
   const searchParams = useSearchParams();
-  const idEntradaParam = searchParams.get("idEntrada") || "tk-DEMO-2026";
+  const idEntradaParam = searchParams.get("idEntrada");
 
   const [ticket, setTicket] = useState<EntradaEmitida | null>(null);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     async function cargar() {
+      if (!idEntradaParam) {
+        setTicket(null);
+        setCargando(false);
+        return;
+      }
       setCargando(true);
       try {
         const data = await obtenerEntradaEmitida(idEntradaParam);
         setTicket(data);
       } catch (err) {
-        console.error("Error al cargar ticket:", err);
+        console.error("Error al cargar entrada:", err);
       } finally {
         setCargando(false);
       }
@@ -38,9 +44,8 @@ export default function ConfirmacionTicket() {
     return (
       <div className={styles.entradasModuleScope}>
         <div className={styles.container} style={{ textAlign: "center", padding: "64px 0" }}>
-          <div style={{ fontSize: "40px", marginBottom: "16px" }}>🎟️</div>
-          <h2 className={styles.titleH2}>Generando ticket oficial y código QR...</h2>
-          <p className={styles.textMuted}>Conectando con el servicio de control de acceso e inventario</p>
+          <h2 className={styles.titleH2}>Cargando tu pase de acceso...</h2>
+          <p className={styles.textMuted}>Estamos preparando los datos y el código QR de tu entrada.</p>
         </div>
       </div>
     );
@@ -51,7 +56,12 @@ export default function ConfirmacionTicket() {
       <div className={styles.entradasModuleScope}>
         <div className={styles.container} style={{ textAlign: "center", padding: "64px 0" }}>
           <h2 className={styles.titleH2}>Entrada no encontrada</h2>
-          <p className={styles.textMuted}>No se pudo recuperar la información del ticket solicitado.</p>
+          <p className={styles.textMuted} style={{ marginBottom: "20px" }}>
+            No pudimos encontrar el pase solicitado. Verifica el enlace o revisa tu historial en Mis Entradas.
+          </p>
+          <Link href="/entradas?tab=mis-entradas" className={styles.buttonPrimary}>
+            Ir a Mis Entradas
+          </Link>
         </div>
       </div>
     );
@@ -66,20 +76,18 @@ export default function ConfirmacionTicket() {
         }
       `}</style>
       <div className={styles.container} style={{ maxWidth: "680px", margin: "24px auto" }}>
-        {/* Banner de Confirmación (Oculto al imprimir) */}
         <div className={styles.noPrint} style={{ textAlign: "center", marginBottom: "24px" }}>
           <span className={`${styles.badge} ${styles.badgeSuccess}`} style={{ fontSize: "13px", padding: "6px 16px" }}>
-            ✓ Entrada Emitida y Consolidada Exitosamente
+            Entrada emitida y habilitada para ingreso
           </span>
           <h1 className={styles.titleH1} style={{ marginTop: "12px", marginBottom: "6px" }}>
             Pase de Acceso Oficial
           </h1>
           <p className={styles.textMuted}>
-            Presenta este código QR en la puerta del evento al momento del Check-in.
+            Presenta este código QR en el acceso del evento para validar tu ingreso.
           </p>
         </div>
 
-        {/* Ficha Visual de Entrada Oficial (Estilo Ticket - Lo único que se imprime) */}
         <div
           className={`${styles.card} ${styles.ticketPrintable}`}
           style={{
@@ -90,7 +98,6 @@ export default function ConfirmacionTicket() {
             position: "relative",
           }}
         >
-          {/* Cabecera del Boleto */}
           <div
             style={{
               display: "flex",
@@ -99,11 +106,21 @@ export default function ConfirmacionTicket() {
               borderBottom: `1px solid ${THEME.colors.border}`,
               paddingBottom: "16px",
               marginBottom: "20px",
+              gap: "12px",
+              flexWrap: "wrap",
             }}
           >
             <div>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: THEME.colors.secondary, textTransform: "uppercase", letterSpacing: "1px" }}>
-                TicketU · Microservicio de Inventario
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  color: THEME.colors.secondary,
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                }}
+              >
+                TicketU · Pase Oficial
               </span>
               <div style={{ fontSize: "16px", fontWeight: 700, color: THEME.colors.primary }}>
                 Universidad de Valparaíso
@@ -111,26 +128,31 @@ export default function ConfirmacionTicket() {
             </div>
 
             <div style={{ textAlign: "right" }}>
-              <span style={{ fontSize: "11px", color: THEME.colors.secondary }}>ID Ticket:</span>
-              <div style={{ fontSize: "15px", fontWeight: 700, fontFamily: THEME.fonts.titles, color: THEME.colors.primary }}>
+              <span style={{ fontSize: "11px", color: THEME.colors.secondary }}>Código de entrada:</span>
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  fontFamily: THEME.fonts.titles,
+                  color: THEME.colors.primary,
+                }}
+              >
                 {ticket.idEntrada}
               </div>
             </div>
           </div>
 
-          {/* Información del Evento */}
           <div style={{ marginBottom: "24px" }}>
             <h2 className={styles.titleH2} style={{ fontSize: "22px", margin: "0 0 10px 0" }}>
               {ticket.nombreEvento}
             </h2>
             <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "14px", color: THEME.colors.secondary }}>
-              <span>📅 {ticket.fechaEvento}</span>
-              <span>⏰ {ticket.horaEvento}</span>
-              <span>📍 {ticket.lugarEvento}</span>
+              <span>Fecha: {ticket.fechaEvento}</span>
+              <span>Hora: {ticket.horaEvento}</span>
+              <span>Lugar: {ticket.lugarEvento}</span>
             </div>
           </div>
 
-          {/* Contenedor Central con Código QR */}
           <div
             style={{
               display: "flex",
@@ -157,7 +179,7 @@ export default function ConfirmacionTicket() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={ticket.qrData}
-                alt={`Código QR para ticket ${ticket.idEntrada}`}
+                alt={`Código QR para la entrada ${ticket.idEntrada}`}
                 width={220}
                 height={220}
                 style={{ display: "block" }}
@@ -176,11 +198,10 @@ export default function ConfirmacionTicket() {
               {ticket.idEntrada}
             </div>
             <span style={{ fontSize: "12px", color: THEME.colors.secondary, marginTop: "4px" }}>
-              Escaneable con lector óptico en la entrada
+              Código único e intransferible para control de acceso
             </span>
           </div>
 
-          {/* Desglose de Datos del Comprador y Tipo de Acceso */}
           <div
             style={{
               display: "grid",
@@ -194,19 +215,21 @@ export default function ConfirmacionTicket() {
             }}
           >
             <div>
-              <span style={{ color: THEME.colors.secondary }}>Asistente / Titular:</span>
+              <span style={{ color: THEME.colors.secondary }}>Titular:</span>
               <div style={{ fontWeight: 600, color: THEME.colors.primary }}>{ticket.nombreComprador}</div>
             </div>
             <div>
-              <span style={{ color: THEME.colors.secondary }}>Correo Electrónico:</span>
-              <div style={{ fontWeight: 600, color: THEME.colors.primary }}>{ticket.correoComprador}</div>
+              <span style={{ color: THEME.colors.secondary }}>Correo electrónico:</span>
+              <div style={{ fontWeight: 600, color: THEME.colors.primary }}>
+                {ticket.correoComprador || "Registrado en tu cuenta"}
+              </div>
             </div>
             <div>
-              <span style={{ color: THEME.colors.secondary }}>Tipo de Acceso:</span>
+              <span style={{ color: THEME.colors.secondary }}>Tipo de acceso:</span>
               <div style={{ fontWeight: 600, color: THEME.colors.primary }}>{ticket.tipoAcceso}</div>
             </div>
             <div>
-              <span style={{ color: THEME.colors.secondary }}>Monto Total Pagado:</span>
+              <span style={{ color: THEME.colors.secondary }}>Valor pagado:</span>
               <div style={{ fontWeight: 700, color: THEME.colors.primary, fontSize: "14px" }}>
                 {ticket.precioFinal === 0 ? "Gratis ($0)" : `$${ticket.precioFinal.toLocaleString("es-CL")}`}
               </div>
@@ -214,25 +237,34 @@ export default function ConfirmacionTicket() {
           </div>
         </div>
 
-        {/* Botones de Acción (Ocultos al imprimir) */}
-        <div className={styles.noPrint} style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "24px", flexWrap: "wrap" }}>
+        <div
+          className={styles.noPrint}
+          style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "24px", flexWrap: "wrap" }}
+        >
           <button
             type="button"
             onClick={() => window.print()}
             className={styles.buttonPrimary}
             style={{ height: "44px", padding: "0 24px" }}
           >
-            🖨️ Imprimir / Guardar como PDF
+            Imprimir / Guardar PDF
           </button>
 
-          <button
-            type="button"
-            onClick={() => window.close()}
+          <Link
+            href="/entradas?tab=mis-entradas"
             className={styles.buttonSecondary}
-            style={{ height: "44px", padding: "0 24px" }}
+            style={{ height: "44px", padding: "0 24px", textDecoration: "none", display: "inline-flex", alignItems: "center" }}
           >
-            Cerrar Pestaña
-          </button>
+            Ver Mis Entradas
+          </Link>
+
+          <Link
+            href="/catalogo"
+            className={styles.buttonSecondary}
+            style={{ height: "44px", padding: "0 24px", textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+          >
+            Volver al Catálogo
+          </Link>
         </div>
       </div>
     </div>
