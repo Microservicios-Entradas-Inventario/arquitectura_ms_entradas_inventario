@@ -193,3 +193,44 @@ for name, url in [
     r = urllib.request.urlopen(url, timeout=3)
     print(f'[OK {r.status}] {name}: {r.read().decode().strip()}')"
 ```
+## 2. Ejecución Automatizada de QA Integración (Newman — CA2)
+
+Se ejecutó la colección `TicketU - QA Integracion.postman_collection.json` a través del API Gateway (`http://localhost:8080`), exportando el resultado a `../back-end/tests/evidencia_QA_CA2_workstation.json`.
+
+**Fecha y Hora de Ejecución:** 24 de noviembre de 2026, ~23:20 - 23:25
+
+### Resumen de Resultados
+* **Iteraciones:** `1` (`0` fallos)
+* **Requests ejecutados:** `22` (`0` fallos)
+* **Test-scripts:** `22` (`0` fallos)
+* **Assertions:** `22` ejecutadas / `22` aprobadas (`0` fallos)
+
+### Bloques Verificados
+1. **Autenticación (`Entradas ↔ Auth`):** bloqueo sin cookie (`401`), rechazo de JWT alterado (`401`) y login real (`200`).
+2. **Catálogo de Eventos (`Entradas ↔ Catálogo`):** consulta de disponibilidad, reserva Hold (`-2` cupos), verificación de stock en Catálogo, cancelación con liberación de cupos y rechazo de stock negativo (`400`).
+3. **Promociones (`Entradas ↔ Promociones`):** código inexistente con `0%` de descuento (`200`) y rechazo de payload incompleto (`400`).
+4. **Pagos (`Entradas ↔ Pagos`):** procesamiento de compra pagada (`200`), consulta de reserva `res-demo-pagos` (`200`), consulta inexistente (`404`) y bloqueo de webhook simulado en workstation (`403`).
+5. **Check-in y Notificaciones (`Entradas ↔ Check-in` / RabbitMQ):** emisión de entrada gratuita (`200`), consulta de entrada (`200`), ticket inexistente (`404`), login `STAFF` (`200`), primer escaneo autorizado (`TICKET_FOUND`) y segundo escaneo rechazado por antifraude (`TICKET_ALREADY_USED`).
+6. **Panel Organizador (`Entradas ↔ Panel`):** consulta de stock (`200`) y evento inexistente (`404`).
+
+### Evidencia Automatizada
+* **Captura consola Newman (22/22):** ![Newman 22/22](./evidencias/newman_22_22.png)
+* **Reporte JSON:** [`../back-end/tests/evidencia_QA_CA2_workstation.json`](../back-end/tests/evidencia_QA_CA2_workstation.json)
+
+---
+
+## 3. Flujo Manual en Frontend (`localhost:3000`) y Alcance Alcanzado
+
+### Pasos Ejecutados
+1. **Creación y publicación de evento pagado en `/organizador`:** se creó y publicó el evento pagado **Noche de rock sinfónico** (`ID: 6b063d8bb7b9d46ca638a9c4`, `$5.000`, aforo `20`) y se verificó su sincronización.
+2. **Habilitación de llave pública de Stripe:** se configuró `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` y se reconstruyó el servicio de frontend para superar el aviso de configuración faltante[cite: 2].
+3. **Reserva Hold en `/entradas`:** como comprador (`comprador1@ticketu.test`), se realizó la reserva Hold de 1 entrada sobre **Noche de rock sinfónico**, actualizando el stock disponible a `19 / 20`[cite: 3, 4].
+
+---
+
+## 4. Observación del Bug y Corte del Flujo Manual
+
+El recorrido manual se detuvo antes de completar la validación en Check-in debido a un bug al transicionar desde el pago hacia las entradas / check-in:
+
+* **Punto donde se detiene:** Al completar el pago, el sistema muestra correctamente la interfaz de confirmación y permite volver a Mis entradas, en ese momento es donde ocurre el bug, ya que deberia permitir visualizar inmediatamente la entrada pagada y mostrar el QR.
+* **Impacto:** las pruebas automatizadas de integración (Newman `22/22`) y las etapas previas del flujo manual quedaron registradas; la validación de entrada emitida y doble escaneo para este flujo pagado queda pendiente de resolución del bug en el tramo de pago hacia entradas / check-in.
